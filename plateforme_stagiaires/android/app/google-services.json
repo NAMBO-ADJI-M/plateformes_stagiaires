@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "692123570392",
+    "project_id": "mon-projet-st",
+    "storage_bucket": "mon-projet-st.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:692123570392:android:2300edb0361be4504c87ad",
+        "android_client_info": {
+          "package_name": "com.carnetDeStageCovoiturage"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBOKWJx1rlAgMPzYACWa7Gd8MGHUWYCkNY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:692123570392:android:42a2aad0b1232b9b4c87ad",
+        "android_client_info": {
+          "package_name": "com.example.plateforme_stagiaires"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBOKWJx1rlAgMPzYACWa7Gd8MGHUWYCkNY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
