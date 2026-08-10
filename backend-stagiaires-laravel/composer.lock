@@ -4,7 +4,11 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
+<<<<<<< HEAD
     "content-hash": "69cee04a6a3e7009d6dd3f0723753c6e",
+=======
+    "content-hash": "bf97dbe15104bcde9dd03530a8a289c8",
+>>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
     "packages": [
         {
             "name": "brick/math",
@@ -1058,6 +1062,7 @@
             "time": "2026-07-17T13:53:03+00:00"
         },
         {
+<<<<<<< HEAD
             "name": "kreatif/laravel-brevo-mailer",
             "version": "1.1.0",
             "source": {
@@ -1125,6 +1130,8 @@
             "time": "2026-07-03T08:19:09+00:00"
         },
         {
+=======
+>>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
             "name": "laravel/framework",
             "version": "v13.23.0",
             "source": {
@@ -3437,6 +3444,7 @@
             "time": "2026-06-18T03:57:49+00:00"
         },
         {
+<<<<<<< HEAD
             "name": "spatie/laravel-package-tools",
             "version": "1.93.1",
             "source": {
@@ -3498,6 +3506,8 @@
             "time": "2026-05-19T14:06:37+00:00"
         },
         {
+=======
+>>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
             "name": "symfony/clock",
             "version": "v7.4.8",
             "source": {

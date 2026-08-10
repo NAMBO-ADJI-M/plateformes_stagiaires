@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 class ColorConstants {
+<<<<<<< HEAD
   // Couleurs principales
   static const primary = Color(0xFF1E3A8A); // Indigo profond
   static const primaryLight = Color(0xFF3B82F6); // Bleu vif
@@ -74,3 +75,22 @@ class ColorConstants {
 
 }
 
+=======
+  static const primary = Color.fromARGB(255, 23, 132, 221);
+
+  static const secondary = Color(0xFF26A69A);
+
+  static const accent = Color(0xFFFFC107);
+
+  static const success = Color(0xFF4CAF50);
+
+  static const warning = Color(0xFFFF9800);
+
+  static const error = Color(0xFFE53935);
+  static const splashColor = LinearGradient(
+    colors: [Color(0xFF26A69A), Color(0xFF4CAF50)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+}
+>>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e

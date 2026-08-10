@@ -1,16 +1,22 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<<<<<<< HEAD
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
+=======
+>>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
     <application
         android:label="plateforme_stagiaires"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+<<<<<<< HEAD
 
         <!-- TODO: Replace 'YOUR_GOOGLE_MAPS_API_KEY' with your actual key from Google Cloud Console -->
         <meta-data android:name="com.google.android.geo.API_KEY"
             android:value="YOUR_GOOGLE_MAPS_API_KEY"/>
 
+=======
+>>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -20,6 +26,13 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
+<<<<<<< HEAD
+=======
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+>>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
             <meta-data
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
@@ -29,10 +42,23 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+<<<<<<< HEAD
+=======
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+>>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
+<<<<<<< HEAD
+=======
+    <!-- Required to query activities that can process text, see:
+         https://developer.android.com/training/package-visibility and
+         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+>>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import 'package:flutter/material.dart';
 
 enum UserType {
@@ -10,6 +11,11 @@ extension UserTypeExtension on UserType {
   // GETTERS EXISTANTS
   // ============================================
 
+=======
+enum UserType { stagiaire, entreprise }
+
+extension UserTypeExtension on UserType {
+>>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
   String get label {
     switch (this) {
       case UserType.stagiaire:
@@ -27,6 +33,7 @@ extension UserTypeExtension on UserType {
         return 'Accédez à l’espace entreprise';
     }
   }
+<<<<<<< HEAD
 
   // ============================================
   // NOUVEAUX GETTERS
@@ -173,4 +180,6 @@ extension UserTypeExtension on UserType {
     }).toList();
   }
 
+=======
+>>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
 }

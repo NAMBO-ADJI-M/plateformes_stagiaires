@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -19,6 +20,17 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+=======
+import 'package:flutter/material.dart';
+import 'package:plateforme_stagiaires/core/constants/constants_colors.dart';
+import 'package:plateforme_stagiaires/features/auth/choose_user_type_page.dart';
+import 'package:plateforme_stagiaires/features/auth/code_login_page.dart';
+import 'package:plateforme_stagiaires/features/home/home_page.dart';
+import 'package:plateforme_stagiaires/features/onboarding/onboarding_page.dart';
+import 'package:plateforme_stagiaires/features/splash/splash_screen.dart';
+
+void main() {
+>>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
   runApp(const MonApplication());
 }
 
@@ -30,6 +42,7 @@ class MonApplication extends StatelessWidget {
     return MaterialApp(
       title: 'Plateforme Stagiaire',
       debugShowCheckedModeBanner: false,
+<<<<<<< HEAD
       theme: ThemeData(
         primaryColor: ColorConstants.primary,
         textTheme: GoogleFonts.poppinsTextTheme(),
@@ -83,3 +96,16 @@ class MonApplication extends StatelessWidget {
     );
   }
 }
+=======
+      theme: ThemeData(primaryColor: ColorConstants.primary),
+      home: const SplashScreen(),
+      routes: {
+        '/onboarding': (_) => const OnboardingPage(),
+        '/auth': (_) => const ChooseUserTypePage(),
+        '/login-code': (_) => const CodeLoginPage(),
+        '/home': (_) => const HomePage(),
+      },
+    );
+  }
+}
+>>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e

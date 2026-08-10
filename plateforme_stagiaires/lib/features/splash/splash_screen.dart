@@ -16,7 +16,11 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
+<<<<<<< HEAD
     _timer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
+=======
+    _timer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+>>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
       if (!mounted) return;
       setState(() {
         if (_progress < 100) {

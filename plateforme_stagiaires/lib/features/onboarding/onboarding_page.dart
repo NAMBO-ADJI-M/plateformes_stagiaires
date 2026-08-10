@@ -52,7 +52,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   void _skip() {
+<<<<<<< HEAD
     Navigator.of(context).pushReplacementNamed('/auth');
+=======
+    Navigator.of(context).pushReplacementNamed('/home');
+>>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
   }
 
   @override
@@ -67,6 +71,17 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const SizedBox(width: 64),
+<<<<<<< HEAD
+=======
+                  Text(
+                    'Onboarding',
+                    style: TextStyle(
+                      color: ColorConstants.primary,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+>>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
                   TextButton(onPressed: _skip, child: const Text('Passer')),
                 ],
               ),
