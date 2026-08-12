@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-//import 'package:plateforme_stagiaires/core/constants/constants_colors.dart';
+import 'package:plateforme_stagiaires/services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -12,25 +12,40 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> {
   int _progress = 0;
   Timer? _timer;
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
     super.initState();
-<<<<<<< HEAD
-    _timer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
-=======
-    _timer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
->>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
+    _timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
       if (!mounted) return;
       setState(() {
         if (_progress < 100) {
           _progress += 1;
         } else {
           _timer?.cancel();
-          Navigator.of(context).pushReplacementNamed('/onboarding');
+          _resolveDestination();
         }
       });
     });
+  }
+
+  Future<void> _resolveDestination() async {
+    // Recharge le token/rôle persistés (nécessaire après un rechargement
+    // web ou un redémarrage à froid, où ApiService repart en mémoire vide).
+    await _authService.loadToken();
+
+    // Vérifie auprès du backend que le token est toujours valide
+    // (pas expiré, pas révoqué) avant de considérer l'utilisateur connecté.
+    final isValid = await _authService.validateToken();
+
+    if (!mounted) return;
+
+    if (isValid) {
+      Navigator.of(context).pushReplacementNamed('/home');
+    } else {
+      Navigator.of(context).pushReplacementNamed('/onboarding');
+    }
   }
 
   @override

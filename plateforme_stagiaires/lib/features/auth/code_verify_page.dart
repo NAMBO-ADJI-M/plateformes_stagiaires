@@ -76,10 +76,12 @@ class _CodeVerifyPageState extends State<CodeVerifyPage> {
 
       if (result.containsKey('token') && result['token'] != null) {
         // ✅ Connexion réussie
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        return; // on quitte avant le finally : la page n'existe plus dans la pile
       } else {
+        // ❌ Réponse OK mais pas de token exploitable
         setState(() {
-          _message = result['message'] ?? 'Erreur lors de la vérification.';
+          _message = 'Code invalide ou expiré. Veuillez réessayer.';
         });
       }
     } on ApiException catch (e) {
@@ -128,13 +130,16 @@ class _CodeVerifyPageState extends State<CodeVerifyPage> {
     }
   }
 
-  void _goBackToLogin() {
-    Navigator.pushReplacementNamed(
-      context,
-      '/login-code',
-      arguments: widget.userType,
-    );
-  }
+ void _goBackToLogin() {
+  Navigator.pushReplacementNamed(
+    context,
+    '/register-code',
+    arguments: {
+      'email': widget.email,
+      'userType': widget.userType,
+    },
+  );
+}
 
   @override
   void dispose() {

@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 
 class ColorConstants {
-<<<<<<< HEAD
   // Couleurs principales
+  
   static const primary = Color(0xFF1E3A8A); // Indigo profond
   static const primaryLight = Color(0xFF3B82F6); // Bleu vif
   static const primaryDark = Color(0xFF1E1B4B); // Dark Indigo
-  
+
   static const secondary = Color(0xFF0D9488); // Teal élégant
   static const secondaryLight = Color(0xFF14B8A6);
-  
+
   static const accent = Color(0xFF8B5CF6); // Violet moderne
   static const accentOrange = Color(0xFFF97316); // Orange vif
 
@@ -24,7 +24,8 @@ class ColorConstants {
   static const cardBackground = Colors.white;
   static const darkBackground = Color(0xFF0F172A);
   static const darkCardBackground = Color(0xFF1E293B);
-  
+// Bordures (utilisé par les écrans stagiaire/tuteur)
+  static const border = Color(0xFFE2E8F0); // Slate-200
   // Textes
   static const textPrimary = Color(0xFF0F172A);
   static const textSecondary = Color(0xFF64748B);
@@ -65,32 +66,11 @@ class ColorConstants {
   ];
 
   static List<BoxShadow> glowShadow(Color color) => [
-    BoxShadow(
-      color: color.withValues(alpha: 0.3),
-      blurRadius: 20,
-      spreadRadius: 2,
-      offset: const Offset(0, 4),
-    ),
-  ];
-
+        BoxShadow(
+          color: color.withValues(alpha: 0.3),
+          blurRadius: 20,
+          spreadRadius: 2,
+          offset: const Offset(0, 4),
+        ),
+      ];
 }
-
-=======
-  static const primary = Color.fromARGB(255, 23, 132, 221);
-
-  static const secondary = Color(0xFF26A69A);
-
-  static const accent = Color(0xFFFFC107);
-
-  static const success = Color(0xFF4CAF50);
-
-  static const warning = Color(0xFFFF9800);
-
-  static const error = Color(0xFFE53935);
-  static const splashColor = LinearGradient(
-    colors: [Color(0xFF26A69A), Color(0xFF4CAF50)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-}
->>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e

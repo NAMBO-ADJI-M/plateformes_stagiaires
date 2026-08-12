@@ -10,28 +10,22 @@ class AuthService {
       : _apiService = apiService ?? ApiService();
 
   // ============================================
-  // LOGIN
+  // DEMANDE DE CODE (inscription ou connexion, sans mot de passe)
   // ============================================
 
-  Future<Map<String, dynamic>> login(
+  Future<Map<String, dynamic>> requestCode(
     String email,
-    String password,
     UserType userType,
   ) async {
     try {
       final role = userType == UserType.stagiaire ? 'stagiaire' : 'entreprise';
-      final result = await _apiService.loginWithEmail(email, password, role);
-
-      if (result.containsKey('token') && result['token'] != null) {
-        await saveToken(result['token']);
-      }
-
-      return result;
+      // Le backend crée le compte automatiquement s'il n'existe pas
+      // et envoie systématiquement un code de vérification par email.
+      return await _apiService.loginWithEmail(email, role);
     } on ApiException {
-      // ✅ On garde le message ET les erreurs de validation d'origine
       rethrow;
     } catch (error) {
-      throw ApiException('Impossible de se connecter. Vérifiez vos informations.');
+      throw ApiException('Impossible d\'envoyer le code. Vérifiez votre email.');
     }
   }
 
@@ -70,29 +64,6 @@ class AuthService {
   }
 
   // ============================================
-  // INSCRIPTION
-  // ============================================
-
-  Future<Map<String, dynamic>> register(
-    String email,
-    String password,
-    UserType userType,
-  ) async {
-    try {
-      final role = userType == UserType.stagiaire ? 'stagiaire' : 'entreprise';
-
-      // Utilise loginWithEmail() pour créer le compte auto
-      final result = await _apiService.loginWithEmail(email, password, role);
-
-      return result;
-    } on ApiException {
-      rethrow;
-    } catch (error) {
-      throw ApiException('Impossible de créer le compte. Vérifiez vos informations.');
-    }
-  }
-
-  // ============================================
   // DÉCONNEXION
   // ============================================
 
@@ -123,6 +94,9 @@ class AuthService {
     await _apiService.clearToken();
   }
 
+  /// Vérifie que le token stocké est toujours valide auprès du backend.
+  /// À utiliser au démarrage de l'app pour décider si l'utilisateur
+  /// reste connecté (accès direct au dashboard) ou doit se réauthentifier.
   Future<bool> validateToken() async {
     if (!isAuthenticated) return false;
 

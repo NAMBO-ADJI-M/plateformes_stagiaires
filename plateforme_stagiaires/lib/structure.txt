@@ -1,0 +1,60 @@
+Structure du dossier
+Le num‚ro de s‚rie du volume est 7661-2B48
+C:.
+|   main.dart
+|   structure.txt
+|   
++---core
+|   \---constants
+|           assets_constant.dart
+|           constants_colors.dart
+|           
++---features
+|   +---auth
+|   |       choose_user_type_page.dart
+|   |       code_register_page.dart
+|   |       code_verify_page.dart
+|   |       
+|   +---onboarding
+|   |       onboarding_page.dart
+|   |       
+|   +---screens
+|   |   |   home_router.dart
+|   |   |   
+|   |   +---student
+|   |   |       covoiturage_home_screen.dart
+|   |   |       dashboard_student_screen.dart
+|   |   |       logbook_placeholder_screen.dart
+|   |   |       notifications_screen.dart
+|   |   |       profile_student_screen.dart
+|   |   |       progression_screen.dart
+|   |   |       recherche_trajet_screen.dart
+|   |   |       student_shell.dart
+|   |   |       
+|   |   \---tuteur
+|   |           attestations_screen.dart
+|   |           dashboard_tuteur_screen.dart
+|   |           liste_stagiaires_screen.dart
+|   |           profile_tuteur_screen.dart
+|   |           suivi_placeholder_screen.dart
+|   |           tuteur_shell.dart
+|   |           
+|   +---splash
+|   |       splash_screen.dart
+|   |       
+|   \---widgets
+|           bottom_navigation_bar.dart
+|           common_widgets.dart
+|           
++---modeles
+|       onboarding_step.dart
+|       user_type.dart
+|       
++---services
+|       api_exception.dart
+|       api_service.dart
+|       auth_service.dart
+|       
+\---widgets
+        main_navigation_bar.dart
+        

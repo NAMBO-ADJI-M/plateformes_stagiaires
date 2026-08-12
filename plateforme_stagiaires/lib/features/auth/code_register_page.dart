@@ -6,14 +6,13 @@ import 'package:plateforme_stagiaires/services/api_exception.dart';
 import 'package:plateforme_stagiaires/services/auth_service.dart';
 
 class CodeRegisterPage extends StatefulWidget {
-  // ✅ AJOUTER CES PARAMÈTRES
   final String email;
   final UserType userType;
 
   const CodeRegisterPage({
     super.key,
-    this.email = '',  // ✅ Valeur par défaut
-    this.userType = UserType.stagiaire,  // ✅ Valeur par défaut
+    this.email = '',
+    this.userType = UserType.stagiaire,
   });
 
   @override
@@ -22,19 +21,14 @@ class CodeRegisterPage extends StatefulWidget {
 
 class _CodeRegisterPageState extends State<CodeRegisterPage> {
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
   final AuthService _authService = AuthService();
 
   bool _isLoading = false;
-  bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
   String _message = '';
 
   @override
   void initState() {
     super.initState();
-    // ✅ Pré-remplir l'email si passé en paramètre
     if (widget.email.isNotEmpty) {
       _emailController.text = widget.email;
     }
@@ -44,12 +38,9 @@ class _CodeRegisterPageState extends State<CodeRegisterPage> {
     return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
   }
 
-  Future<void> _handleRegister() async {
+  Future<void> _handleRequestCode() async {
     final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-    final confirmPassword = _confirmPasswordController.text.trim();
 
-    // Validations
     if (email.isEmpty) {
       setState(() => _message = 'Veuillez saisir votre email.');
       return;
@@ -58,31 +49,19 @@ class _CodeRegisterPageState extends State<CodeRegisterPage> {
       setState(() => _message = 'Adresse email invalide.');
       return;
     }
-    if (password.isEmpty) {
-      setState(() => _message = 'Veuillez saisir votre mot de passe.');
-      return;
-    }
-    if (password.length < 8) {
-      setState(() => _message = 'Le mot de passe doit contenir au moins 8 caractères.');
-      return;
-    }
-    if (password != confirmPassword) {
-      setState(() => _message = 'Les mots de passe ne correspondent pas.');
-      return;
-    }
 
     setState(() {
       _isLoading = true;
-      _message = 'Création du compte en cours...';
+      _message = 'Envoi du code en cours...';
     });
 
     try {
-      // ✅ Utiliser widget.userType
-      await _authService.register(email, password, widget.userType);
+      // Le backend crée le compte automatiquement s'il n'existe pas
+      // et envoie un code de vérification par email dans tous les cas.
+      await _authService.requestCode(email, widget.userType);
 
       if (!mounted) return;
 
-      // ✅ Rediriger vers la page de vérification
       Navigator.pushReplacementNamed(
         context,
         '/verify-code',
@@ -97,7 +76,7 @@ class _CodeRegisterPageState extends State<CodeRegisterPage> {
       });
     } catch (e) {
       setState(() {
-        _message = 'Erreur lors de l\'inscription. Veuillez réessayer.';
+        _message = 'Erreur lors de l\'envoi du code. Veuillez réessayer.';
       });
     } finally {
       if (mounted) {
@@ -106,25 +85,16 @@ class _CodeRegisterPageState extends State<CodeRegisterPage> {
     }
   }
 
-  void _goToLogin() {
-    Navigator.pushReplacementNamed(
-      context,
-      '/login-code',
-      arguments: widget.userType,
-    );
-  }
-
   @override
   void dispose() {
     _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.userType == UserType.stagiaire ? 'Stagiaire' : 'Entreprise';
+    final title =
+        widget.userType == UserType.stagiaire ? 'Stagiaire' : 'Entreprise';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -162,7 +132,7 @@ class _CodeRegisterPageState extends State<CodeRegisterPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Inscription $title',
+                      'Accès $title',
                       style: GoogleFonts.poppins(
                         fontSize: 16,
                         color: Colors.grey[600],
@@ -178,7 +148,7 @@ class _CodeRegisterPageState extends State<CodeRegisterPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Créer un compte',
+                    'Connexion',
                     style: GoogleFonts.poppins(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
@@ -187,7 +157,7 @@ class _CodeRegisterPageState extends State<CodeRegisterPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Remplissez les champs ci-dessous pour créer votre compte.',
+                    'Saisissez votre email',
                     style: TextStyle(
                       color: Colors.grey[600],
                       fontSize: 14,
@@ -204,80 +174,13 @@ class _CodeRegisterPageState extends State<CodeRegisterPage> {
                     keyboardType: TextInputType.emailAddress,
                     enabled: !_isLoading,
                   ),
-                  const SizedBox(height: 16),
-
-                  // Mot de passe
-                  _buildTextField(
-                    controller: _passwordController,
-                    label: 'Mot de passe',
-                    icon: Icons.lock_outline,
-                    hint: 'Minimum 8 caractères',
-                    obscureText: _obscurePassword,
-                    enabled: !_isLoading,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        color: Colors.grey[600],
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Confirmation mot de passe
-                  _buildTextField(
-                    controller: _confirmPasswordController,
-                    label: 'Confirmer le mot de passe',
-                    icon: Icons.lock_outline,
-                    hint: 'Confirmez votre mot de passe',
-                    obscureText: _obscureConfirmPassword,
-                    enabled: !_isLoading,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        color: Colors.grey[600],
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscureConfirmPassword = !_obscureConfirmPassword;
-                        });
-                      },
-                    ),
-                  ),
                   const SizedBox(height: 24),
 
-                  // Bouton d'inscription
+                  // Bouton d'envoi du code
                   _buildActionButton(
-                    label: 'S\'INSCRIRE',
-                    onPressed: _handleRegister,
+                    label: 'RECEVOIR MON CODE',
+                    onPressed: _handleRequestCode,
                     isLoading: _isLoading,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Lien vers connexion
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Déjà un compte ?',
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                      TextButton(
-                        onPressed: _isLoading ? null : _goToLogin,
-                        child: const Text(
-                          'Se connecter',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
                   ),
 
                   if (_message.isNotEmpty)
@@ -286,16 +189,18 @@ class _CodeRegisterPageState extends State<CodeRegisterPage> {
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: _message.contains('✅') || _message.contains('📧')
-                              ? Colors.blue.shade50
-                              : _message.contains('Erreur') ||
-                                      _message.contains('incorrect') ||
-                                      _message.contains('invalide')
-                                  ? Colors.red.shade50
-                                  : Colors.green.shade50,
+                          color:
+                              _message.contains('✅') || _message.contains('📧')
+                                  ? Colors.blue.shade50
+                                  : _message.contains('Erreur') ||
+                                          _message.contains('incorrect') ||
+                                          _message.contains('invalide')
+                                      ? Colors.red.shade50
+                                      : Colors.green.shade50,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: _message.contains('✅') || _message.contains('📧')
+                            color: _message.contains('✅') ||
+                                    _message.contains('📧')
                                 ? Colors.blue.shade200
                                 : _message.contains('Erreur') ||
                                         _message.contains('incorrect') ||
@@ -308,7 +213,8 @@ class _CodeRegisterPageState extends State<CodeRegisterPage> {
                           _message,
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: _message.contains('✅') || _message.contains('📧')
+                            color: _message.contains('✅') ||
+                                    _message.contains('📧')
                                 ? Colors.blue.shade700
                                 : _message.contains('Erreur') ||
                                         _message.contains('incorrect') ||

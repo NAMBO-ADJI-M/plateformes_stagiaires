@@ -1,21 +1,8 @@
-<<<<<<< HEAD
 import 'package:flutter/material.dart';
 
-enum UserType {
-  stagiaire,
-  entreprise,
-}
-
-extension UserTypeExtension on UserType {
-  // ============================================
-  // GETTERS EXISTANTS
-  // ============================================
-
-=======
 enum UserType { stagiaire, entreprise }
 
 extension UserTypeExtension on UserType {
->>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
   String get label {
     switch (this) {
       case UserType.stagiaire:
@@ -33,123 +20,45 @@ extension UserTypeExtension on UserType {
         return 'Accédez à l’espace entreprise';
     }
   }
-<<<<<<< HEAD
-
-  // ============================================
-  // NOUVEAUX GETTERS
-  // ============================================
 
   /// Rôle API (pour les requêtes)
-  String get apiRole {
-    switch (this) {
-      case UserType.stagiaire:
-        return 'stagiaire';
-      case UserType.entreprise:
-        return 'entreprise';
-    }
-  }
+  String get apiRole => this == UserType.stagiaire ? 'stagiaire' : 'entreprise';
 
-  /// Route de redirection vers le dashboard
-  String get dashboardRoute {
-    switch (this) {
-      case UserType.stagiaire:
-        return '/stagiaire/dashboard';
-      case UserType.entreprise:
-        return '/entreprise/dashboard';
-    }
-  }
+  /// Routes
+  String get dashboardRoute =>
+      this == UserType.stagiaire ? '/stagiaire/dashboard' : '/entreprise/dashboard';
 
-  /// Route de redirection vers le profil
-  String get profilRoute {
-    switch (this) {
-      case UserType.stagiaire:
-        return '/stagiaire/profil';
-      case UserType.entreprise:
-        return '/entreprise/profil';
-    }
-  }
+  String get profilRoute =>
+      this == UserType.stagiaire ? '/stagiaire/profil' : '/entreprise/profil';
 
-  /// Icône associée au type
-  String get iconName {
-    switch (this) {
-      case UserType.stagiaire:
-        return 'assets/icons/stagiaire.svg';
-      case UserType.entreprise:
-        return 'assets/icons/entreprise.svg';
-    }
-  }
+  /// Icônes
+  String get iconName =>
+      this == UserType.stagiaire ? 'assets/icons/stagiaire.svg' : 'assets/icons/entreprise.svg';
 
-  /// Icône Material Design
-  IconData get materialIcon {
-    switch (this) {
-      case UserType.stagiaire:
-        return Icons.school_outlined;
-      case UserType.entreprise:
-        return Icons.business_outlined;
-    }
-  }
+  IconData get materialIcon =>
+      this == UserType.stagiaire ? Icons.school_outlined : Icons.business_outlined;
 
-  /// Icône Material Design (version remplie)
-  IconData get materialIconFilled {
-    switch (this) {
-      case UserType.stagiaire:
-        return Icons.school;
-      case UserType.entreprise:
-        return Icons.business;
-    }
-  }
+  IconData get materialIconFilled =>
+      this == UserType.stagiaire ? Icons.school : Icons.business;
 
-  /// Couleur associée
-  Color get color {
-    switch (this) {
-      case UserType.stagiaire:
-        return Color(0xFF2563EB); // Bleu
-      case UserType.entreprise:
-        return Color(0xFF7C3AED); // Violet
-    }
-  }
+  /// Couleurs
+  Color get color => this == UserType.stagiaire ? const Color(0xFF2563EB) : const Color(0xFF7C3AED);
 
-  /// Couleur de fond (version light)
-  Color get lightColor {
-    switch (this) {
-      case UserType.stagiaire:
-        return Color(0xFFDBEAFE); // Bleu clair
-      case UserType.entreprise:
-        return Color(0xFFEDE9FE); // Violet clair
-    }
-  }
+  Color get lightColor =>
+      this == UserType.stagiaire ? const Color(0xFFDBEAFE) : const Color(0xFFEDE9FE);
 
-  /// Emoji associé
-  String get emoji {
-    switch (this) {
-      case UserType.stagiaire:
-        return '🎓';
-      case UserType.entreprise:
-        return '🏢';
-    }
-  }
+  /// Emoji
+  String get emoji => this == UserType.stagiaire ? '🎓' : '🏢';
 
-  /// Description longue
-  String get description {
-    switch (this) {
-      case UserType.stagiaire:
-        return 'Étudiant ou apprenti en stage';
-      case UserType.entreprise:
-        return 'Structure d\'accueil ou tuteur de stage';
-    }
-  }
+  /// Description
+  String get description => this == UserType.stagiaire
+      ? 'Étudiant ou apprenti en stage'
+      : 'Structure d\'accueil ou tuteur de stage';
 
-  // ============================================
-  // MÉTHODES UTILITAIRES
-  // ============================================
-
-  /// Vérifier si le type est stagiaire
+  /// Méthodes utilitaires
   bool get isStagiaire => this == UserType.stagiaire;
-
-  /// Vérifier si le type est entreprise
   bool get isEntreprise => this == UserType.entreprise;
 
-  /// Convertir un rôle API en UserType
   static UserType fromApiRole(String role) {
     switch (role) {
       case 'stagiaire':
@@ -161,10 +70,8 @@ extension UserTypeExtension on UserType {
     }
   }
 
-  /// Obtenir les deux types en liste
   static List<UserType> get all => UserType.values;
 
-  /// Obtenir les options pour un Select
   static List<DropdownMenuItem<UserType>> get dropdownItems {
     return all.map((type) {
       return DropdownMenuItem(
@@ -179,7 +86,4 @@ extension UserTypeExtension on UserType {
       );
     }).toList();
   }
-
-=======
->>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
 }

@@ -91,9 +91,18 @@ class ApiException implements Exception {
   bool get isTimeout => statusCode == 408;
 
   /// Obtenir les erreurs de validation sous forme de liste
+  ///
+  /// Important : `errors` provient d'un `jsonDecode`, donc chaque valeur
+  /// est un `List<dynamic>` (même si tous les éléments sont des String).
+  /// Un cast direct `as List<String>` fonctionne sur la VM Dart native,
+  /// mais lève une TypeError en mode web (compilateur DDC, strict sur les
+  /// génériques à l'exécution). On caste donc élément par élément via
+  /// `.toString()`, ce qui fonctionne de façon identique en web et natif.
   List<String> get validationErrors {
     if (errors == null) return [];
-    return errors!.values.expand((e) => e as List<String>).toList();
+    return errors!.values
+        .expand((e) => (e as List).map((item) => item.toString()))
+        .toList();
   }
 
   /// Obtenir le message d'erreur principal

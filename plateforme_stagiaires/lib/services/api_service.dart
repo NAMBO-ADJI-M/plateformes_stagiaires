@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 // lib/services/api_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -6,6 +5,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api_exception.dart';
 
 class ApiService {
+  // IP hôte recommandée pour l'émulateur Android (10.0.2.2) ou localhost pour le web/desktop
+  ApiService._internal();
+  static final ApiService _instance = ApiService._internal();
+  factory ApiService() => _instance;
+
   // IP hôte recommandée pour l'émulateur Android (10.0.2.2) ou localhost pour le web/desktop
   static const String baseUrl = "http://127.0.0.1:8000/api";
 
@@ -65,13 +69,13 @@ class ApiService {
       };
 
   // ============================================
-  // AUTHENTIFICATION
+  // AUTHENTIFICATION (passwordless : email + code)
   // ============================================
 
-  /// Connexion ou demande de code par e-mail
+  /// Demande un code de connexion/inscription par e-mail.
+  /// Crée le compte automatiquement s'il n'existe pas encore.
   Future<Map<String, dynamic>> loginWithEmail(
     String email,
-    String password,
     String role,
   ) async {
     try {
@@ -80,22 +84,13 @@ class ApiService {
         headers: _headers,
         body: jsonEncode({
           'email': email,
-          'password': password,
           'role': role,
         }),
       );
 
       final data = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
-        final userData = data['data'];
-        _token = userData['token'];
-        _userRole = userData['user']?['role'] ?? role;
-        await saveToken(_token!, role: _userRole);
-        return userData;
-      }
-
-      if (response.statusCode == 201 || response.statusCode == 403) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         return data['data'] ?? data;
       }
 
@@ -136,7 +131,21 @@ class ApiService {
       }
 
       final result = data['data'];
-      _token = result['token'];
+
+      // ✅ Le backend a répondu 200 mais peut, en théorie, renvoyer un
+      // payload sans token (message métier plutôt que code HTTP d'erreur).
+      // On ne fait plus jamais confiance à `!` : si le token est absent,
+      // on lève une ApiException propre au lieu de crasher l'app.
+      final token = result is Map<String, dynamic> ? result['token'] : null;
+      if (token == null || token is! String || token.isEmpty) {
+        throw ApiException(
+          data['message'] ?? 'Code invalide ou expiré',
+          statusCode: response.statusCode,
+          errors: data['errors'] as Map<String, dynamic>?,
+        );
+      }
+
+      _token = token;
       _userRole = result['user']?['role'];
       await saveToken(_token!, role: _userRole);
 
@@ -235,32 +244,6 @@ class ApiService {
     return body;
   }
 
-  @Deprecated('Utilisez loginWithEmail() à la place')
-  Future<void> register(String email, String password, String role) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/register'),
-        headers: _headers,
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-          'role': role,
-        }),
-      );
-      final data = jsonDecode(response.body);
-      if (response.statusCode != 201) {
-        throw ApiException(
-          data['message'] ?? 'Erreur d\'inscription',
-          statusCode: response.statusCode,
-          errors: data['errors'] as Map<String, dynamic>?,
-        );
-      }
-    } catch (e) {
-      if (e is ApiException) rethrow;
-      throw ApiException.networkError('/auth/register');
-    }
-  }
-
   // ============================================
   // RÉFÉRENTIEL
   // ============================================
@@ -295,11 +278,33 @@ class ApiService {
   // ============================================
 
   Future<List<dynamic>> getCarnets() async {
-    final response = await http.get(Uri.parse('$baseUrl/carnets'), headers: _authHeaders);
+    final response = await http.get(
+      Uri.parse('$baseUrl/carnets'),
+      headers: _authHeaders,
+    );
+    final body = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw ApiException('Impossible de récupérer les carnets', statusCode: response.statusCode);
+      throw ApiException(
+        body['message'] ?? 'Erreur de chargement des carnets',
+        statusCode: response.statusCode,
+      );
     }
-    return jsonDecode(response.body)['data'] ?? [];
+    return body['data'] ?? [];
+  }
+
+  Future<Map<String, dynamic>> getCarnetStats(String carnetId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/carnets/$carnetId/stats'),
+      headers: _authHeaders,
+    );
+    final body = jsonDecode(response.body);
+    if (response.statusCode != 200) {
+      throw ApiException(
+        body['message'] ?? 'Erreur de chargement des statistiques',
+        statusCode: response.statusCode,
+      );
+    }
+    return body['data'] ?? {};
   }
 
   Future<Map<String, dynamic>> createCarnet(Map<String, dynamic> data) async {
@@ -571,113 +576,3 @@ class ApiService {
     _userRole = null;
   }
 }
-=======
-import 'dart:convert';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
-import 'package:plateforme_stagiaires/modeles/user_type.dart';
-
-class ApiException implements Exception {
-  ApiException(this.message);
-  final String message;
-
-  @override
-  String toString() => 'ApiException: $message';
-}
-
-class AuthService {
-  AuthService({http.Client? httpClient, FlutterSecureStorage? storage})
-      : _client = httpClient ?? http.Client(),
-        _storage = storage ?? const FlutterSecureStorage();
-
-  static const _storageTokenKey = 'auth_access_token';
-
-  /// Remplacez par l'URL de votre backend Laravel.
-  static const String baseUrl = String.fromEnvironment(
-    'http://10.0.2.2:8000/api',
-    defaultValue: 'http://10.0.2.2:8000/api',
-  );
-
-  final http.Client _client;
-  final FlutterSecureStorage _storage;
-  String? _token;
-
-  Future<void> init() async {
-    _token = await _storage.read(key: _storageTokenKey);
-  }
-
-  Future<void> requestCode(UserType type, String email) async {
-    final endpoint = type == UserType.stagiaire
-        ? 'auth/stagiaire/demander-code'
-        : 'auth/entreprise/demander-code';
-
-    final response = await _post(endpoint, {'email': email});
-    if (response.statusCode != 200) {
-      throw ApiException(_decodeMessage(response) ?? 'Erreur lors de l’envoi du code.');
-    }
-  }
-
-  Future<void> verifyCode(UserType type, String email, String code) async {
-    final endpoint = type == UserType.stagiaire
-        ? 'auth/stagiaire/verifier-code'
-        : 'auth/entreprise/verifier-code';
-
-    final response = await _post(endpoint, {'email': email, 'code': code});
-    if (response.statusCode != 200) {
-      throw ApiException(_decodeMessage(response) ?? 'Code invalide ou expiré.');
-    }
-
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final accessToken = body['access_token'] as String?;
-    if (accessToken == null || accessToken.isEmpty) {
-      throw ApiException('Le token d’authentification est manquant.');
-    }
-
-    _token = accessToken;
-    await _storage.write(key: _storageTokenKey, value: accessToken);
-  }
-
-  Future<Map<String, dynamic>> fetchProfile() async {
-    if (_token == null) {
-      throw ApiException('Utilisateur non authentifié.');
-    }
-
-    final response = await _client.get(
-      Uri.parse('$baseUrl/profil/moi'),
-      headers: _defaultHeaders,
-    );
-
-    if (response.statusCode != 200) {
-      throw ApiException(_decodeMessage(response) ?? 'Impossible de récupérer le profil.');
-    }
-
-    return jsonDecode(response.body) as Map<String, dynamic>;
-  }
-
-  Map<String, String> get _defaultHeaders {
-    final headers = <String, String>{'Content-Type': 'application/json'};
-    if (_token != null) {
-      headers['Authorization'] = 'Bearer $_token';
-    }
-    return headers;
-  }
-
-  Future<http.Response> _post(String path, Map<String, Object> body) {
-    final uri = Uri.parse('$baseUrl/$path');
-    return _client.post(
-      uri,
-      headers: _defaultHeaders,
-      body: jsonEncode(body),
-    );
-  }
-
-  String? _decodeMessage(http.Response response) {
-    try {
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
-      return json['message']?.toString();
-    } catch (_) {
-      return null;
-    }
-  }
-}
->>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
