@@ -17,7 +17,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+    _timer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
       if (!mounted) return;
       setState(() {
         if (_progress < 100) {
@@ -110,8 +110,8 @@ class _SplashScreenState extends State<SplashScreen> {
                               ),
                               const SizedBox(height: 20),
                               const Text(
-                                'Plateforme Stagiaire',
-                                textAlign: TextAlign.center,
+                                'Carnet De Stage',
+                                textAlign: TextAlign.center          ,
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 30,

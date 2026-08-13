@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/geofencing_service.dart';
 
 /// Reproduit profile-student.png : en-tête profil, infos personnelles,
 /// stage actuel, et switch "Partager ma localisation" (covoiturage).
@@ -19,6 +20,13 @@ class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
 
   Future<void> _handleLogout() async {
     setState(() => _isLoggingOut = true);
+
+    // Coupe le geofencing AVANT d'effacer le token : si un événement
+    // ENTER/EXIT survient pile pendant la déconnexion, on ne veut pas
+    // qu'il parte avec un token déjà invalidé, ni qu'il continue de
+    // tourner en arrière-plan pour un compte qui n'est plus connecté.
+    await GeofencingService().stop();
+
     await _authService.logout();
     if (!mounted) return;
     Navigator.of(context).pushNamedAndRemoveUntil(

@@ -10,6 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  geofence_service: ^6.0.0
   flutter_launcher_icons: ^0.13.1
   cupertino_icons: ^1.0.8
   http: ^1.6.0
@@ -31,3 +32,9 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/icon1.png"  # Chemin vers votre image
+  min_sdk_andro11id: 21
+  

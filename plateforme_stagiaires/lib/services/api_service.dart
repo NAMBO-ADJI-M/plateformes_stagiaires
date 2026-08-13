@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api_exception.dart';
 
 class ApiService {
-  // IP hôte recommandée pour l'émulateur Android (10.0.2.2) ou localhost pour le web/desktop
   ApiService._internal();
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
@@ -69,11 +68,29 @@ class ApiService {
       };
 
   // ============================================
+  // HELPER DE PARSING DÉFENSIF
+  // ============================================
+
+  /// Décode une réponse JSON qui doit représenter une liste, en gérant
+  /// les deux formats possibles renvoyés par le backend :
+  /// - un tableau JSON brut : [ {...}, {...} ]
+  /// - un objet enveloppé : { "data": [ {...}, {...} ] }
+  List<dynamic> _decodeList(http.Response response) {
+    final decoded = jsonDecode(response.body);
+    if (decoded is List) {
+      return decoded;
+    }
+    if (decoded is Map<String, dynamic>) {
+      final data = decoded['data'];
+      if (data is List) return data;
+    }
+    return [];
+  }
+
+  // ============================================
   // AUTHENTIFICATION (passwordless : email + code)
   // ============================================
 
-  /// Demande un code de connexion/inscription par e-mail.
-  /// Crée le compte automatiquement s'il n'existe pas encore.
   Future<Map<String, dynamic>> loginWithEmail(
     String email,
     String role,
@@ -105,7 +122,6 @@ class ApiService {
     }
   }
 
-  /// Vérification du code OTP
   Future<Map<String, dynamic>> verifyLoginCode(
     String email,
     String code,
@@ -132,10 +148,6 @@ class ApiService {
 
       final result = data['data'];
 
-      // ✅ Le backend a répondu 200 mais peut, en théorie, renvoyer un
-      // payload sans token (message métier plutôt que code HTTP d'erreur).
-      // On ne fait plus jamais confiance à `!` : si le token est absent,
-      // on lève une ApiException propre au lieu de crasher l'app.
       final token = result is Map<String, dynamic> ? result['token'] : null;
       if (token == null || token is! String || token.isEmpty) {
         throw ApiException(
@@ -249,28 +261,63 @@ class ApiService {
   // ============================================
 
   Future<List<dynamic>> getDomaines() async {
-    final response = await http.get(Uri.parse('$baseUrl/referentiel/domaines'), headers: _authHeaders);
-    return jsonDecode(response.body)['data'] ?? [];
+    final response = await http.get(
+      Uri.parse('$baseUrl/referentiel/domaines'),
+      headers: _authHeaders,
+    );
+    return _decodeList(response);
   }
 
-  Future<List<dynamic>> getMetiers() async {
-    final response = await http.get(Uri.parse('$baseUrl/referentiel/metiers'), headers: _authHeaders);
-    return jsonDecode(response.body)['data'] ?? [];
+  Future<List<dynamic>> getMetiers({String? domaineId}) async {
+    print('🔵 ApiService.getMetiers appelé avec domaineId: $domaineId');
+    
+    final uri = Uri.parse('$baseUrl/referentiel/metiers').replace(
+      queryParameters: domaineId != null ? {'domaineId': domaineId} : null,
+    );
+    
+    print('🌐 URL: $uri');
+    
+    final response = await http.get(uri, headers: _authHeaders);
+    
+    print('📡 Statut: ${response.statusCode}');
+    print('📦 Réponse brute: ${response.body}');
+    
+    if (response.statusCode != 200) {
+      print('❌ Erreur HTTP: ${response.statusCode}');
+      throw ApiException(
+        'Erreur de chargement des métiers',
+        statusCode: response.statusCode,
+      );
+    }
+    
+    final result = _decodeList(response);
+    print('✅ Métiers décodés: ${result.length}');
+    
+    return result;
   }
 
   Future<List<dynamic>> getNiveauxFormation() async {
-    final response = await http.get(Uri.parse('$baseUrl/referentiel/niveaux-formation'), headers: _authHeaders);
-    return jsonDecode(response.body)['data'] ?? [];
+    final response = await http.get(
+      Uri.parse('$baseUrl/referentiel/niveaux-formation'),
+      headers: _authHeaders,
+    );
+    return _decodeList(response);
   }
 
   Future<List<dynamic>> getCompetences() async {
-    final response = await http.get(Uri.parse('$baseUrl/referentiel/competences'), headers: _authHeaders);
-    return jsonDecode(response.body)['data'] ?? [];
+    final response = await http.get(
+      Uri.parse('$baseUrl/referentiel/competences'),
+      headers: _authHeaders,
+    );
+    return _decodeList(response);
   }
 
   Future<List<dynamic>> getCriteresSavoirEtre() async {
-    final response = await http.get(Uri.parse('$baseUrl/criteres-savoir-etre'), headers: _authHeaders);
-    return jsonDecode(response.body)['data'] ?? [];
+    final response = await http.get(
+      Uri.parse('$baseUrl/criteres-savoir-etre'),
+      headers: _authHeaders,
+    );
+    return _decodeList(response);
   }
 
   // ============================================
@@ -282,14 +329,14 @@ class ApiService {
       Uri.parse('$baseUrl/carnets'),
       headers: _authHeaders,
     );
-    final body = jsonDecode(response.body);
     if (response.statusCode != 200) {
+      final body = jsonDecode(response.body);
       throw ApiException(
         body['message'] ?? 'Erreur de chargement des carnets',
         statusCode: response.statusCode,
       );
     }
-    return body['data'] ?? [];
+    return _decodeList(response);
   }
 
   Future<Map<String, dynamic>> getCarnetStats(String carnetId) async {
@@ -308,12 +355,17 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> createCarnet(Map<String, dynamic> data) async {
+    print('📤 Création du carnet avec les données: $data');
+    
     final response = await http.post(
       Uri.parse('$baseUrl/carnets'),
       headers: _authHeaders,
       body: jsonEncode(data),
     );
+    
     final body = jsonDecode(response.body);
+    print('📥 Réponse création carnet: ${response.statusCode} - $body');
+    
     if (response.statusCode != 201 && response.statusCode != 200) {
       throw ApiException(
         body['message'] ?? 'Erreur lors de la création du carnet',
@@ -341,7 +393,7 @@ class ApiService {
     return body;
   }
 
-  Future<Map<String, dynamic>> pointageArrivee({double? latitude, double? longitude, int? carnetId}) async {
+  Future<Map<String, dynamic>> pointageArrivee({double? latitude, double? longitude, String? carnetId}) async {
     final response = await http.post(
       Uri.parse('$baseUrl/pointage/arrivee'),
       headers: _authHeaders,
@@ -362,7 +414,7 @@ class ApiService {
     return body;
   }
 
-  Future<Map<String, dynamic>> pointageDepart({double? latitude, double? longitude, int? carnetId}) async {
+  Future<Map<String, dynamic>> pointageDepart({double? latitude, double? longitude, String? carnetId}) async {
     final response = await http.post(
       Uri.parse('$baseUrl/pointage/depart'),
       headers: _authHeaders,
@@ -383,7 +435,7 @@ class ApiService {
     return body;
   }
 
-  Future<List<dynamic>> getHistoriquePointage(int carnetId) async {
+  Future<List<dynamic>> getHistoriquePointage(String carnetId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/pointage/$carnetId/historique'),
       headers: _authHeaders,
@@ -391,12 +443,12 @@ class ApiService {
     if (response.statusCode != 200) {
       throw ApiException('Erreur de chargement de l\'historique', statusCode: response.statusCode);
     }
-    return jsonDecode(response.body)['data'] ?? [];
+    return _decodeList(response);
   }
 
   Future<List<dynamic>> getMesAttestations() async {
     final response = await http.get(Uri.parse('$baseUrl/mes-attestations'), headers: _authHeaders);
-    return jsonDecode(response.body)['data'] ?? [];
+    return _decodeList(response);
   }
 
   Future<Map<String, dynamic>> createBilanReflexif(Map<String, dynamic> data) async {
@@ -414,7 +466,7 @@ class ApiService {
 
   Future<List<dynamic>> getTrajets() async {
     final response = await http.get(Uri.parse('$baseUrl/trajets'), headers: _authHeaders);
-    return jsonDecode(response.body)['data'] ?? [];
+    return _decodeList(response);
   }
 
   Future<Map<String, dynamic>> createTrajet(Map<String, dynamic> data) async {
@@ -436,7 +488,7 @@ class ApiService {
 
   Future<List<dynamic>> getMesTrajets() async {
     final response = await http.get(Uri.parse('$baseUrl/trajets/mes-trajets'), headers: _authHeaders);
-    return jsonDecode(response.body)['data'] ?? [];
+    return _decodeList(response);
   }
 
   Future<Map<String, dynamic>> reserverTrajet(int trajetId, {int nombrePlaces = 1}) async {
@@ -473,7 +525,7 @@ class ApiService {
 
   Future<List<dynamic>> getMesReservations() async {
     final response = await http.get(Uri.parse('$baseUrl/reservations/mes-reservations'), headers: _authHeaders);
-    return jsonDecode(response.body)['data'] ?? [];
+    return _decodeList(response);
   }
 
   Future<List<dynamic>> getTrajetMessages(int trajetId) async {
@@ -481,7 +533,7 @@ class ApiService {
       Uri.parse('$baseUrl/trajets/$trajetId/messages'),
       headers: _authHeaders,
     );
-    return jsonDecode(response.body)['data'] ?? [];
+    return _decodeList(response);
   }
 
   Future<Map<String, dynamic>> sendTrajetMessage(int trajetId, String message) async {
@@ -524,7 +576,7 @@ class ApiService {
 
   Future<List<dynamic>> getFichesInvitation() async {
     final response = await http.get(Uri.parse('$baseUrl/fiches-invitation'), headers: _authHeaders);
-    return jsonDecode(response.body)['data'] ?? [];
+    return _decodeList(response);
   }
 
   Future<Map<String, dynamic>> evaluerCompetence(Map<String, dynamic> data) async {
