@@ -14,7 +14,7 @@ class ReservationController extends Controller
     {
         $trajet = Trajet::where('id', $trajetId)->where('statut', 'ACTIF')->firstOrFail();
 
-        if ($trajet->conducteur_id === $request->user()->id) {
+        if ($trajet->conducteur_id === $request->user()->stagiaire->id) {
             throw ValidationException::withMessages([
                 'trajet_id' => 'Vous ne pouvez pas réserver votre propre trajet.',
             ]);
@@ -31,7 +31,7 @@ class ReservationController extends Controller
         }
 
         $reservation = Reservation::firstOrCreate(
-            ['trajet_id' => $trajet->id, 'passager_id' => $request->user()->id],
+            ['trajet_id' => $trajet->id, 'passager_id' => $request->user()->stagiaire->id],
             ['statut' => 'CONFIRMEE']
         );
 
@@ -42,7 +42,7 @@ class ReservationController extends Controller
     public function annuler(Request $request, string $reservationId)
     {
         $reservation = Reservation::where('id', $reservationId)
-            ->where('passager_id', $request->user()->id)
+            ->where('passager_id', $request->user()->stagiaire->id)
             ->firstOrFail();
 
         $reservation->update(['statut' => 'ANNULEE']);
@@ -53,7 +53,7 @@ class ReservationController extends Controller
     // Mes réservations en tant que passager
     public function mesReservations(Request $request)
     {
-        return Reservation::where('passager_id', $request->user()->id)
+        return Reservation::where('passager_id', $request->user()->stagiaire->id)
             ->with('trajet.conducteur:id,nom,prenom')
             ->orderByDesc('date_creation')
             ->get();

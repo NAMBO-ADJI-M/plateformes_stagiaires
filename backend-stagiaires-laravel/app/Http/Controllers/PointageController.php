@@ -20,7 +20,7 @@ class PointageController extends Controller
         ]);
 
         $carnet = CarnetDeStage::where('id', $data['carnet_id'])
-            ->where('stagiaire_id', $request->user()->id)
+            ->where('stagiaire_id', $request->user()->stagiaire->id)
             ->firstOrFail();
 
         // Empêche une double arrivée sans départ entre les deux
@@ -57,7 +57,7 @@ class PointageController extends Controller
         ]);
 
         $carnet = CarnetDeStage::where('id', $data['carnet_id'])
-            ->where('stagiaire_id', $request->user()->id)
+            ->where('stagiaire_id', $request->user()->stagiaire->id)
             ->firstOrFail();
 
         $entree = EntreeCarnet::where('carnet_id', $carnet->id)
@@ -81,7 +81,7 @@ class PointageController extends Controller
     public function historique(Request $request, string $carnetId)
     {
         $carnet = CarnetDeStage::where('id', $carnetId)
-            ->where('stagiaire_id', $request->user()->id)
+            ->where('stagiaire_id', $request->user()->stagiaire->id)
             ->firstOrFail();
 
         return EntreeCarnet::where('carnet_id', $carnet->id)

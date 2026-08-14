@@ -10,6 +10,7 @@ use App\Models\VerificationCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -18,13 +19,14 @@ use Carbon\Carbon;
 class AuthController extends Controller
 {
     /**
-     * 1️⃣ LOGIN - CRÉATION AUTO SI COMPTE N'EXISTE PAS
+     * 1️⃣ DEMANDE DE CODE - CRÉATION AUTO SI COMPTE N'EXISTE PAS
+     * Plus de mot de passe : email + rôle suffisent, un code est toujours envoyé,
+     * que le compte soit nouveau ou déjà existant.
      */
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
-            'password' => 'required|min:8',
             'role' => 'required|in:stagiaire,entreprise',
         ]);
 
@@ -36,17 +38,21 @@ class AuthController extends Controller
         }
 
         $email = $request->email;
-        $password = $request->password;
         $role = $request->role;
 
-        // 🔍 Vérifier si le compte existe
         $user = User::where('email', $email)->first();
+        $isNewAccount = false;
 
-        // ✅ 1️⃣ SI LE COMPTE N'EXISTE PAS → LE CRÉER
+        // ✅ SI LE COMPTE N'EXISTE PAS → LE CRÉER
         if (!$user) {
+            $isNewAccount = true;
+
             $user = User::create([
                 'email' => $email,
-                'password' => Hash::make($password),
+                // Le mot de passe n'est plus utilisé pour l'authentification.
+                // La colonne reste NOT NULL en base : on y met une valeur
+                // aléatoire technique, jamais communiquée ni vérifiée.
+                'password' => Hash::make(Str::random(40)),
                 'role' => $role,
             ]);
 
@@ -68,63 +74,25 @@ class AuthController extends Controller
                     'profil_complet' => false,
                 ]);
             }
-
-            // ✅ 2️⃣ ENVOYER LE CODE DE VÉRIFICATION
-            $code = $this->generateCode($user->email);
-            $this->sendVerificationEmail($user->email, $code);
-
-            return response()->json([
-                'message' => '✅ Compte créé avec succès ! Un code de vérification a été envoyé à votre email.',
-                'data' => [
-                    'email' => $user->email,
-                    'role' => $user->role,
-                    'requires_verification' => true,
-                    'code_sent' => true,
-                    'code_expires_in' => 900,
-                    'is_new_account' => true,
-                ]
-            ], 201);
         }
 
-        // ✅ 3️⃣ SI LE COMPTE EXISTE → VÉRIFIER LE MOT DE PASSE
-        if (!Hash::check($password, $user->password)) {
-            return response()->json([
-                'message' => '❌ Mot de passe incorrect',
-                'errors' => ['password' => ['Le mot de passe saisi est incorrect.']]
-            ], 422);
-        }
-
-        // ✅ 4️⃣ SI LE COMPTE EST DÉJÀ VÉRIFIÉ → CONNEXION DIRECTE
-        if ($user->email_verified_at) {
-            $token = $user->createToken('auth-token')->plainTextToken;
-            $user->update(['last_login_at' => Carbon::now()]);
-
-            return response()->json([
-                'message' => '✅ Connexion réussie',
-                'data' => [
-                    'token' => $token,
-                    'user' => $user,
-                    'redirect' => $user->role === 'stagiaire' 
-                        ? '/stagiaire/dashboard' 
-                        : '/entreprise/dashboard',
-                ]
-            ]);
-        }
-
-        // ✅ 5️⃣ SI LE COMPTE N'EST PAS VÉRIFIÉ → RENVOYER LE CODE
+        // ✅ DANS TOUS LES CAS (nouveau compte ou compte existant) → ENVOYER UN CODE
         $code = $this->generateCode($user->email);
         $this->sendVerificationEmail($user->email, $code);
 
         return response()->json([
-            'message' => '📧 Un code de vérification a été envoyé à votre email',
+            'message' => $isNewAccount
+                ? '✅ Compte créé avec succès ! Un code de vérification a été envoyé à votre email.'
+                : '📧 Un code de vérification a été envoyé à votre email.',
             'data' => [
                 'email' => $user->email,
                 'role' => $user->role,
                 'requires_verification' => true,
                 'code_sent' => true,
                 'code_expires_in' => 900,
+                'is_new_account' => $isNewAccount,
             ]
-        ], 403);
+        ], $isNewAccount ? 201 : 200);
     }
 
     /**
@@ -168,7 +136,7 @@ class AuthController extends Controller
             'last_login_at' => Carbon::now(),
         ]);
 
-        // Générer le token
+        // Générer le token (reste valide jusqu'à déconnexion manuelle)
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([
@@ -176,71 +144,15 @@ class AuthController extends Controller
             'data' => [
                 'token' => $token,
                 'user' => $user,
-                'redirect' => $user->role === 'stagiaire' 
-                    ? '/stagiaire/dashboard' 
+                'redirect' => $user->role === 'stagiaire'
+                    ? '/stagiaire/dashboard'
                     : '/entreprise/dashboard',
             ]
         ]);
     }
 
     /**
-     * 3️⃣ INSCRIPTION (DÉPRÉCIÉE - UTILISER LOGIN)
-     */
-    public function register(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:8',
-            'role' => 'required|in:stagiaire,entreprise',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Erreur de validation',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $user = User::create([
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role' => $request->role,
-        ]);
-
-        if ($request->role === 'stagiaire') {
-            Stagiaire::create([
-                'user_id' => $user->id,
-                'email' => $user->email,
-                'nom' => 'Utilisateur',
-                'prenom' => 'StageLink',
-                'profil_complet' => false,
-                'carnet_creer' => false,
-            ]);
-        } else {
-            Entreprise::create([
-                'user_id' => $user->id,
-                'email' => $user->email,
-                'raison_sociale' => 'Mon Entreprise',
-                'profil_complet' => false,
-            ]);
-        }
-
-        $code = $this->generateCode($user->email);
-        $this->sendVerificationEmail($user->email, $code);
-
-        return response()->json([
-            'message' => '✅ Compte créé avec succès ! Un code de vérification a été envoyé à votre email.',
-            'data' => [
-                'email' => $user->email,
-                'role' => $user->role,
-                'requires_verification' => true,
-                'code_expires_in' => 900,
-            ]
-        ], 201);
-    }
-
-    /**
-     * 4️⃣ DÉCONNEXION
+     * 3️⃣ DÉCONNEXION
      */
     public function logout(Request $request)
     {
@@ -252,7 +164,7 @@ class AuthController extends Controller
     }
 
     /**
-     * 5️⃣ RENVOYER LE CODE
+     * 4️⃣ RENVOYER LE CODE
      */
     public function resendCode(Request $request)
     {
@@ -289,7 +201,7 @@ class AuthController extends Controller
     }
 
     /**
-     * 6️⃣ PROFIL UTILISATEUR
+     * 5️⃣ PROFIL UTILISATEUR
      */
     public function profile(Request $request)
     {
@@ -299,19 +211,19 @@ class AuthController extends Controller
         return response()->json([
             'user' => $user,
             'profile_status' => $profile,
-            'profile_data' => $user->role === 'stagiaire' 
-                ? $user->stagiaire 
+            'profile_data' => $user->role === 'stagiaire'
+                ? $user->stagiaire
                 : $user->entreprise
         ]);
     }
 
     /**
-     * 7️⃣ COMPLÉTER LE PROFIL STAGIAIRE
+     * 6️⃣ COMPLÉTER LE PROFIL STAGIAIRE
      */
     public function completeStagiaireProfile(Request $request)
     {
         $user = $request->user();
-        
+
         if ($user->role !== 'stagiaire') {
             return response()->json([
                 'message' => 'Accès réservé au profil : stagiaire'
@@ -337,7 +249,7 @@ class AuthController extends Controller
         }
 
         $stagiaire = Stagiaire::where('user_id', $user->id)->first();
-        
+
         if (!$stagiaire) {
             return response()->json([
                 'message' => 'Profil stagiaire non trouvé'
@@ -363,12 +275,12 @@ class AuthController extends Controller
     }
 
     /**
-     * 8️⃣ COMPLÉTER LE PROFIL ENTREPRISE
+     * 7️⃣ COMPLÉTER LE PROFIL ENTREPRISE
      */
     public function completeEntrepriseProfile(Request $request)
     {
         $user = $request->user();
-        
+
         if ($user->role !== 'entreprise') {
             return response()->json([
                 'message' => 'Accès réservé au profil : entreprise'
@@ -391,7 +303,7 @@ class AuthController extends Controller
         }
 
         $entreprise = Entreprise::where('user_id', $user->id)->first();
-        
+
         if (!$entreprise) {
             return response()->json([
                 'message' => 'Profil entreprise non trouvé'
@@ -410,6 +322,89 @@ class AuthController extends Controller
         return response()->json([
             'message' => '✅ Profil entreprise complété avec succès !',
             'data' => $entreprise
+        ]);
+    }
+
+    /**
+     * 8️⃣ METTRE À JOUR LA PHOTO DE PROFIL (stagiaire ou entreprise)
+     */
+    public function updatePhotoProfil(Request $request)
+    {
+        $user = $request->user();
+
+        $validator = Validator::make($request->all(), [
+            'photo' => 'required|image|mimes:jpeg,png,jpg,webp|max:5120', // 5 Mo max
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Erreur de validation',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $profil = $user->role === 'stagiaire'
+            ? Stagiaire::where('user_id', $user->id)->first()
+            : Entreprise::where('user_id', $user->id)->first();
+
+        if (!$profil) {
+            return response()->json([
+                'message' => 'Profil non trouvé'
+            ], 404);
+        }
+
+        // Supprimer l'ancienne photo si elle existe, pour ne pas accumuler des fichiers orphelins
+        if ($profil->photo_profil) {
+            Storage::disk('public')->delete($profil->photo_profil);
+        }
+
+        // Stocker la nouvelle photo
+        $chemin = $request->file('photo')->store('photos_profil', 'public');
+
+        $profil->update([
+            'photo_profil' => $chemin,
+        ]);
+
+        return response()->json([
+            'message' => '✅ Photo de profil mise à jour avec succès !',
+            'data' => [
+                'photo_profil' => $chemin,
+                'photo_profil_url' => Storage::disk('public')->url($chemin),
+            ]
+        ]);
+    }
+
+    /**
+     * 9️⃣ SUPPRIMER LA PHOTO DE PROFIL (stagiaire ou entreprise)
+     */
+    public function supprimerPhotoProfil(Request $request)
+    {
+        $user = $request->user();
+
+        $profil = $user->role === 'stagiaire'
+            ? Stagiaire::where('user_id', $user->id)->first()
+            : Entreprise::where('user_id', $user->id)->first();
+
+        if (!$profil) {
+            return response()->json([
+                'message' => 'Profil non trouvé'
+            ], 404);
+        }
+
+        if (!$profil->photo_profil) {
+            return response()->json([
+                'message' => 'Aucune photo de profil à supprimer'
+            ], 422);
+        }
+
+        Storage::disk('public')->delete($profil->photo_profil);
+
+        $profil->update([
+            'photo_profil' => null,
+        ]);
+
+        return response()->json([
+            'message' => '✅ Photo de profil supprimée avec succès !'
         ]);
     }
 
@@ -459,7 +454,7 @@ class AuthController extends Controller
             });
         } catch (\Exception $e) {
             // Log l'erreur mais ne bloque pas le processus
-            \Log::error('Erreur d\'envoi d\'email: ' . $e->getMessage());
+            Log::error('Erreur d\'envoi d\'email: ' . $e->getMessage());
         }
     }
 
@@ -472,24 +467,24 @@ class AuthController extends Controller
             $stagiaire = Stagiaire::where('user_id', $user->id)->first();
             $profilComplet = $stagiaire->profil_complet ?? false;
             $carnetCree = $stagiaire->carnet_creer ?? false;
-            
+
             return [
                 'profile_complete' => $profilComplet,
                 'carnet_created' => $carnetCree,
                 'next_step' => $profilComplet ? 'carnet' : 'profile',
-                'message' => $profilComplet 
-                    ? 'Créez votre carnet de stage' 
+                'message' => $profilComplet
+                    ? 'Créez votre carnet de stage'
                     : 'Complétez votre profil'
             ];
         } else {
             $entreprise = Entreprise::where('user_id', $user->id)->first();
             $profilComplet = $entreprise->profil_complet ?? false;
-            
+
             return [
                 'profile_complete' => $profilComplet,
                 'next_step' => $profilComplet ? 'dashboard' : 'profile',
-                'message' => $profilComplet 
-                    ? 'Gérez vos stagiaires' 
+                'message' => $profilComplet
+                    ? 'Gérez vos stagiaires'
                     : 'Complétez votre profil entreprise'
             ];
         }

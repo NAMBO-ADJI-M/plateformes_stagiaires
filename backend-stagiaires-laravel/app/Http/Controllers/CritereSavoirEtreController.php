@@ -10,8 +10,8 @@ class CritereSavoirEtreController extends Controller
     // Liste les critères standard + ceux de l'entreprise connectée (si applicable)
     public function index(Request $request)
     {
-        $entrepriseId = $request->user() instanceof \App\Models\Entreprise
-            ? $request->user()->id
+        $entrepriseId = $request->user()->role === 'entreprise'
+            ? $request->user()->entreprise->id
             : null;
 
         return CritereSavoirEtre::whereNull('entreprise_id')
@@ -30,7 +30,7 @@ class CritereSavoirEtreController extends Controller
 
         $critere = CritereSavoirEtre::create([
             ...$data,
-            'entreprise_id' => $request->user()->id,
+            'entreprise_id' => $request->user()->entreprise->id,
         ]);
 
         return response()->json($critere, 201);

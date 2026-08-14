@@ -37,7 +37,7 @@ class RattachementController extends Controller
         }
 
         $carnet = CarnetDeStage::where('id', $data['carnet_id'])
-            ->where('stagiaire_id', $request->user()->id)
+            ->where('stagiaire_id', $request->user()->stagiaire->id)
             ->firstOrFail();
 
         if ($carnet->entreprise_id !== null) {
@@ -51,6 +51,7 @@ class RattachementController extends Controller
             'code_rattachement_utilise' => $fiche->code_invitation,
             'date_rattachement' => now(),
             'autorisation_suivi' => true,
+            'statut' => 'EN_COURS',
         ]);
 
         $fiche->update([

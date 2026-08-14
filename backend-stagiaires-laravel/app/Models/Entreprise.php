@@ -1,15 +1,19 @@
 <?php
-<<<<<<< HEAD
 
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Laravel\Sanctum\HasApiTokens;
+use App\Models\User;
 
 class Entreprise extends Model
 {
-    use HasFactory, HasUuids;
+    use HasFactory, HasUuids, HasApiTokens;
+
+    protected $table = 'entreprises';
+    public $timestamps = false;
 
     protected $fillable = [
         'user_id',
@@ -33,6 +37,7 @@ class Entreprise extends Model
     protected $casts = [
         'profil_complet' => 'boolean',
         'rayon_detection_metres' => 'integer',
+        'derniere_connexion' => 'datetime',
     ];
 
     public function user()
@@ -47,7 +52,7 @@ class Entreprise extends Model
 
     public function carnets()
     {
-        return $this->hasMany(CarnetDeStage::class);
+        return $this->hasMany(CarnetDeStage::class, 'entreprise_id');
     }
 
     public function cartesAppui()
@@ -57,7 +62,17 @@ class Entreprise extends Model
 
     public function invitations()
     {
-        return $this->hasMany(FicheStagiaireInvite::class);
+        return $this->hasMany(FicheStagiaireInvite::class, 'entreprise_id');
+    }
+
+    public function competencesAjoutees()
+    {
+        return $this->hasMany(Competence::class, 'entreprise_id');
+    }
+
+    public function criteresSavoirEtreAjoutes()
+    {
+        return $this->hasMany(CritereSavoirEtre::class, 'entreprise_id');
     }
 
     public function isComplete()
@@ -65,50 +80,3 @@ class Entreprise extends Model
         return $this->profil_complet;
     }
 }
-=======
- 
-namespace App\Models;
- 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Laravel\Sanctum\HasApiTokens;
- 
-class Entreprise extends Model
-{
-    use HasUuids, HasApiTokens;
- 
-    protected $table = 'entreprises';
-    public $timestamps = false;
- 
-    protected $fillable = [
-        'email', 'raison_sociale', 'secteur',
-        'adresse_libelle', 'adresse_lat', 'adresse_lng',
-        'rayon_detection_metres', 'heure_debut_journee', 'heure_fin_journee',
-        'pause_heure_debut', 'pause_heure_fin', 'derniere_connexion',
-    ];
- 
-    protected $casts = [
-        'derniere_connexion' => 'datetime',
-    ];
- 
-    public function carnetsDeStage()
-    {
-        return $this->hasMany(CarnetDeStage::class, 'entreprise_id');
-    }
- 
-    public function fichesStagiaireInvite()
-    {
-        return $this->hasMany(FicheStagiaireInvite::class, 'entreprise_id');
-    }
- 
-    public function competencesAjoutees()
-    {
-        return $this->hasMany(Competence::class, 'entreprise_id');
-    }
- 
-    public function criteresSavoirEtreAjoutes()
-    {
-        return $this->hasMany(CritereSavoirEtre::class, 'entreprise_id');
-    }
-}
->>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e

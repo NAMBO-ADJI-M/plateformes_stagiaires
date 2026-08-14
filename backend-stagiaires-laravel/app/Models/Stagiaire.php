@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-<<<<<<< HEAD
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -14,19 +13,6 @@ class Stagiaire extends Model
 
     protected $fillable = [
         'user_id',
-=======
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Laravel\Sanctum\HasApiTokens;
-
-class Stagiaire extends Model
-{
-    use HasUuids, HasApiTokens;
-
-    protected $table = 'stagiaires';
-
-    protected $fillable = [
->>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
         'email',
         'nom',
         'prenom',
@@ -34,8 +20,11 @@ class Stagiaire extends Model
         'domicile_adresse',
         'domicile_lat',
         'domicile_lng',
+        'lieu_stage_adresse',
+        'lieu_stage_lat',
+        'lieu_stage_lng',
+        'rayon_geofence',
         'autorisation_entraide',
-<<<<<<< HEAD
         'profil_complet',
         'carnet_creer',
         'date_naissance',
@@ -43,25 +32,19 @@ class Stagiaire extends Model
         'ecole',
         'filiere',
         'niveau',
-=======
->>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
         'date_premiere_connexion',
         'derniere_connexion',
     ];
 
     protected $casts = [
         'autorisation_entraide' => 'boolean',
-<<<<<<< HEAD
         'profil_complet' => 'boolean',
         'carnet_creer' => 'boolean',
         'date_naissance' => 'date',
-=======
->>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e
         'date_premiere_connexion' => 'datetime',
         'derniere_connexion' => 'datetime',
     ];
 
-<<<<<<< HEAD
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -102,11 +85,3 @@ class Stagiaire extends Model
         return $this->profil_complet && $this->carnet_creer;
     }
 }
-=======
-    // Relation 1,N : un stagiaire possède plusieurs carnets de stage
-    public function carnetsDeStage()
-    {
-        return $this->hasMany(CarnetDeStage::class, 'stagiaire_id');
-    }
-}
->>>>>>> dea45cde37182e685a97536d5e5cdb8b04665f0e

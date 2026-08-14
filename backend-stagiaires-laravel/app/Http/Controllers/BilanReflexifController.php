@@ -18,7 +18,7 @@ class BilanReflexifController extends Controller
         ]);
 
         $carnet = CarnetDeStage::where('id', $data['carnet_id'])
-            ->where('stagiaire_id', $request->user()->id)
+            ->where('stagiaire_id', $request->user()->stagiaire->id)
             ->firstOrFail();
 
         $bilan = BilanReflexif::create([
@@ -34,7 +34,7 @@ class BilanReflexifController extends Controller
     public function index(Request $request, string $carnetId)
     {
         $carnet = CarnetDeStage::where('id', $carnetId)
-            ->where('stagiaire_id', $request->user()->id)
+            ->where('stagiaire_id', $request->user()->stagiaire->id)
             ->firstOrFail();
 
         return BilanReflexif::where('carnet_id', $carnet->id)

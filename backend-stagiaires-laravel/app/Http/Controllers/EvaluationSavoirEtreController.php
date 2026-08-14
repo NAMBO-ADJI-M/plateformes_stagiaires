@@ -19,7 +19,7 @@ class EvaluationSavoirEtreController extends Controller
         ]);
 
         $carnet = CarnetDeStage::where('id', $data['carnet_id'])
-            ->where('entreprise_id', $request->user()->id)
+            ->where('entreprise_id', $request->user()->entreprise->id)
             ->firstOrFail();
 
         $evaluation = EvaluationSavoirEtre::updateOrCreate(
@@ -34,7 +34,7 @@ class EvaluationSavoirEtreController extends Controller
     public function index(Request $request, string $carnetId)
     {
         $carnet = CarnetDeStage::where('id', $carnetId)
-            ->where('entreprise_id', $request->user()->id)
+            ->where('entreprise_id', $request->user()->entreprise->id)
             ->firstOrFail();
 
         return EvaluationSavoirEtre::where('carnet_id', $carnet->id)

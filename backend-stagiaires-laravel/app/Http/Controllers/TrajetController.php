@@ -23,7 +23,7 @@ class TrajetController extends Controller
 
         $trajet = Trajet::create([
             ...$data,
-            'conducteur_id' => $request->user()->id,
+            'conducteur_id' => $request->user()->stagiaire->id,
         ]);
 
         return response()->json($trajet, 201);
@@ -54,7 +54,7 @@ class TrajetController extends Controller
     // Mes trajets en tant que conducteur
     public function mesTrajets(Request $request)
     {
-        return Trajet::where('conducteur_id', $request->user()->id)
+        return Trajet::where('conducteur_id', $request->user()->stagiaire->id)
             ->orderByDesc('date_creation')
             ->get();
     }

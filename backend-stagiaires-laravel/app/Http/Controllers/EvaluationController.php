@@ -24,14 +24,14 @@ class EvaluationController extends Controller
         ]);
 
         $carnet = CarnetDeStage::where('id', $data['carnet_id'])
-            ->where('entreprise_id', $request->user()->id) // seul le tuteur rattaché peut évaluer
+            ->where('entreprise_id', $request->user()->entreprise->id) // seul le tuteur rattaché peut évaluer
             ->firstOrFail();
 
         $indicateur = IndicateurAssiduite::where('carnet_id', $carnet->id)->first();
 
         $evaluation = EvaluationCompetence::create([
             'carnet_id' => $carnet->id,
-            'entreprise_id' => $request->user()->id,
+            'entreprise_id' => $request->user()->entreprise->id,
             'indicateur_assiduite_id' => $indicateur?->id,
             'jugee_utile' => $data['jugee_utile'],
         ]);
@@ -53,7 +53,7 @@ class EvaluationController extends Controller
     public function index(Request $request, string $carnetId)
     {
         $carnet = CarnetDeStage::where('id', $carnetId)
-            ->where('entreprise_id', $request->user()->id)
+            ->where('entreprise_id', $request->user()->entreprise->id)
             ->firstOrFail();
 
         return EvaluationCompetence::where('carnet_id', $carnet->id)

@@ -21,7 +21,7 @@ class FicheStagiaireInviteController extends Controller
 
         $fiche = FicheStagiaireInvite::create([
             ...$data,
-            'entreprise_id' => $request->user()->id,
+            'entreprise_id' => $request->user()->entreprise->id,
             'code_invitation' => $code,
             'date_expiration' => now()->addDays(30),
         ]);
@@ -32,7 +32,7 @@ class FicheStagiaireInviteController extends Controller
     // Liste des invitations envoyées par l'entreprise connectée
     public function index(Request $request)
     {
-        return FicheStagiaireInvite::where('entreprise_id', $request->user()->id)
+        return FicheStagiaireInvite::where('entreprise_id', $request->user()->entreprise->id)
             ->orderByDesc('date_generation')
             ->get();
     }

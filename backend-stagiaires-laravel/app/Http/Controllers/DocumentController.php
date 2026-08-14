@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\EvaluationCompetence;
 use App\Models\Attestation;
 use App\Models\CarteAppuiStage;
+use App\Models\ProgressionCompetence;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class DocumentController extends Controller
 {
@@ -13,8 +16,8 @@ class DocumentController extends Controller
     public function genererAttestation(Request $request, string $evaluationId)
     {
         $evaluation = EvaluationCompetence::where('id', $evaluationId)
-            ->where('entreprise_id', $request->user()->id)
-            ->with('carnet')
+            ->where('entreprise_id', $request->user()->entreprise->id)
+            ->with(['carnet.stagiaire', 'carnet.entreprise', 'carnet.metier'])
             ->firstOrFail();
 
         $attestation = Attestation::firstOrCreate(
@@ -22,12 +25,38 @@ class DocumentController extends Controller
             [
                 'carnet_id' => $evaluation->carnet_id,
                 'stagiaire_id' => $evaluation->carnet->stagiaire_id,
-                'document_genere' => null, // TODO : génération PDF réelle, plus tard
+                'document_genere' => null,
             ]
         );
 
-        return response()->json([
+        // Le détail par compétence (niveau_tuteur), sans l'appréciation libre —
+        // décision validée : le niveau final certifie l'acquis, le commentaire
+        // reste un usage interne au suivi et n'apparaît pas sur le document officiel.
+        $competences = ProgressionCompetence::where('carnet_id', $evaluation->carnet_id)
+            ->whereNotNull('niveau_tuteur')
+            ->with('competence:id,nom')
+            ->get()
+            ->map(fn ($p) => [
+                'nom' => $p->competence->nom,
+                'niveau' => $p->niveau_tuteur,
+            ]);
+
+        $pdf = Pdf::loadView('pdf.attestation', [
             'attestation' => $attestation,
+            'evaluation' => $evaluation,
+            'carnet' => $evaluation->carnet,
+            'stagiaire' => $evaluation->carnet->stagiaire,
+            'entreprise' => $evaluation->carnet->entreprise,
+            'competences' => $competences,
+        ]);
+
+        $filename = "attestations/{$attestation->id}.pdf";
+        Storage::disk('public')->put($filename, $pdf->output());
+
+        $attestation->update(['document_genere' => $filename]);
+
+        return response()->json([
+            'attestation' => $attestation->fresh(),
             'proposition' => 'Souhaitez-vous aussi générer une carte d’appui stage pour ce stagiaire ?',
         ], 201);
     }
@@ -42,13 +71,13 @@ class DocumentController extends Controller
         ]);
 
         $evaluation = EvaluationCompetence::where('id', $evaluationId)
-            ->where('entreprise_id', $request->user()->id)
+            ->where('entreprise_id', $request->user()->entreprise->id)
             ->firstOrFail();
 
         $carte = CarteAppuiStage::create([
             'evaluation_id' => $evaluation->id,
             'carnet_id' => $evaluation->carnet_id,
-            'entreprise_emettrice_id' => $request->user()->id,
+            'entreprise_emettrice_id' => $request->user()->entreprise->id,
             'entreprise_destinataire_nom' => $data['entreprise_destinataire_nom'],
             'entreprise_destinataire_email' => $data['entreprise_destinataire_email'],
             'recommandation' => $data['recommandation'] ?? null,
@@ -61,8 +90,25 @@ class DocumentController extends Controller
     // Le stagiaire consulte ses attestations reçues
     public function mesAttestations(Request $request)
     {
-        return Attestation::where('stagiaire_id', $request->user()->id)
+        return Attestation::where('stagiaire_id', $request->user()->stagiaire->id)
             ->orderByDesc('date_generation')
             ->get();
+    }
+
+    // Le stagiaire télécharge le PDF d'une attestation qui lui appartient
+    public function telechargerAttestation(Request $request, string $attestationId)
+    {
+        $attestation = Attestation::where('id', $attestationId)
+            ->where('stagiaire_id', $request->user()->stagiaire->id)
+            ->firstOrFail();
+
+        if (!$attestation->document_genere || !Storage::disk('public')->exists($attestation->document_genere)) {
+            return response()->json(['message' => 'Document non disponible.'], 404);
+        }
+
+        return Storage::disk('public')->download(
+            $attestation->document_genere,
+            'attestation-stage.pdf'
+        );
     }
 }
