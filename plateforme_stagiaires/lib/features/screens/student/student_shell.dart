@@ -4,7 +4,7 @@ import '../../../core/constants/constants_colors.dart';
 import '../../../services/api_service.dart';
 import '../../../services/geofencing_service.dart';
 import 'dashboard_student_screen.dart';
-import 'logbook_placeholder_screen.dart';
+import 'logbook_tab_screen.dart'; 
 import 'progression_screen.dart';
 import 'profile_student_screen.dart';
 
@@ -23,7 +23,7 @@ class _StudentShellState extends State<StudentShell> {
 
   final _pages = const [
     DashboardStudentScreen(),
-    LogbookPlaceholderScreen(),
+    LogbookTabScreen(),
     ProgressionScreen(),
     ProfileStudentScreen(),
   ];

@@ -1,5 +1,6 @@
 // lib/services/api_service.dart
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_exception.dart';
@@ -63,6 +64,14 @@ class ApiService {
 
   Map<String, String> get _authHeaders => {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $_token',
+      };
+
+  /// En-têtes pour un envoi multipart (upload de fichier) : pas de
+  /// Content-Type ici, http.MultipartRequest le fixe lui-même (avec la
+  /// boundary), le forcer manuellement casserait l'envoi.
+  Map<String, String> get _authHeadersMultipart => {
         'Accept': 'application/json',
         'Authorization': 'Bearer $_token',
       };
@@ -257,6 +266,71 @@ class ApiService {
   }
 
   // ============================================
+  // PHOTO DE PROFIL
+  // ============================================
+  // NOTE : suppose deux routes côté Laravel à créer si elles n'existent
+  // pas encore :
+  //   POST   /api/stagiaire/photo   (multipart, champ "photo")
+  //          -> renvoie { "data": { "photo_profil": "https://.../xxx.jpg" } }
+  //   DELETE /api/stagiaire/photo
+  // À adapter aux noms réels de tes routes/contrôleur si différents.
+
+  /// Envoie une nouvelle photo de profil et renvoie son URL publique.
+  Future<String> updatePhotoProfil(File fichier) async {
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/stagiaire/photo'),
+      );
+      request.headers.addAll(_authHeadersMultipart);
+      request.files.add(await http.MultipartFile.fromPath('photo', fichier.path));
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      final body = jsonDecode(response.body);
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw ApiException(
+          body['message'] ?? 'Erreur lors de l\'envoi de la photo',
+          statusCode: response.statusCode,
+          errors: body['errors'] as Map<String, dynamic>?,
+        );
+      }
+
+      final data = (body['data'] ?? body) as Map<String, dynamic>;
+      final url = data['photo_profil'] as String? ?? data['photo_url'] as String?;
+      if (url == null || url.isEmpty) {
+        throw ApiException('Réponse inattendue du serveur après l\'envoi de la photo.');
+      }
+      return url;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException.networkError('/stagiaire/photo');
+    }
+  }
+
+  /// Supprime la photo de profil actuelle.
+  Future<void> supprimerPhotoProfil() async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/stagiaire/photo'),
+        headers: _authHeaders,
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        final body = jsonDecode(response.body);
+        throw ApiException(
+          body['message'] ?? 'Erreur lors de la suppression de la photo',
+          statusCode: response.statusCode,
+        );
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException.networkError('/stagiaire/photo');
+    }
+  }
+
+  // ============================================
   // RÉFÉRENTIEL
   // ============================================
 
@@ -269,31 +343,20 @@ class ApiService {
   }
 
   Future<List<dynamic>> getMetiers({String? domaineId}) async {
-    print('🔵 ApiService.getMetiers appelé avec domaineId: $domaineId');
-    
     final uri = Uri.parse('$baseUrl/referentiel/metiers').replace(
       queryParameters: domaineId != null ? {'domaineId': domaineId} : null,
     );
-    
-    print('🌐 URL: $uri');
-    
+
     final response = await http.get(uri, headers: _authHeaders);
-    
-    print('📡 Statut: ${response.statusCode}');
-    print('📦 Réponse brute: ${response.body}');
-    
+
     if (response.statusCode != 200) {
-      print('❌ Erreur HTTP: ${response.statusCode}');
       throw ApiException(
         'Erreur de chargement des métiers',
         statusCode: response.statusCode,
       );
     }
-    
-    final result = _decodeList(response);
-    print('✅ Métiers décodés: ${result.length}');
-    
-    return result;
+
+    return _decodeList(response);
   }
 
   Future<List<dynamic>> getNiveauxFormation() async {
@@ -355,17 +418,14 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> createCarnet(Map<String, dynamic> data) async {
-    print('📤 Création du carnet avec les données: $data');
-    
     final response = await http.post(
       Uri.parse('$baseUrl/carnets'),
       headers: _authHeaders,
       body: jsonEncode(data),
     );
-    
+
     final body = jsonDecode(response.body);
-    print('📥 Réponse création carnet: ${response.statusCode} - $body');
-    
+
     if (response.statusCode != 201 && response.statusCode != 200) {
       throw ApiException(
         body['message'] ?? 'Erreur lors de la création du carnet',
@@ -376,11 +436,21 @@ class ApiService {
     return body;
   }
 
-  Future<Map<String, dynamic>> rattacherCarnet(String codeInvitation) async {
+  /// Rattache un carnet existant à une entreprise/tuteur via un code
+  /// d'invitation. [carnetId] est optionnel : à fournir lorsque
+  /// l'utilisateur (stagiaire) possède plusieurs carnets et qu'il faut
+  /// préciser lequel doit être rattaché.
+  Future<Map<String, dynamic>> rattacherCarnet(
+    String codeInvitation, {
+    String? carnetId,
+  }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/rattacher-carnet'),
       headers: _authHeaders,
-      body: jsonEncode({'code_invitation': codeInvitation}),
+      body: jsonEncode({
+        'code_invitation': codeInvitation,
+        if (carnetId != null) 'carnet_id': carnetId,
+      }),
     );
     final body = jsonDecode(response.body);
     if (response.statusCode != 200) {
@@ -449,6 +519,39 @@ class ApiService {
   Future<List<dynamic>> getMesAttestations() async {
     final response = await http.get(Uri.parse('$baseUrl/mes-attestations'), headers: _authHeaders);
     return _decodeList(response);
+  }
+
+  /// Journal complet d'un carnet (missions + difficultés), sans limite,
+  /// pour l'onglet "Journal" — distinct des stats qui n'en montrent
+  /// que les 5 dernières activités mélangées.
+  Future<List<dynamic>> getEntreesJournal(String carnetId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/carnets/$carnetId/entrees'),
+      headers: _authHeaders,
+    );
+    if (response.statusCode != 200) {
+      throw ApiException('Erreur de chargement du journal', statusCode: response.statusCode);
+    }
+    return _decodeList(response);
+  }
+
+  /// Historique complet des encouragements du tuteur pour un carnet,
+  /// pour l'onglet "Encouragements".
+  Future<List<dynamic>> getEncouragements(String carnetId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/carnets/$carnetId/encouragements'),
+      headers: _authHeaders,
+    );
+    if (response.statusCode != 200) {
+      throw ApiException('Erreur de chargement des encouragements', statusCode: response.statusCode);
+    }
+    return _decodeList(response);
+  }
+
+  /// URL directe du PDF d'une attestation (à ouvrir dans un navigateur/lecteur
+  /// externe via url_launcher, par ex.).
+  String urlTelechargementAttestation(String attestationId) {
+    return '$baseUrl/attestations/$attestationId/telecharger';
   }
 
   Future<Map<String, dynamic>> createBilanReflexif(Map<String, dynamic> data) async {

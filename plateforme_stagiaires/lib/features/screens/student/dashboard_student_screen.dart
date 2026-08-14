@@ -1,14 +1,16 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../../services/api_service.dart';
 import '../../../services/api_exception.dart';
 import '../../widgets/common_widgets.dart';
 import 'covoiturage_home_screen.dart';
 import 'notifications_screen.dart';
-import 'logbook_placeholder_screen.dart';
 import 'carnet_creation_page.dart';
+import 'carnet_list_page.dart';
 
 class DashboardStudentScreen extends StatefulWidget {
   const DashboardStudentScreen({super.key});
@@ -20,6 +22,7 @@ class DashboardStudentScreen extends StatefulWidget {
 class _DashboardStudentScreenState extends State<DashboardStudentScreen>
     with WidgetsBindingObserver {
   final ApiService _api = ApiService();
+  final ImagePicker _imagePicker = ImagePicker();
 
   bool _loading = true;
   String? _error;
@@ -29,10 +32,12 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
   String _ecole = '';
   String _filiere = '';
   String? _photoUrl;
+  bool _photoUploading = false;
   int _notifCount = 0;
 
   // Carnet
   bool _hasCarnet = false;
+  String? _carnetId;
   Map<String, dynamic>? _stats;
 
   // Rattachement tuteur
@@ -108,14 +113,43 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
     }
 
     var permission = await Geolocator.checkPermission();
+
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
+    }
+
+    // Refus définitif : le dialogue système ne peut plus être redéclenché,
+    // il faut renvoyer l'utilisateur vers les réglages de l'application.
+    if (permission == LocationPermission.deniedForever) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'La localisation a été refusée. Activez-la manuellement dans les réglages de l\'application.',
+            ),
+          ),
+        );
+      }
+      await Geolocator.openAppSettings();
+      await _checkGeofencingStatus();
+      return;
     }
 
     if (permission == LocationPermission.whileInUse) {
       // Sur Android/iOS récents, l'autorisation "toujours" doit souvent
       // être accordée séparément depuis les réglages de l'app.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Pour le pointage automatique, choisissez "Toujours autoriser" dans les réglages.',
+            ),
+          ),
+        );
+      }
       await Geolocator.openAppSettings();
+      await _checkGeofencingStatus();
+      return;
     }
 
     await _checkGeofencingStatus();
@@ -128,8 +162,18 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
     });
 
     try {
-      final profileResponse = await _api.getProfile();
-      final stagiaire = profileResponse['profile_data'] as Map<String, dynamic>?;
+      // Profil et carnets sont indépendants l'un de l'autre,
+      // on les lance en parallèle plutôt que l'un après l'autre.
+      final results = await Future.wait([
+        _api.getProfile(),
+        _api.getCarnets(),
+      ]);
+
+      final profileResponse = results[0] as Map<String, dynamic>;
+      final carnets = results[1] as List<dynamic>;
+
+      final stagiaire =
+          profileResponse['profile_data'] as Map<String, dynamic>?;
 
       _prenom = (stagiaire?['prenom'] as String?) ?? '';
       _ecole = (stagiaire?['ecole'] as String?) ?? '';
@@ -137,11 +181,10 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
       _photoUrl = stagiaire?['photo_profil'] as String?;
       _notifCount = (profileResponse['notifications_non_lues'] as int?) ?? 0;
 
-      final carnets = await _api.getCarnets();
-
       if (carnets.isEmpty) {
         setState(() {
           _hasCarnet = false;
+          _carnetId = null;
           _loading = false;
         });
         return;
@@ -152,26 +195,48 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
         orElse: () => carnets.first,
       ) as Map<String, dynamic>;
 
-      _rattache = carnet['entreprise_id'] != null && carnet['autorisation_suivi'] == true;
+      _rattache = carnet['entreprise_id'] != null &&
+          carnet['autorisation_suivi'] == true;
       _tuteurNom = carnet['tuteur_nom'] as String?;
 
-      final stats = await _api.getCarnetStats(carnet['id'] as String);
+      final carnetId = carnet['id'] as String;
+      _carnetId = carnetId;
 
-      try {
-        final historique = await _api.getHistoriquePointage(carnet['id'] as String);
+      // Ces trois appels ne dépendent que de carnetId, donc indépendants
+      // entre eux — on les lance aussi en parallèle. Chacun est protégé
+      // individuellement pour qu'un échec isolé (ex. pas encore de
+      // pointage aujourd'hui) ne bloque pas les autres.
+      final statsFuture = _api.getCarnetStats(carnetId);
+      final historiqueFuture = _api
+          .getHistoriquePointage(carnetId)
+          .then<List<dynamic>?>((h) => h)
+          .catchError((_) => null);
+      final reservationsFuture = _api
+          .getMesReservations()
+          .then<List<dynamic>?>((r) => r)
+          .catchError((_) => null);
+
+      final secondaryResults = await Future.wait([
+        statsFuture,
+        historiqueFuture,
+        reservationsFuture,
+      ]);
+
+      final stats = secondaryResults[0] as Map<String, dynamic>;
+      final historique = secondaryResults[1] as List<dynamic>?;
+      final reservations = secondaryResults[2] as List<dynamic>?;
+
+      if (historique != null) {
         _computePointageDuJour(historique);
-      } catch (_) {
-        // Pas bloquant : rien n'a encore été détecté aujourd'hui.
       }
 
-      try {
-        final reservations = await _api.getMesReservations();
+      if (reservations != null) {
         final aVenir = reservations
             .cast<Map<String, dynamic>>()
             .where((r) => r['statut'] != 'ANNULEE' && r['statut'] != 'TERMINEE')
             .toList();
         _prochaineReservation = aVenir.isNotEmpty ? aVenir.first : null;
-      } catch (_) {}
+      }
 
       setState(() {
         _hasCarnet = true;
@@ -208,8 +273,9 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
 
     final entree = entriesToday.first;
     final debut = DateTime.tryParse(entree['date_debut'] as String? ?? '');
-    final fin =
-        entree['date_fin'] != null ? DateTime.tryParse(entree['date_fin'] as String) : null;
+    final fin = entree['date_fin'] != null
+        ? DateTime.tryParse(entree['date_fin'] as String)
+        : null;
 
     _heureArrivee = debut != null ? _formatHeure(debut) : null;
 
@@ -239,17 +305,178 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
   ({IconData icon, Color color}) _activityStyle(String type) {
     switch (type) {
       case 'mission':
-        return (icon: Icons.assignment_turned_in_outlined, color: ColorConstants.primary);
+        return (
+          icon: Icons.assignment_turned_in_outlined,
+          color: ColorConstants.primary
+        );
       case 'presence':
         return (icon: Icons.check_circle, color: ColorConstants.success);
       case 'difficulte':
         return (icon: Icons.error_outline, color: ColorConstants.accentOrange);
       case 'felicitation':
-        return (icon: Icons.star_outline_rounded, color: const Color(0xFF7F77DD));
+        return (
+          icon: Icons.star_outline_rounded,
+          color: const Color(0xFF7F77DD)
+        );
       case 'trajet':
-        return (icon: Icons.directions_car_outlined, color: ColorConstants.accentOrange);
+        return (
+          icon: Icons.directions_car_outlined,
+          color: ColorConstants.accentOrange
+        );
       default:
-        return (icon: Icons.notes_outlined, color: ColorConstants.textSecondary);
+        return (
+          icon: Icons.notes_outlined,
+          color: ColorConstants.textSecondary
+        );
+    }
+  }
+
+  // Navigue vers la liste des carnets. L'ouverture directe du logbook
+  // (LogbookScreen) est réservée à l'onglet "Logbook" du BottomNavigationBar
+  // (cf. LogbookTabScreen), pas à cette carte du dashboard.
+  void _openCarnetList() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CarnetListPage()),
+    );
+  }
+
+  // ============================================================
+  // Photo de profil : choix de la source, upload, suppression
+  // ============================================================
+
+  /// Ouvre le bottom sheet de choix (appareil photo / galerie / suppression).
+  void _choisirPhoto() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const Text(
+                'Photo de profil',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: ColorConstants.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 18),
+              _PhotoActionTile(
+                icon: Icons.camera_alt_outlined,
+                iconColor: ColorConstants.primary,
+                title: 'Prendre une photo',
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _selectionnerImage(ImageSource.camera);
+                },
+              ),
+              const SizedBox(height: 12),
+              _PhotoActionTile(
+                icon: Icons.photo_library_outlined,
+                iconColor: ColorConstants.primary,
+                title: 'Choisir depuis la galerie',
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _selectionnerImage(ImageSource.gallery);
+                },
+              ),
+              if (_photoUrl != null) ...[
+                const SizedBox(height: 12),
+                _PhotoActionTile(
+                  icon: Icons.delete_outline_rounded,
+                  iconColor: ColorConstants.error,
+                  title: 'Supprimer la photo',
+                  titleColor: ColorConstants.error,
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _supprimerPhoto();
+                  },
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _selectionnerImage(ImageSource source) async {
+    try {
+      final fichier = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1000,
+        imageQuality: 85,
+      );
+      if (fichier == null) return; // sélection annulée par l'utilisateur
+      await _uploaderPhoto(File(fichier.path));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Impossible d'accéder à la photo.")),
+      );
+    }
+  }
+
+  Future<void> _uploaderPhoto(File fichier) async {
+    setState(() => _photoUploading = true);
+    try {
+      // NOTE : suppose une méthode ApiService.updatePhotoProfil(File) qui
+      // envoie un POST multipart et renvoie l'URL de la nouvelle photo.
+      final nouvelleUrl = await _api.updatePhotoProfil(fichier);
+      if (!mounted) return;
+      setState(() {
+        _photoUrl = nouvelleUrl;
+        _photoUploading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _photoUploading = false);
+      final message = e is ApiException
+          ? e.userFriendlyMessage
+          : "Échec de l'envoi de la photo. Réessayez.";
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
+  Future<void> _supprimerPhoto() async {
+    setState(() => _photoUploading = true);
+    try {
+      // NOTE : suppose une méthode ApiService.supprimerPhotoProfil().
+      await _api.supprimerPhotoProfil();
+      if (!mounted) return;
+      setState(() {
+        _photoUrl = null;
+        _photoUploading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _photoUploading = false);
+      final message = e is ApiException
+          ? e.userFriendlyMessage
+          : 'Échec de la suppression. Réessayez.';
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -266,11 +493,13 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.wifi_off_rounded, size: 40, color: ColorConstants.textSecondary),
+              const Icon(Icons.wifi_off_rounded,
+                  size: 40, color: ColorConstants.textSecondary),
               const SizedBox(height: 12),
               Text(_error!, textAlign: TextAlign.center),
               const SizedBox(height: 16),
-              ElevatedButton(onPressed: _loadDashboard, child: const Text('Réessayer')),
+              ElevatedButton(
+                  onPressed: _loadDashboard, child: const Text('Réessayer')),
             ],
           ),
         ),
@@ -290,9 +519,12 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
             children: [
               Expanded(
                 child: GreetingHeader(
-                  title: 'Bonjour, $_prenom 👋',
-                  subtitle: [_ecole, _filiere].where((s) => s.isNotEmpty).join(' • '),
+                  title: 'Bonjour, $_prenom',
+                  subtitle:
+                      [_ecole, _filiere].where((s) => s.isNotEmpty).join(' • '),
                   avatarUrl: _photoUrl ?? 'https://i.pravatar.cc/150?img=32',
+                  onAvatarTap: _choisirPhoto,
+                  avatarLoading: _photoUploading,
                 ),
               ),
               Stack(
@@ -301,8 +533,10 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
                   IconButton(
                     icon: const Icon(Icons.notifications_none_rounded,
                         color: ColorConstants.textPrimary),
-                    onPressed: () => Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const NotificationsScreen())),
+                    onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const NotificationsScreen())),
                   ),
                   if (_notifCount > 0)
                     Positioned(
@@ -311,13 +545,17 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
                       child: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: const BoxDecoration(
-                            color: ColorConstants.error, shape: BoxShape.circle),
-                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                            color: ColorConstants.error,
+                            shape: BoxShape.circle),
+                        constraints:
+                            const BoxConstraints(minWidth: 16, minHeight: 16),
                         child: Text(
                           '$_notifCount',
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                              color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
@@ -346,14 +584,16 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
                   const SizedBox(height: 6),
                   const Text(
                     'Créez votre carnet de stage pour commencer à suivre votre progression.',
-                    style: TextStyle(fontSize: 12.5, color: ColorConstants.textSecondary),
+                    style: TextStyle(
+                        fontSize: 12.5, color: ColorConstants.textSecondary),
                   ),
                   const SizedBox(height: 12),
                   ElevatedButton(
                     onPressed: () async {
                       final cree = await Navigator.push<bool>(
                         context,
-                        MaterialPageRoute(builder: (_) => const CarnetCreationPage()),
+                        MaterialPageRoute(
+                            builder: (_) => const CarnetCreationPage()),
                       );
                       if (cree == true) _loadDashboard();
                     },
@@ -367,7 +607,9 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
             const SizedBox(height: 22),
             const Text('Statut du jour',
                 style: TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 16, color: ColorConstants.textPrimary)),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: ColorConstants.textPrimary)),
             const SizedBox(height: 10),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -379,7 +621,9 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
                     title: 'Rattachement',
                     value: _rattache ? 'Rattaché' : 'En attente',
                     subtitle: _rattache ? (_tuteurNom ?? '') : null,
-                    valueColor: _rattache ? ColorConstants.success : ColorConstants.accentOrange,
+                    valueColor: _rattache
+                        ? ColorConstants.success
+                        : ColorConstants.accentOrange,
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -404,7 +648,9 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
                     icon: Icons.flag_rounded,
                     iconBg: ColorConstants.success,
                     title: 'Fin de journée',
-                    value: _pointageStatut == 'TERMINE' ? (_heureDepart ?? '—') : 'En cours',
+                    value: _pointageStatut == 'TERMINE'
+                        ? (_heureDepart ?? '—')
+                        : 'En cours',
                     valueColor: ColorConstants.textPrimary,
                   ),
                 ),
@@ -415,22 +661,29 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
             const SizedBox(height: 22),
             const Text('Progression du carnet de stage',
                 style: TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 16, color: ColorConstants.textPrimary)),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: ColorConstants.textPrimary)),
             const SizedBox(height: 10),
             AppCard(
+              onTap: _openCarnetList,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Column(
                     children: [
                       ProgressRing(
-                        percent: ((_stats?['progression_globale'] ?? 0) as int) / 100,
+                        percent:
+                            ((_stats?['progression_globale'] ?? 0) as int) /
+                                100,
                       ),
                       const SizedBox(height: 6),
                       const Text(
                         'Progression\nglobale',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 10.5, color: ColorConstants.textSecondary),
+                        style: TextStyle(
+                            fontSize: 10.5,
+                            color: ColorConstants.textSecondary),
                       ),
                     ],
                   ),
@@ -458,7 +711,8 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
                           icon: Icons.workspace_premium_outlined,
                           iconColor: const Color(0xFF7F77DD),
                           label: 'Compétences validées',
-                          current: (_stats?['competences_validees'] ?? 0) as int,
+                          current:
+                              (_stats?['competences_validees'] ?? 0) as int,
                           total: (_stats?['competences_totales'] ?? 1) as int,
                         ),
                       ],
@@ -472,12 +726,16 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
             const SizedBox(height: 22),
             const Text('Covoiturage',
                 style: TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 16, color: ColorConstants.textPrimary)),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: ColorConstants.textPrimary)),
             const SizedBox(height: 10),
             _CovoiturageCard(
               reservation: _prochaineReservation,
               onTap: () => Navigator.push(
-                  context, MaterialPageRoute(builder: (_) => const CovoiturageHomeScreen())),
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const CovoiturageHomeScreen())),
             ),
           ],
 
@@ -485,23 +743,25 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
           const SizedBox(height: 22),
           const Text('Raccourcis',
               style: TextStyle(
-                  fontWeight: FontWeight.bold, fontSize: 16, color: ColorConstants.textPrimary)),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: ColorConstants.textPrimary)),
           const SizedBox(height: 10),
           Row(
             children: [
               _ShortcutTile(
                 icon: Icons.menu_book_outlined,
-                label: 'Carnet de stage',
+                label: ' Mes Carnets',
                 onTap: () async {
                   if (!_hasCarnet) {
                     final cree = await Navigator.push<bool>(
                       context,
-                      MaterialPageRoute(builder: (_) => const CarnetCreationPage()),
+                      MaterialPageRoute(
+                          builder: (_) => const CarnetCreationPage()),
                     );
                     if (cree == true) _loadDashboard();
                   } else {
-                    Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const LogbookPlaceholderScreen()));
+                    _openCarnetList();
                   }
                 },
               ),
@@ -510,10 +770,13 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
                 icon: Icons.directions_car_outlined,
                 label: 'Covoiturage',
                 onTap: () => Navigator.push(
-                    context, MaterialPageRoute(builder: (_) => const CovoiturageHomeScreen())),
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const CovoiturageHomeScreen())),
               ),
               const SizedBox(width: 10),
-              const _ShortcutTile(icon: Icons.chat_bubble_outline, label: 'Messages'),
+              const _ShortcutTile(
+                  icon: Icons.chat_bubble_outline, label: 'Messages'),
             ],
           ),
 
@@ -522,17 +785,22 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
             const SizedBox(height: 22),
             const Text('Activités récentes',
                 style: TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 16, color: ColorConstants.textPrimary)),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: ColorConstants.textPrimary)),
             const SizedBox(height: 10),
             if ((_stats?['activites_recentes'] as List?)?.isEmpty ?? true)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: Text('Aucune activité pour le moment.',
-                    style: TextStyle(fontSize: 12.5, color: ColorConstants.textSecondary)),
+                    style: TextStyle(
+                        fontSize: 12.5, color: ColorConstants.textSecondary)),
               )
             else
-              ...List.generate((_stats!['activites_recentes'] as List).length, (i) {
-                final a = (_stats!['activites_recentes'] as List)[i] as Map<String, dynamic>;
+              ...List.generate((_stats!['activites_recentes'] as List).length,
+                  (i) {
+                final a = (_stats!['activites_recentes'] as List)[i]
+                    as Map<String, dynamic>;
                 final style = _activityStyle(a['type'] as String? ?? '');
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
@@ -541,14 +809,71 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
                     iconColor: style.color,
                     bg: style.color,
                     title: a['title'] as String? ?? '',
-                    subtitle:
-                        (a['subtitle'] as String?)?.isNotEmpty == true ? a['subtitle'] as String : '—',
+                    subtitle: (a['subtitle'] as String?)?.isNotEmpty == true
+                        ? a['subtitle'] as String
+                        : '—',
                     time: _timeAgo(a['date'] as String?),
                   ),
                 );
               }),
           ],
         ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// Item d'action du bottom sheet "Photo de profil"
+// ============================================================
+class _PhotoActionTile extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final Color? titleColor;
+  final VoidCallback onTap;
+
+  const _PhotoActionTile({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.onTap,
+    this.titleColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF7F8FB),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: iconColor, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Text(
+              title,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                color: titleColor ?? ColorConstants.textPrimary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -579,7 +904,8 @@ class _GeofencingBanner extends StatelessWidget {
               color: ColorConstants.error.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.location_off_rounded, color: ColorConstants.error, size: 20),
+            child: const Icon(Icons.location_off_rounded,
+                color: ColorConstants.error, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -588,22 +914,28 @@ class _GeofencingBanner extends StatelessWidget {
               children: [
                 const Text('Géolocalisation en arrière-plan inactive',
                     style: TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 13, color: ColorConstants.error)),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: ColorConstants.error)),
                 const SizedBox(height: 3),
-                const Text('Activez la localisation pour permettre le pointage automatique.',
-                    style: TextStyle(fontSize: 11.5, color: ColorConstants.textSecondary)),
+                const Text(
+                    'Activez la localisation pour permettre le pointage automatique.',
+                    style: TextStyle(
+                        fontSize: 11.5, color: ColorConstants.textSecondary)),
                 const SizedBox(height: 10),
                 ElevatedButton.icon(
                   onPressed: onActivate,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: ColorConstants.error,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   icon: const Icon(Icons.my_location_rounded, size: 16),
-                  label: const Text('Activer', style: TextStyle(fontSize: 12.5)),
+                  label:
+                      const Text('Activer', style: TextStyle(fontSize: 12.5)),
                 ),
               ],
             ),
@@ -646,25 +978,30 @@ class _StatusMiniCard extends StatelessWidget {
               Container(
                 width: 26,
                 height: 26,
-                decoration: BoxDecoration(color: iconBg.withValues(alpha: 0.14), shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                    color: iconBg.withValues(alpha: 0.14),
+                    shape: BoxShape.circle),
                 child: Icon(icon, size: 14, color: iconBg),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Text(title,
-              style: const TextStyle(fontSize: 11, color: ColorConstants.textSecondary)),
+              style: const TextStyle(
+                  fontSize: 11, color: ColorConstants.textSecondary)),
           const SizedBox(height: 2),
           Text(
             value,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: valueColor),
+            style: TextStyle(
+                fontSize: 12.5, fontWeight: FontWeight.bold, color: valueColor),
           ),
           if (subtitle != null && subtitle!.isNotEmpty) ...[
             const SizedBox(height: 2),
             Text(subtitle!,
-                style: const TextStyle(fontSize: 10.5, color: ColorConstants.textSecondary)),
+                style: const TextStyle(
+                    fontSize: 10.5, color: ColorConstants.textSecondary)),
           ],
         ],
       ),
@@ -703,11 +1040,14 @@ class _ProgressRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(label,
-                  style: const TextStyle(fontSize: 11.5, color: ColorConstants.textSecondary)),
+                  style: const TextStyle(
+                      fontSize: 11.5, color: ColorConstants.textSecondary)),
               const SizedBox(height: 2),
               Text('$current / $total',
                   style: const TextStyle(
-                      fontSize: 12.5, fontWeight: FontWeight.bold, color: ColorConstants.textPrimary)),
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.bold,
+                      color: ColorConstants.textPrimary)),
             ],
           ),
         ),
@@ -719,14 +1059,16 @@ class _ProgressRow extends StatelessWidget {
             child: LinearProgressIndicator(
               value: ratio,
               minHeight: 6,
-              backgroundColor: ColorConstants.textSecondary.withValues(alpha: 0.12),
+              backgroundColor:
+                  ColorConstants.textSecondary.withValues(alpha: 0.12),
               valueColor: AlwaysStoppedAnimation<Color>(iconColor),
             ),
           ),
         ),
         const SizedBox(width: 8),
         Text('${(ratio * 100).round()}%',
-            style: const TextStyle(fontSize: 11.5, color: ColorConstants.textSecondary)),
+            style: const TextStyle(
+                fontSize: 11.5, color: ColorConstants.textSecondary)),
       ],
     );
   }
@@ -752,9 +1094,11 @@ class _CovoiturageCard extends StatelessWidget {
             SizedBox(width: 12),
             Expanded(
               child: Text('Aucun trajet réservé — voir les trajets disponibles',
-                  style: TextStyle(fontSize: 13, color: ColorConstants.textSecondary)),
+                  style: TextStyle(
+                      fontSize: 13, color: ColorConstants.textSecondary)),
             ),
-            Icon(Icons.chevron_right_rounded, color: ColorConstants.textSecondary),
+            Icon(Icons.chevron_right_rounded,
+                color: ColorConstants.textSecondary),
           ],
         ),
       );
@@ -779,7 +1123,8 @@ class _CovoiturageCard extends StatelessWidget {
                   color: ColorConstants.success.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.directions_car_rounded, color: ColorConstants.success, size: 20),
+                child: const Icon(Icons.directions_car_rounded,
+                    color: ColorConstants.success, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -788,7 +1133,9 @@ class _CovoiturageCard extends StatelessWidget {
                   children: [
                     const Text('Prochain trajet réservé',
                         style: TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 13, color: ColorConstants.success)),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: ColorConstants.success)),
                     const SizedBox(height: 2),
                     Text(heure.isNotEmpty ? heure : 'Réservation confirmée',
                         style: const TextStyle(
@@ -798,7 +1145,8 @@ class _CovoiturageCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: ColorConstants.textSecondary),
+              const Icon(Icons.chevron_right_rounded,
+                  color: ColorConstants.textSecondary),
             ],
           ),
           if (depart.isNotEmpty || arrivee.isNotEmpty) ...[
@@ -806,11 +1154,14 @@ class _CovoiturageCard extends StatelessWidget {
             Row(
               children: [
                 const SizedBox(width: 50),
-                Icon(Icons.circle, size: 8, color: ColorConstants.textSecondary.withValues(alpha: 0.5)),
+                Icon(Icons.circle,
+                    size: 8,
+                    color: ColorConstants.textSecondary.withValues(alpha: 0.5)),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text('$depart  →  $arrivee',
-                      style: const TextStyle(fontSize: 12, color: ColorConstants.textSecondary)),
+                      style: const TextStyle(
+                          fontSize: 12, color: ColorConstants.textSecondary)),
                 ),
               ],
             ),
@@ -844,7 +1195,9 @@ class _ShortcutTile extends StatelessWidget {
             Text(label,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                    fontSize: 12.5, fontWeight: FontWeight.w600, color: ColorConstants.primary)),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: ColorConstants.primary)),
           ],
         ),
       ),
@@ -864,6 +1217,7 @@ class _ActivityTile extends StatelessWidget {
   final String time;
   final VoidCallback? onTap;
 
+  // ✅ CORRECTION : Utiliser 'required' pour tous les paramètres
   const _ActivityTile({
     required this.icon,
     required this.iconColor,
@@ -896,14 +1250,19 @@ class _ActivityTile extends StatelessWidget {
               children: [
                 Text(title,
                     style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 13.5, color: ColorConstants.textPrimary)),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13.5,
+                        color: ColorConstants.textPrimary)),
                 const SizedBox(height: 2),
                 Text(subtitle,
-                    style: const TextStyle(fontSize: 12, color: ColorConstants.textSecondary)),
+                    style: const TextStyle(
+                        fontSize: 12, color: ColorConstants.textSecondary)),
               ],
             ),
           ),
-          Text(time, style: const TextStyle(fontSize: 11, color: ColorConstants.textSecondary)),
+          Text(time,
+              style: const TextStyle(
+                  fontSize: 11, color: ColorConstants.textSecondary)),
         ],
       ),
     );

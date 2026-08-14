@@ -173,16 +173,25 @@ class StatusPill extends StatelessWidget {
 }
 
 /// En-tête de section commun ("Bonjour, X" + sous-titre + avatar optionnel).
+///
+/// L'avatar devient tappable dès que [onAvatarTap] est fourni : un petit
+/// badge "appareil photo" apparaît alors en bas à droite, et [avatarLoading]
+/// permet d'afficher un indicateur de chargement par-dessus pendant un
+/// upload (photo de profil en cours d'envoi, par exemple).
 class GreetingHeader extends StatelessWidget {
   final String title;
   final String subtitle;
   final String? avatarUrl;
+  final VoidCallback? onAvatarTap;
+  final bool avatarLoading;
 
   const GreetingHeader({
     super.key,
     required this.title,
     required this.subtitle,
     this.avatarUrl,
+    this.onAvatarTap,
+    this.avatarLoading = false,
   });
 
   @override
@@ -206,13 +215,57 @@ class GreetingHeader extends StatelessWidget {
             ],
           ),
         ),
-        if (avatarUrl != null)
-          CircleAvatar(
+        if (avatarUrl != null) _avatar(),
+      ],
+    );
+  }
+
+  Widget _avatar() {
+    final cercle = Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Opacity(
+          opacity: avatarLoading ? 0.5 : 1,
+          child: CircleAvatar(
             radius: 24,
             backgroundColor: ColorConstants.border,
             backgroundImage: NetworkImage(avatarUrl!),
           ),
+        ),
+        if (avatarLoading)
+          const Positioned.fill(
+            child: Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2.2),
+              ),
+            ),
+          ),
+        if (onAvatarTap != null && !avatarLoading)
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: ColorConstants.primary,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: const Icon(Icons.camera_alt_rounded,
+                  size: 11, color: Colors.white),
+            ),
+          ),
       ],
+    );
+
+    if (onAvatarTap == null) return cercle;
+
+    return GestureDetector(
+      onTap: avatarLoading ? null : onAvatarTap,
+      child: cercle,
     );
   }
 }

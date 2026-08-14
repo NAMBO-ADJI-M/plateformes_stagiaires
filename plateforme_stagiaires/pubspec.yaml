@@ -10,6 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  image_picker: ^1.1.2
   geofence_service: ^6.0.0
   flutter_launcher_icons: ^0.13.1
   cupertino_icons: ^1.0.8

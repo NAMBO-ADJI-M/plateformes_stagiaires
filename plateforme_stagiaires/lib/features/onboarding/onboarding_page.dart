@@ -17,7 +17,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     const OnboardingStep(
       title: 'Bienvenue',
       description:
-          'Découvrir la plateforme des stagiaires et commencer votre parcours.',
+          'Découvrir le carnet des stagiaires et commencer votre parcours.',
       image: 'assets/images/logo-re.png',
     ),
     const OnboardingStep(
