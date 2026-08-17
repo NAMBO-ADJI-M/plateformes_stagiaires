@@ -1,8 +1,0 @@
-{
-    "chat.tools.terminal.autoApprove": {
-        "/^cmd\\.exe /c \"findstr /s /n /c:_LineCaretMetrics C:\\\\flutter\\\\flutter_windows_3\\.41\\.7-stable\\\\flutter\\\\packages\\\\flutter\\\\lib\\\\src\\\\painting\\\\\\*\\.dart\"$/": {
-            "approve": true,
-            "matchCommandLine": true
-        }
-    }
-}
