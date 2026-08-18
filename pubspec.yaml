@@ -41,6 +41,7 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/icon1.png"  # Chemin vers votre image
-  min_sdk_andro11id: 21
+  image_path: "assets/images/icon1.png"
+  min_sdk_android: 21
+  remove_alpha_ios: true
   
