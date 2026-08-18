@@ -53,7 +53,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
     }
   }
 
-  Future<void> _annulerReservation(int reservationId) async {
+  Future<void> _annulerReservation(String reservationId) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext ctx) => AlertDialog(
@@ -75,7 +75,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
 
     if (confirmed != true) return;
 
-    setState(() => _reservationEnAnnulation = reservationId.toString());
+    setState(() => _reservationEnAnnulation = reservationId);
 
     try {
       await _apiService.annulerReservation(reservationId);
@@ -92,9 +92,13 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
       // Rafraîchir la liste
       await _chargerReservations();
     } on ApiException catch (e) {
-      setState(() => _erreur = e.userFriendlyMessage);
+      if (mounted) {
+        setState(() => _erreur = e.userFriendlyMessage);
+      }
     } catch (e) {
-      setState(() => _erreur = 'Erreur lors de l\'annulation');
+      if (mounted) {
+        setState(() => _erreur = 'Erreur lors de l\'annulation');
+      }
     } finally {
       if (mounted) setState(() => _reservationEnAnnulation = null);
     }
@@ -198,7 +202,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
   }
 
   Widget _reservationCard(Map<String, dynamic> reservation) {
-    final trajetId = reservation['trajet_id'] as int?;
+    final trajetId = reservation['trajet_id'] as String?;
     final trajet = reservation['trajet'] as Map<String, dynamic>? ?? {};
     final chauffeur = trajet['chauffeur'] as Map<String, dynamic>?;
     final chauffeurNom = chauffeur?['nom'] as String? ?? 'Conducteur';
@@ -209,8 +213,8 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
     final places = (reservation['places'] as dynamic)?.toString() ?? '1';
     final prix = (reservation['prix_total'] as dynamic)?.toString() ?? '—';
 
-    final reservationId = reservation['id'] as int?;
-    final enAnnulation = _reservationEnAnnulation == reservationId.toString();
+    final reservationId = reservation['id'] as String?;
+    final enAnnulation = _reservationEnAnnulation == reservationId;
 
     return GestureDetector(
       onTap: trajetId != null
@@ -306,9 +310,9 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: enAnnulation
+                onPressed: enAnnulation || reservationId == null
                     ? null
-                    : () => _annulerReservation(reservationId!),
+                    : () => _annulerReservation(reservationId),
                 icon: enAnnulation
                     ? const SizedBox(
                         width: 16,

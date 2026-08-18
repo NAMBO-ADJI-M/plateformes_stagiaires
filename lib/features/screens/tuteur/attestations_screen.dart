@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
+import '../../../services/api_service.dart';
 
-/// Reproduit attestation-screen.png : formulaire de création d'attestation,
-/// switch "Inclure une recommandation LinkedIn", bloc "Partager à une future
-/// entreprise" (carte d'appui), aperçu et bouton "Générer et envoyer".
 class AttestationsScreen extends StatefulWidget {
   const AttestationsScreen({super.key});
 
@@ -13,131 +11,146 @@ class AttestationsScreen extends StatefulWidget {
 }
 
 class _AttestationsScreenState extends State<AttestationsScreen> {
-  bool _recommandationLinkedIn = true;
-  final _nomStagiaireCtrl = TextEditingController(text: 'Marie Dupont');
-  final _periodeCtrl = TextEditingController(text: '01/02/2026 au 31/07/2026');
-  final _posteCtrl = TextEditingController(text: 'Stagiaire R&D UI/UX Designer');
-  final _appreciationCtrl = TextEditingController(
-      text:
-          "Marie a fait preuve d'une grande rigueur et d'une créativité remarquable dans ses propositions de maquettes V2.");
-  final _entrepriseCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
+  final ApiService _api = ApiService();
+  bool _isLoading = true;
+  List<dynamic> _stagiaires = [];
+  Map<String, dynamic>? _selectedStagiaire;
+
+  final _entrepriseFutureCtrl = TextEditingController();
+  final _emailFutureCtrl = TextEditingController();
+  final _appreciationCtrl = TextEditingController(text: 'Stagiaire sérieux et motivé.');
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStagiaires();
+  }
+
+  Future<void> _loadStagiaires() async {
+    try {
+      final data = await _api.getEntrepriseStagiaires();
+      setState(() {
+        _stagiaires = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _genererEtEnvoyer() async {
+    if (_selectedStagiaire == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Merci de sélectionner un stagiaire.')));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      // 1. On récupère les évaluations pour ce carnet
+      final evals = await _api.getEvaluations(_selectedStagiaire!['id']);
+      if (evals.isEmpty) {
+        throw 'Aucune évaluation de compétences trouvée pour ce stagiaire. Veuillez l\'évaluer d\'abord.';
+      }
+
+      final evalId = evals.first['id'];
+
+      // 2. Générer l'attestation officielle
+      await _api.genererAttestation(evalId);
+
+      // 3. Générer et envoyer la carte d'appui à la future entreprise
+      await _api.genererCarteAppui(evalId, {
+        'entreprise_destinataire_nom': _entrepriseFutureCtrl.text.trim(),
+        'entreprise_destinataire_email': _emailFutureCtrl.text.trim(),
+        'recommandation': _appreciationCtrl.text.trim(),
+      });
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('✅ Attestation et recommandation envoyées avec succès !'),
+          backgroundColor: ColorConstants.success,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading && _stagiaires.isEmpty) return const Center(child: CircularProgressIndicator());
+
     return Scaffold(
       backgroundColor: ColorConstants.background,
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         children: [
-          const Text('Attestations',
-              style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: ColorConstants.textPrimary)),
+          const Text('Attestations & Recommandations',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: ColorConstants.textPrimary)),
           const SizedBox(height: 16),
+
+          // Sélection du stagiaire
           AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Créer une attestation',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15.5,
-                        color: ColorConstants.textPrimary)),
-                const SizedBox(height: 14),
-                _LabeledField(label: 'Nom du stagiaire', controller: _nomStagiaireCtrl),
+                const Text('1. Sélectionner le stagiaire', style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
-                _LabeledField(label: 'Période de stage', controller: _periodeCtrl),
-                const SizedBox(height: 12),
-                _LabeledField(label: 'Poste occupé', controller: _posteCtrl),
-                const SizedBox(height: 12),
-                _LabeledField(
-                  label: 'Appréciation générale',
-                  controller: _appreciationCtrl,
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text('Inclure une recommandation LinkedIn',
-                          style: TextStyle(
-                              fontSize: 13, color: ColorConstants.textPrimary)),
-                    ),
-                    Switch(
-                      value: _recommandationLinkedIn,
-                      activeThumbColor: ColorConstants.primary,
-                      onChanged: (v) => setState(() => _recommandationLinkedIn = v),
-                    ),
-                  ],
+                DropdownButtonFormField<Map<String, dynamic>>(
+                  initialValue: _selectedStagiaire,
+                  items: _stagiaires.map((s) {
+                    final stagiaire = s['stagiaire'] ?? {};
+                    return DropdownMenuItem<Map<String, dynamic>>(
+                      value: s,
+                      child: Text('${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}'),
+                    );
+                  }).toList(),
+                  onChanged: (val) => setState(() => _selectedStagiaire = val),
+                  decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12)),
                 ),
               ],
             ),
           ),
+
           const SizedBox(height: 14),
+
+          // Infos Future Entreprise
           AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Partager à une future entreprise',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: ColorConstants.textPrimary)),
+                const Text('2. Coordonnées de la future entreprise', style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
-                _LabeledField(
-                  label: "Nom de l'entreprise",
-                  controller: _entrepriseCtrl,
-                  hint: 'Ex: Orange, Decathlon...',
-                ),
+                _LabeledField(label: "Nom de l'entreprise destinataire", controller: _entrepriseFutureCtrl, hint: 'Ex: Orange, Decathlon...'),
                 const SizedBox(height: 12),
-                _LabeledField(
-                  label: 'Email du destinataire',
-                  controller: _emailCtrl,
-                  hint: 'Ex: rh@entreprise.com',
-                ),
+                _LabeledField(label: 'Email du destinataire (RH ou Tuteur)', controller: _emailFutureCtrl, hint: 'Ex: rh@entreprise.com'),
               ],
             ),
           ),
+
           const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: ColorConstants.primary.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(16),
-            ),
+
+          // Recommandation
+          AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: const [
-                    Icon(Icons.visibility_outlined, size: 17, color: ColorConstants.primary),
-                    SizedBox(width: 8),
-                    Text('Aperçu du document final',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: ColorConstants.primary)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '"ATTESTATION DE STAGE — Certifie que ${_nomStagiaireCtrl.text} a effectué un stage d\'UI/UX Design chez Ubisoft France..."',
-                  style: const TextStyle(fontSize: 12.5, color: ColorConstants.textSecondary),
-                ),
+                const Text('3. Votre recommandation', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                _LabeledField(label: 'Commentaire libre', controller: _appreciationCtrl, maxLines: 4),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+
+          const SizedBox(height: 24),
+
           PrimaryButton(
-            label: 'Générer et envoyer',
-            icon: Icons.check_circle_outline,
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Attestation générée et envoyée.')),
-              );
-            },
+            label: 'Générer et envoyer le dossier',
+            isLoading: _isLoading,
+            onPressed: _genererEtEnvoyer,
           ),
         ],
       ),
@@ -151,34 +164,23 @@ class _LabeledField extends StatelessWidget {
   final String? hint;
   final int maxLines;
 
-  const _LabeledField({
-    required this.label,
-    required this.controller,
-    this.hint,
-    this.maxLines = 1,
-  });
+  const _LabeledField({required this.label, required this.controller, this.hint, this.maxLines = 1});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(fontSize: 12.5, color: ColorConstants.textSecondary)),
+        Text(label, style: const TextStyle(fontSize: 12.5, color: ColorConstants.textSecondary)),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
           maxLines: maxLines,
-          style: const TextStyle(fontSize: 13.5, color: ColorConstants.textPrimary),
           decoration: InputDecoration(
             hintText: hint,
             filled: true,
             fillColor: ColorConstants.background,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
           ),
         ),
       ],

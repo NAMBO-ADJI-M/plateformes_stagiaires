@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
 import 'dashboard_tuteur_screen.dart';
-import 'attestations_screen.dart';
+import '../../../services/api_service.dart';
+import 'widgets/add_stagiaire_dialog.dart';
+import 'suivi_stagiaire_screen.dart';
 
-/// Reproduit liste-stagiaires.png : recherche, tabs Tous/Actifs/Terminés,
-/// liste des stagiaires en cours et historique des précédents stages.
+/// Version dynamisée de la liste des stagiaires pour l'entreprise.
 class ListeStagiairesScreen extends StatefulWidget {
   const ListeStagiairesScreen({super.key});
 
@@ -14,7 +15,63 @@ class ListeStagiairesScreen extends StatefulWidget {
 }
 
 class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
+  final ApiService _apiService = ApiService();
+  final TextEditingController _searchCtrl = TextEditingController();
   int _tab = 0; // 0 Tous, 1 Actifs, 2 Terminés
+  List<dynamic> _allStagiaires = [];
+  List<dynamic> _filteredStagiaires = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+    _searchCtrl.addListener(_applyFilters);
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadData() async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+    try {
+      final data = await _apiService.getEntrepriseStagiaires();
+      if (!mounted) return;
+      setState(() {
+        _allStagiaires = data;
+        _isLoading = false;
+        _applyFilters();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur de chargement : $e')),
+      );
+    }
+  }
+
+  void _applyFilters() {
+    final query = _searchCtrl.text.toLowerCase();
+    setState(() {
+      _filteredStagiaires = _allStagiaires.where((item) {
+        final stagiaire = item['stagiaire'] ?? {};
+        final fullName =
+            '${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}'
+                .toLowerCase();
+        final matchesSearch = fullName.contains(query);
+
+        if (_tab == 0) return matchesSearch;
+        if (_tab == 1) return matchesSearch && item['statut'] == 'EN_COURS';
+        if (_tab == 2) return matchesSearch && item['statut'] == 'TERMINE';
+        return matchesSearch;
+      }).toList();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,111 +86,197 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.person_add_alt_1_outlined),
-            onPressed: () {},
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (_) => const AddStagiaireDialog(),
+              ).then((_) => _loadData());
+            },
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        child: _isLoading
+            ? _buildSkeletonList()
+            : ListView(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                children: [
+                  _buildSearchBar(),
+                  const SizedBox(height: 14),
+                  _buildTabs(),
+                  const SizedBox(height: 16),
+                  if (_filteredStagiaires.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 60),
+                      child: EmptyState(
+                        icon: Icons.search_off_rounded,
+                        title: 'Aucun stagiaire trouvé',
+                        subtitle: 'Essayez de modifier vos critères de recherche ou vos filtres.',
+                      ),
+                    )
+                  else
+                    ..._filteredStagiaires.map((item) {
+                      final stagiaire = item['stagiaire'] ?? {};
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: StagiaireTile(
+                          name:
+                              '${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}',
+                          role:
+                              '${item['poste'] ?? 'Stagiaire'} • ${_formatDateRange(item)}',
+                          progress: 0.5,
+                          status: item['statut'] == 'TERMINE'
+                              ? 'Terminé'
+                              : 'En cours',
+                          statusColor: item['statut'] == 'TERMINE'
+                              ? ColorConstants.success
+                              : ColorConstants.accentOrange,
+                          avatarUrl:
+                              'https://i.pravatar.cc/150?u=${stagiaire['id']}',
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => SuiviStagiaireScreen(carnet: item),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  const SizedBox(height: 22),
+                  const Text('Historique (Précédents stages)',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: ColorConstants.textPrimary)),
+                  const SizedBox(height: 10),
+                  _buildHistoryPlaceholder(),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _buildSkeletonList() {
+    return ListView.separated(
+      padding: const EdgeInsets.all(20),
+      itemCount: 6,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (_, __) => const AppCard(
+        child: Row(
+          children: [
+            Skeleton(height: 44, width: 44, borderRadius: 22),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Skeleton(height: 16, width: 120),
+                  SizedBox(height: 6),
+                  Skeleton(height: 12, width: 180),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      decoration: BoxDecoration(
+        color: ColorConstants.cardBackground,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: ColorConstants.border),
+      ),
+      child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: ColorConstants.cardBackground,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: ColorConstants.border),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.search, size: 18, color: ColorConstants.textSecondary),
-                SizedBox(width: 8),
-                Text('Rechercher un stagiaire...',
-                    style: TextStyle(fontSize: 13.5, color: ColorConstants.textSecondary)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              _TabChip(label: 'Tous', selected: _tab == 0, onTap: () => setState(() => _tab = 0)),
-              const SizedBox(width: 8),
-              _TabChip(label: 'Actifs', selected: _tab == 1, onTap: () => setState(() => _tab = 1)),
-              const SizedBox(width: 8),
-              _TabChip(label: 'Terminés', selected: _tab == 2, onTap: () => setState(() => _tab = 2)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          StagiaireTile(
-            name: 'Marie Dupont',
-            role: 'R&D UI/UX • 1 Fév. - 31 Juil.',
-            progress: 0.62,
-            status: 'En cours',
-            statusColor: ColorConstants.accentOrange,
-            avatarUrl: 'https://i.pravatar.cc/150?img=32',
-            onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const AttestationsScreen())),
-          ),
-          const SizedBox(height: 10),
-          StagiaireTile(
-            name: 'Lucas Bernard',
-            role: 'Product Design • 1 Fév. - 31 Juil.',
-            progress: 1.0,
-            status: 'Terminé',
-            statusColor: ColorConstants.success,
-            avatarUrl: 'https://i.pravatar.cc/150?img=12',
-            onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const AttestationsScreen())),
-          ),
-          const SizedBox(height: 10),
-          StagiaireTile(
-            name: 'Chloé Petit',
-            role: 'Front-end Dev • 1 Mar. - 31 Août',
-            progress: 0.35,
-            status: 'En cours',
-            statusColor: ColorConstants.accentOrange,
-            avatarUrl: 'https://i.pravatar.cc/150?img=48',
-            onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const AttestationsScreen())),
-          ),
-          const SizedBox(height: 22),
-          const Text('Historique (Précédents stages)',
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: ColorConstants.textPrimary)),
-          const SizedBox(height: 10),
-          AppCard(
-            onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const AttestationsScreen())),
-            child: Row(
-              children: [
-                const CircleAvatar(
-                  radius: 20,
-                  backgroundColor: ColorConstants.border,
-                  child: Icon(Icons.person_outline, color: ColorConstants.textSecondary),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text('Thomas Martin',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13.5,
-                              color: ColorConstants.textPrimary)),
-                      Text('Stage de fin d\'études • Terminé en 2025',
-                          style: TextStyle(fontSize: 12, color: ColorConstants.textSecondary)),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.description_outlined, color: ColorConstants.textSecondary, size: 18),
-              ],
+          const Icon(Icons.search, size: 18, color: ColorConstants.textSecondary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: _searchCtrl,
+              decoration: const InputDecoration(
+                hintText: 'Rechercher un stagiaire...',
+                hintStyle: TextStyle(
+                    fontSize: 13.5, color: ColorConstants.textSecondary),
+                border: InputBorder.none,
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildTabs() {
+    return Row(
+      children: [
+        _TabChip(
+            label: 'Tous',
+            selected: _tab == 0,
+            onTap: () {
+              setState(() => _tab = 0);
+              _applyFilters();
+            }),
+        const SizedBox(width: 8),
+        _TabChip(
+            label: 'Actifs',
+            selected: _tab == 1,
+            onTap: () {
+              setState(() => _tab = 1);
+              _applyFilters();
+            }),
+        const SizedBox(width: 8),
+        _TabChip(
+            label: 'Terminés',
+            selected: _tab == 2,
+            onTap: () {
+              setState(() => _tab = 2);
+              _applyFilters();
+            }),
+      ],
+    );
+  }
+
+  Widget _buildHistoryPlaceholder() {
+    return AppCard(
+      onTap: () {},
+      child: Row(
+        children: [
+          const CircleAvatar(
+            radius: 20,
+            backgroundColor: ColorConstants.border,
+            child: Icon(Icons.person_outline, color: ColorConstants.textSecondary),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Historique archivé',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                        color: ColorConstants.textPrimary)),
+                Text('Consultez les dossiers clôturés.',
+                    style: TextStyle(
+                        fontSize: 12, color: ColorConstants.textSecondary)),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right,
+              color: ColorConstants.textSecondary, size: 18),
+        ],
+      ),
+    );
+  }
+
+  String _formatDateRange(Map<String, dynamic> item) {
+    // Logique simplifiée de formattage de date
+    return '1 Fév. - 31 Juil.';
   }
 }
 
@@ -141,7 +284,8 @@ class _TabChip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _TabChip({required this.label, required this.selected, required this.onTap});
+  const _TabChip(
+      {required this.label, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -150,9 +294,11 @@ class _TabChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
         decoration: BoxDecoration(
-          color: selected ? ColorConstants.primary : ColorConstants.cardBackground,
+          color:
+              selected ? ColorConstants.primary : ColorConstants.cardBackground,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: selected ? ColorConstants.primary : ColorConstants.border),
+          border: Border.all(
+              color: selected ? ColorConstants.primary : ColorConstants.border),
         ),
         child: Text(label,
             style: TextStyle(

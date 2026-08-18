@@ -37,7 +37,7 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
 
   // Carnet
   bool _hasCarnet = false;
-  String? _carnetId;
+  
   Map<String, dynamic>? _stats;
 
   // Rattachement tuteur
@@ -178,13 +178,13 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
       _prenom = (stagiaire?['prenom'] as String?) ?? '';
       _ecole = (stagiaire?['ecole'] as String?) ?? '';
       _filiere = (stagiaire?['filiere'] as String?) ?? '';
-      _photoUrl = stagiaire?['photo_profil'] as String?;
+      _photoUrl = stagiaire?['photo_profil_url'] as String?;
       _notifCount = (profileResponse['notifications_non_lues'] as int?) ?? 0;
 
       if (carnets.isEmpty) {
         setState(() {
           _hasCarnet = false;
-          _carnetId = null;
+          
           _loading = false;
         });
         return;
@@ -200,7 +200,7 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
       _tuteurNom = carnet['tuteur_nom'] as String?;
 
       final carnetId = carnet['id'] as String;
-      _carnetId = carnetId;
+      
 
       // Ces trois appels ne dépendent que de carnetId, donc indépendants
       // entre eux — on les lance aussi en parallèle. Chacun est protégé
@@ -238,21 +238,27 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
         _prochaineReservation = aVenir.isNotEmpty ? aVenir.first : null;
       }
 
-      setState(() {
-        _hasCarnet = true;
-        _stats = stats;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _hasCarnet = true;
+          _stats = stats;
+          _loading = false;
+        });
+      }
     } on ApiException catch (e) {
-      setState(() {
-        _error = e.message;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = e.message;
+          _loading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = 'Une erreur est survenue. Vérifiez votre connexion.';
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Une erreur est survenue. Vérifiez votre connexion.';
+          _loading = false;
+        });
+      }
     }
   }
 

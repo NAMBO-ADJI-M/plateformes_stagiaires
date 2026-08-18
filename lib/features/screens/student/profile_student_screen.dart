@@ -1,11 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
+import '../../../services/api_service.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/geofencing_service.dart';
 
-/// Reproduit profile-student.png : en-tête profil, infos personnelles,
-/// stage actuel, et switch "Partager ma localisation" (covoiturage).
+/// Version dynamisée du profil stagiaire.
 class ProfileStudentScreen extends StatefulWidget {
   const ProfileStudentScreen({super.key});
 
@@ -14,19 +16,75 @@ class ProfileStudentScreen extends StatefulWidget {
 }
 
 class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
-  bool _shareLocation = true;
+  final ApiService _api = ApiService();
   final AuthService _authService = AuthService();
+  final ImagePicker _picker = ImagePicker();
+
+  bool _shareLocation = true;
   bool _isLoggingOut = false;
+  bool _isLoading = true;
+  bool _isPhotoLoading = false;
+
+  Map<String, dynamic>? _profile;
+  Map<String, dynamic>? _activeCarnet;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      final results = await Future.wait([
+        _api.getProfile(),
+        _api.getCarnets(),
+      ]);
+
+      final profileRes = results[0] as Map<String, dynamic>;
+      final carnets = results[1] as List<dynamic>;
+
+      if (mounted) {
+        setState(() {
+          _profile = profileRes['profile_data'];
+          if (carnets.isNotEmpty) {
+            _activeCarnet = carnets.firstWhere(
+              (c) => c['statut'] == 'EN_COURS',
+              orElse: () => carnets.first,
+            );
+          }
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _pickAndUploadPhoto() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (image == null) return;
+
+    setState(() => _isPhotoLoading = true);
+    try {
+      await _api.updatePhotoProfil(File(image.path));
+      await _loadData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Photo mise à jour !')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isPhotoLoading = false);
+    }
+  }
 
   Future<void> _handleLogout() async {
     setState(() => _isLoggingOut = true);
-
-    // Coupe le geofencing AVANT d'effacer le token : si un événement
-    // ENTER/EXIT survient pile pendant la déconnexion, on ne veut pas
-    // qu'il parte avec un token déjà invalidé, ni qu'il continue de
-    // tourner en arrière-plan pour un compte qui n'est plus connecté.
     await GeofencingService().stop();
-
     await _authService.logout();
     if (!mounted) return;
     Navigator.of(context).pushNamedAndRemoveUntil(
@@ -37,31 +95,43 @@ class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final name = '${_profile?['prenom'] ?? ''} ${_profile?['nom'] ?? ''}'.trim();
+    final email = _profile?['email'] ?? 'Non renseigné';
+    final ecole = _profile?['ecole'] ?? 'Non renseignée';
+    final photo = _profile?['photo_profil_url'];
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       children: [
         AppCard(
           child: Row(
             children: [
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 28,
-                backgroundImage:
-                    NetworkImage('https://i.pravatar.cc/150?img=32'),
+                backgroundImage: photo != null ? NetworkImage(photo) : null,
+                child: photo == null || _isPhotoLoading
+                    ? (_isPhotoLoading ? const CircularProgressIndicator() : const Icon(Icons.person, size: 30))
+                    : null,
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text('Marie Dupont',
-                        style: TextStyle(
+                  children: [
+                    Text(name.isEmpty ? 'Étudiant' : name,
+                        style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                             color: ColorConstants.textPrimary)),
-                    SizedBox(height: 2),
-                    Text('marie.dupont@etu.univ-lyon1.fr',
-                        style: TextStyle(
-                            fontSize: 12.5, color: ColorConstants.textSecondary)),
+                    const SizedBox(height: 2),
+                    Text(email,
+                        style: const TextStyle(
+                            fontSize: 12.5,
+                            color: ColorConstants.textSecondary)),
                   ],
                 ),
               ),
@@ -71,8 +141,8 @@ class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
                   border: Border.all(color: ColorConstants.border),
                 ),
                 child: IconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 18),
-                  onPressed: () {},
+                  icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                  onPressed: _pickAndUploadPhoto,
                 ),
               ),
             ],
@@ -80,13 +150,17 @@ class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
         ),
         const SizedBox(height: 14),
         Row(
-          children: const [
+          children: [
             Expanded(
-              child: _LabelValue(label: 'ÉTABLISSEMENT', value: 'Univ. Lyon 1'),
+              child: _LabelValue(
+                  label: 'ÉTABLISSEMENT',
+                  value: ecole.length > 15 ? '${ecole.substring(0, 12)}...' : ecole),
             ),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             Expanded(
-              child: _LabelValue(label: 'ENTREPRISE', value: 'Ubisoft France'),
+              child: _LabelValue(
+                  label: 'ENTREPRISE',
+                  value: _activeCarnet?['entreprise_nom'] ?? 'Aucune'),
             ),
           ],
         ),
@@ -99,21 +173,21 @@ class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
         const SizedBox(height: 10),
         AppCard(
           child: Column(
-            children: const [
+            children: [
               _InfoRow(
                   icon: Icons.call_outlined,
                   label: 'Téléphone',
-                  value: '+33 6 12 34 56 78'),
-              Divider(height: 26),
+                  value: _profile?['telephone'] ?? 'Non renseigné'),
+              const Divider(height: 26),
               _InfoRow(
                   icon: Icons.menu_book_outlined,
                   label: 'Filière',
-                  value: 'Master Conception UI/UX'),
-              Divider(height: 26),
+                  value: _profile?['filiere'] ?? 'Non renseignée'),
+              const Divider(height: 26),
               _InfoRow(
                   icon: Icons.person_outline,
-                  label: 'Tuteur académique',
-                  value: 'M. Robert (Pr. Associé)'),
+                  label: 'Niveau',
+                  value: _profile?['niveau'] ?? 'Non renseigné'),
             ],
           ),
         ),
@@ -126,21 +200,21 @@ class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
         const SizedBox(height: 10),
         AppCard(
           child: Column(
-            children: const [
+            children: [
               _InfoRow(
                   icon: Icons.work_outline,
                   label: 'Poste',
-                  value: 'Stagiaire Product Designer'),
-              Divider(height: 26),
+                  value: _activeCarnet?['poste'] ?? 'Pas de stage actif'),
+              const Divider(height: 26),
               _InfoRow(
                   icon: Icons.calendar_today_outlined,
                   label: 'Dates',
-                  value: '01 Fév. - 31 Juil. 2026'),
-              Divider(height: 26),
+                  value: _formatDates(_activeCarnet)),
+              const Divider(height: 26),
               _InfoRow(
                   icon: Icons.workspace_premium_outlined,
-                  label: 'Maitre de stage',
-                  value: 'Alice Martin (Lead UX)'),
+                  label: 'Tuteur',
+                  value: _activeCarnet?['tuteur_nom'] ?? 'Non rattaché'),
             ],
           ),
         ),
@@ -154,10 +228,10 @@ class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
         AppCard(
           child: Row(
             children: [
-              Expanded(
+              const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text('Partager ma localisation',
                         style: TextStyle(
                             fontWeight: FontWeight.w600,
@@ -165,7 +239,7 @@ class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
                             color: ColorConstants.textPrimary)),
                     SizedBox(height: 4),
                     Text(
-                      'Permet aux autres stagiaires de vous trouver pour le trajet vers Ubisoft.',
+                      'Permet aux autres stagiaires de vous trouver pour le trajet.',
                       style: TextStyle(
                           fontSize: 12, color: ColorConstants.textSecondary),
                     ),
@@ -195,16 +269,82 @@ class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           style: OutlinedButton.styleFrom(
-            foregroundColor: ColorConstants.error,
+            foregroundColor: ColorConstants.primary,
             minimumSize: const Size(double.infinity, 54),
-            side: const BorderSide(color: ColorConstants.error),
+            side: const BorderSide(color: ColorConstants.primary),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        TextButton.icon(
+          onPressed: _isLoggingOut ? null : _confirmDeleteAccount,
+          icon: const Icon(Icons.delete_forever_outlined, size: 18),
+          label: const Text('Supprimer mon compte'),
+          style: TextButton.styleFrom(
+            foregroundColor: ColorConstants.error,
+          ),
+        ),
       ],
     );
+  }
+
+  Future<void> _confirmDeleteAccount() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer le compte ?'),
+        content: const Text(
+            'Cette action est irréversible. Toutes vos données seront effacées.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: ColorConstants.error),
+            child: const Text('Supprimer', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      setState(() => _isLoggingOut = true);
+      try {
+        await _api.deleteAccount();
+        if (!mounted) {
+          return;
+        }
+        Navigator.of(context).pushNamedAndRemoveUntil('/onboarding', (r) => false);
+      } catch (e) {
+        if (!mounted) {
+          return;
+        }
+        setState(() => _isLoggingOut = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur : $e')),
+        );
+      }
+    }
+  }
+
+  String _formatDates(Map<String, dynamic>? carnet) {
+    if (carnet == null) return '—';
+    final debut = carnet['date_debut'];
+    final fin = carnet['date_fin'];
+    if (debut == null || fin == null) return '—';
+    return '${_shortDate(debut)} - ${_shortDate(fin)}';
+  }
+
+  String _shortDate(String iso) {
+    try {
+      final d = DateTime.parse(iso);
+      return '${d.day}/${d.month}';
+    } catch (_) {
+      return '?';
+    }
   }
 }
 
@@ -248,13 +388,18 @@ class _InfoRow extends StatelessWidget {
         Icon(icon, size: 19, color: ColorConstants.textSecondary),
         const SizedBox(width: 10),
         Text(label,
-            style: const TextStyle(fontSize: 13.5, color: ColorConstants.textSecondary)),
-        const Spacer(),
-        Text(value,
             style: const TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600,
-                color: ColorConstants.textPrimary)),
+                fontSize: 13.5, color: ColorConstants.textSecondary)),
+        const Spacer(),
+        Expanded(
+          child: Text(value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  color: ColorConstants.textPrimary),
+              overflow: TextOverflow.ellipsis),
+        ),
       ],
     );
   }

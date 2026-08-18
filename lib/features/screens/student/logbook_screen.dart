@@ -4,6 +4,7 @@ import '../../../../../services/api_service.dart';
 import '../../../../../services/api_exception.dart';
 import '../../widgets/common_widgets.dart';
 import 'carnet_creation_page.dart';
+import 'add_logbook_entry_screen.dart';
 
 class LogbookScreen extends StatefulWidget {
   const LogbookScreen({
@@ -13,7 +14,6 @@ class LogbookScreen extends StatefulWidget {
   });
 
   final String carnetId;
-
   /// Indique si CE carnet est déjà rattaché à une entreprise
   /// (carnet.entreprise_id != null). À passer par l'écran appelant,
   /// qui dispose déjà de la liste complète des carnets (sélecteur).
@@ -38,7 +38,7 @@ class _LogbookScreenState extends State<LogbookScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
     _estRattache = widget.estRattache;
   }
 
@@ -94,6 +94,17 @@ class _LogbookScreenState extends State<LogbookScreen>
                 const SizedBox(height: 12),
               ],
               _ActionTile(
+                icon: Icons.edit_note_rounded,
+                iconColor: ColorConstants.primary,
+                title: 'Ajouter au journal',
+                subtitle: 'Déclarer une mission ou une difficulté',
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _ajouterEntree();
+                },
+              ),
+              const SizedBox(height: 12),
+              _ActionTile(
                 icon: Icons.note_add_outlined,
                 iconColor: ColorConstants.success,
                 title: 'Créer un nouveau carnet',
@@ -128,6 +139,16 @@ class _LogbookScreenState extends State<LogbookScreen>
     }
   }
 
+  Future<void> _ajouterEntree() async {
+    final ajoute = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+          builder: (_) => AddLogbookEntryScreen(carnetId: widget.carnetId)),
+    );
+    if (ajoute == true && mounted) {
+      setState(() {}); // Recharge les onglets
+    }
+  }
+
   // ============================================================
   // Rattachement via bottom sheet (saisie + validation du code)
   // ============================================================
@@ -159,10 +180,14 @@ class _LogbookScreenState extends State<LogbookScreen>
                 // sheetContext et context (celui du State) ont chacun leur
                 // propre cycle de vie : on vérifie chacun séparément juste
                 // avant de l'utiliser, après l'await.
-                if (!sheetContext.mounted) return;
+                if (!sheetContext.mounted) {
+                  return;
+                }
                 Navigator.of(sheetContext).pop();
 
-                if (!mounted) return;
+                if (!mounted) {
+                  return;
+                }
                 setState(() => _estRattache = true);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -171,7 +196,9 @@ class _LogbookScreenState extends State<LogbookScreen>
                   ),
                 );
               } catch (e) {
-                if (!sheetContext.mounted) return;
+                if (!sheetContext.mounted) {
+                  return;
+                }
                 final message = e is ApiException
                     ? e.userFriendlyMessage
                     : 'Erreur lors du rattachement.';
@@ -348,6 +375,7 @@ class _LogbookScreenState extends State<LogbookScreen>
               const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
           tabs: const [
             Tab(text: 'Journal'),
+            Tab(text: 'Bilans'),
             Tab(text: 'Progression'),
             Tab(text: 'Présence'),
             Tab(text: 'Encouragements'),
@@ -359,6 +387,7 @@ class _LogbookScreenState extends State<LogbookScreen>
         controller: _tabController,
         children: [
           _JournalTab(api: _api, carnetId: widget.carnetId),
+          _BilansTab(api: _api, carnetId: widget.carnetId),
           _ProgressionTab(api: _api, carnetId: widget.carnetId),
           _PresenceTab(api: _api, carnetId: widget.carnetId),
           _EncouragementsTab(api: _api, carnetId: widget.carnetId),
@@ -626,6 +655,153 @@ class _JournalTab extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+// ============================================================
+// Onglet Bilans Réflexifs — notes personnelles du stagiaire
+// ============================================================
+class _BilansTab extends StatelessWidget {
+  const _BilansTab({required this.api, required this.carnetId});
+
+  final ApiService api;
+  final String carnetId;
+
+  void _ajouterBilan(BuildContext context) {
+    final periodeCtrl = TextEditingController();
+    final contenuCtrl = TextEditingController();
+    bool enCours = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: Container(
+            decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Nouveau bilan réflexif',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: periodeCtrl,
+                  decoration: const InputDecoration(
+                      labelText: 'Période', hintText: 'Semaine 1, Février...'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: contenuCtrl,
+                  maxLines: 5,
+                  decoration: const InputDecoration(
+                      labelText: 'Contenu',
+                      hintText: 'Ce que j\'ai appris, mes ressentis...',
+                      border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 20),
+                PrimaryButton(
+                  label: 'Enregistrer',
+                  isLoading: enCours,
+                  onPressed: () async {
+                    if (periodeCtrl.text.isEmpty || contenuCtrl.text.isEmpty) {
+                      return;
+                    }
+                    setSheetState(() => enCours = true);
+                    try {
+                      await api.createBilanReflexif({
+                        'carnet_id': carnetId,
+                        'periode': periodeCtrl.text.trim(),
+                        'contenu': contenuCtrl.text.trim(),
+                      });
+                      if (!context.mounted) {
+                        return;
+                      }
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Bilan enregistré !'),
+                          backgroundColor: ColorConstants.success));
+                    } catch (e) {
+                      if (!context.mounted) {
+                        return;
+                      }
+                      setSheetState(() => enCours = false);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Erreur : $e')));
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: OutlinedButton.icon(
+            onPressed: () => _ajouterBilan(context),
+            icon: const Icon(Icons.add),
+            label: const Text('Rédiger un bilan'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 45),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+        Expanded(
+          child: _AsyncTabBody<Map<String, dynamic>>(
+            loader: () async => (await api.getBilansReflexifs(carnetId))
+                .cast<Map<String, dynamic>>(),
+            emptyMessage: 'Aucun bilan réflexif pour le moment.',
+            builder: (context, bilans) => ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              itemCount: bilans.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, i) {
+                final b = bilans[i];
+                return AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(b['periode'] ?? '',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 14)),
+                          const Icon(Icons.lock_outline,
+                              size: 14, color: ColorConstants.textSecondary),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(b['contenu'] ?? '',
+                          style: const TextStyle(
+                              fontSize: 13,
+                              color: ColorConstants.textPrimary)),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1014,8 +1190,18 @@ class _DocumentsTab extends StatelessWidget {
                     icon: const Icon(Icons.download_rounded,
                         color: ColorConstants.primary),
                     onPressed: () {
-                      // À brancher sur url_launcher :
-                      // launchUrl(Uri.parse(api.urlTelechargementAttestation(a['id'])))
+                      final url = api.urlTelechargementAttestation(a['id']);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Ouverture du document : $url'),
+                          action: SnackBarAction(
+                            label: 'Copier URL',
+                            onPressed: () {
+                              // Action future : copier dans le presse-papier
+                            },
+                          ),
+                        ),
+                      );
                     },
                   )
                 else

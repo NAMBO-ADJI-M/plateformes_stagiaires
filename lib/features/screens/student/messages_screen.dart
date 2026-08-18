@@ -1,14 +1,14 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../../services/api_service.dart';
 import '../../../services/api_exception.dart';
-import '../../widgets/common_widgets.dart';
 
 /// Écran de messagerie pour un trajet : affiche les messages et permet d'en envoyer.
 /// Support offline : les messages sont queued en local si sans réseau.
 class MessagesScreen extends StatefulWidget {
-  final int trajetId;
+  final String trajetId;
   final String trajetTitre;
 
   const MessagesScreen({
@@ -24,6 +24,7 @@ class MessagesScreen extends StatefulWidget {
 class _MessagesScreenState extends State<MessagesScreen> {
   final ApiService _apiService = ApiService();
   final TextEditingController _messageCtrl = TextEditingController();
+  Timer? _pollingTimer;
 
   List<Map<String, dynamic>> _messages = [];
   bool _chargement = true;
@@ -33,37 +34,39 @@ class _MessagesScreenState extends State<MessagesScreen> {
   @override
   void initState() {
     super.initState();
-    _chargerMessages();
+    _chargerMessages(initial: true);
+    // Rafraîchissement automatique toutes les 5 secondes
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) => _chargerMessages());
   }
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
     _messageCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _chargerMessages() async {
-    setState(() => _chargement = true);
+  Future<void> _chargerMessages({bool initial = false}) async {
+    if (initial) setState(() => _chargement = true);
 
     try {
       final messages = await _apiService.getTrajetMessages(widget.trajetId);
-      setState(() {
-        _messages = List<Map<String, dynamic>>.from(
-          messages.map(
-              (m) => m is Map<String, dynamic> ? m : {'message': m.toString()}),
-        );
-        _chargement = false;
-      });
-    } on ApiException catch (e) {
-      setState(() {
-        _erreur = e.userFriendlyMessage;
-        _chargement = false;
-      });
+      if (mounted) {
+        setState(() {
+          _messages = List<Map<String, dynamic>>.from(
+            messages.map(
+                (m) => m is Map<String, dynamic> ? m : {'message': m.toString()}),
+          );
+          _chargement = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _erreur = 'Impossible de charger les messages';
-        _chargement = false;
-      });
+      if (initial && mounted) {
+        setState(() {
+          _erreur = 'Impossible de charger les messages';
+          _chargement = false;
+        });
+      }
     }
   }
 
@@ -111,10 +114,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
           );
         }
       } else {
-        setState(() => _erreur = e.userFriendlyMessage);
+        if (mounted) {
+          setState(() => _erreur = e.userFriendlyMessage);
+        }
       }
     } catch (e) {
-      setState(() => _erreur = 'Erreur lors de l\'envoi du message');
+      if (mounted) {
+        setState(() => _erreur = 'Erreur lors de l\'envoi du message');
+      }
     } finally {
       if (mounted) setState(() => _envoi = false);
     }

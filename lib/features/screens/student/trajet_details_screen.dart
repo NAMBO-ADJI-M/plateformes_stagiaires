@@ -26,7 +26,8 @@ class _TrajetDetailsScreenState extends State<TrajetDetailsScreen> {
   String? _erreur;
   int _nombrePlaces = 1;
 
-  int get trajetId => widget.trajet['id'] as int;
+  // Les identifiants du backend sont des UUID (String), pas des int.
+  String get trajetId => widget.trajet['id'] as String;
   String get chauffeur =>
       widget.trajet['chauffeur']?['nom'] ?? 'Conducteur inconnu';
   String get depart => widget.trajet['lieu_depart'] ?? '—';
@@ -74,9 +75,13 @@ class _TrajetDetailsScreenState extends State<TrajetDetailsScreen> {
         if (mounted) Navigator.pop(context, true);
       });
     } on ApiException catch (e) {
-      setState(() => _erreur = e.userFriendlyMessage);
+      if (mounted) {
+        setState(() => _erreur = e.userFriendlyMessage);
+      }
     } catch (e) {
-      setState(() => _erreur = 'Erreur lors de la réservation');
+      if (mounted) {
+        setState(() => _erreur = 'Erreur lors de la réservation');
+      }
     } finally {
       if (mounted) setState(() => _reserving = false);
     }
@@ -88,6 +93,51 @@ class _TrajetDetailsScreenState extends State<TrajetDetailsScreen> {
       MaterialPageRoute(
         builder: (_) => MessagesScreen(
             trajetId: trajetId, trajetTitre: 'Messages - $chauffeur'),
+      ),
+    );
+  }
+
+  void _signalerTrajet() {
+    final motifCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Signaler ce trajet'),
+        content: TextField(
+          controller: motifCtrl,
+          decoration: const InputDecoration(
+            labelText: 'Motif du signalement',
+            hintText: 'Comportement, trajet suspect...',
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () async {
+              if (motifCtrl.text.isEmpty) return;
+              try {
+                await _apiService.signalerTrajet(trajetId, motifCtrl.text);
+                if (!mounted) {
+                  return;
+                }
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Signalement envoyé. Merci.')),
+                );
+              } catch (e) {
+                if (!mounted) {
+                  return;
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Erreur : $e')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: ColorConstants.error),
+            child: const Text('Signaler', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
@@ -111,6 +161,13 @@ class _TrajetDetailsScreenState extends State<TrajetDetailsScreen> {
         foregroundColor: ColorConstants.textPrimary,
         title: const Text('Détails du trajet'),
         elevation: 1,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.report_problem_outlined, color: ColorConstants.error),
+            onPressed: _signalerTrajet,
+            tooltip: 'Signaler ce trajet',
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(

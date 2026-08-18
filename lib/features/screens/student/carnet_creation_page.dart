@@ -23,54 +23,43 @@ class CarnetCreationPage extends StatefulWidget {
 }
 
 class _CarnetCreationPageState extends State<CarnetCreationPage> {
-  // Une clé de formulaire par étape, pour valider indépendamment
-  final _formKeyProfil = GlobalKey<FormState>();
-  final _formKeyStage = GlobalKey<FormState>();
-  final _formKeyLieu = GlobalKey<FormState>();
-
-  final ApiService _apiService = ApiService();
-
-  final PageController _pageController = PageController();
-  int _etapeActuelle = 0;
   static const int _nombreEtapes = 3;
-
-  // --- Champs profil ---
-  final _nomCtrl = TextEditingController();
-  final _prenomCtrl = TextEditingController();
-  final _etablissementCtrl = TextEditingController();
-  final _filiereCtrl = TextEditingController();
-  final _telephoneCtrl = TextEditingController();
 
   // --- Champs carnet ---
   final _adresseCtrl = TextEditingController();
+
+  final ApiService _apiService = ApiService();
   DateTime? _dateDebut;
   DateTime? _dateFin;
+  String? _domaineFormationId;
+  List<DropdownMenuItem<String>> _domaineItems = [];
+  final _entrepriseNomCtrl = TextEditingController();
+  String? _erreur;
+  final _etablissementCtrl = TextEditingController();
+  int _etapeActuelle = 0;
+  final _filiereCtrl = TextEditingController();
+  final _formKeyLieu = GlobalKey<FormState>();
+  // Une clé de formulaire par étape, pour valider indépendamment
+  final _formKeyProfil = GlobalKey<FormState>();
+
+  final _formKeyStage = GlobalKey<FormState>();
   double? _lieuStageLat;
   double? _lieuStageLng;
-
-  final _posteCtrl = TextEditingController();
-  final _entrepriseNomCtrl = TextEditingController();
-
-  String? _domaineFormationId;
-  String? _metierId;
-  String? _niveauFormationId;
-
-  List<DropdownMenuItem<String>> _domaineItems = [];
-  List<DropdownMenuItem<String>> _metierItems = [];
-  List<DropdownMenuItem<String>> _niveauItems = [];
-
   bool _loadingListes = true;
   bool _loadingMetiers = false;
-  bool _submitting = false;
   bool _localisationEnCours = false;
-  String? _erreur;
+  String? _metierId;
+  List<DropdownMenuItem<String>> _metierItems = [];
+  String? _niveauFormationId;
+  List<DropdownMenuItem<String>> _niveauItems = [];
+  // --- Champs profil ---
+  final _nomCtrl = TextEditingController();
 
-  @override
-  void initState() {
-    super.initState();
-    _apiService.loadToken();
-    _chargerListes();
-  }
+  final PageController _pageController = PageController();
+  final _posteCtrl = TextEditingController();
+  final _prenomCtrl = TextEditingController();
+  bool _submitting = false;
+  final _telephoneCtrl = TextEditingController();
 
   @override
   void dispose() {
@@ -84,6 +73,13 @@ class _CarnetCreationPageState extends State<CarnetCreationPage> {
     _entrepriseNomCtrl.dispose();
     _adresseCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _apiService.loadToken();
+    _chargerListes();
   }
 
   // ============================================================
@@ -193,8 +189,10 @@ class _CarnetCreationPageState extends State<CarnetCreationPage> {
       }
 
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
+  locationSettings: const LocationSettings(
+    accuracy: LocationAccuracy.high,
+  ),
+);
 
       String adresse = '';
       try {
@@ -414,47 +412,6 @@ class _CarnetCreationPageState extends State<CarnetCreationPage> {
     return "Erreur inattendue : $e";
   }
 
-  // ============================================================
-  // UI
-  // ============================================================
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: Text(_titreEtape(_etapeActuelle)),
-        backgroundColor: ColorConstants.primary,
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: _submitting ? null : _etapePrecedente,
-        ),
-      ),
-      body: _loadingListes
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                _barreProgression(),
-                if (_erreur != null) _bandeauErreur(),
-                Expanded(
-                  child: PageView(
-                    controller: _pageController,
-                    physics: const NeverScrollableScrollPhysics(), // navigation via boutons
-                    onPageChanged: (i) => setState(() => _etapeActuelle = i),
-                    children: [
-                      _pageProfil(),
-                      _pageStage(),
-                      _pageLieu(),
-                    ],
-                  ),
-                ),
-                _barreNavigation(),
-              ],
-            ),
-    );
-  }
-
   String _titreEtape(int i) {
     switch (i) {
       case 0:
@@ -555,7 +512,7 @@ class _CarnetCreationPageState extends State<CarnetCreationPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, -2)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, -2)),
         ],
       ),
       child: Row(
@@ -739,7 +696,7 @@ class _CarnetCreationPageState extends State<CarnetCreationPage> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: ColorConstants.primary.withOpacity(0.06),
+        color: ColorConstants.primary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -965,6 +922,47 @@ class _CarnetCreationPageState extends State<CarnetCreationPage> {
       items: _niveauItems,
       validator: (v) => v == null ? 'Champ requis' : null,
       onChanged: (v) => setState(() => _niveauFormationId = v),
+    );
+  }
+
+  // ============================================================
+  // UI
+  // ============================================================
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[50],
+      appBar: AppBar(
+        title: Text(_titreEtape(_etapeActuelle)),
+        backgroundColor: ColorConstants.primary,
+        foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _submitting ? null : _etapePrecedente,
+        ),
+      ),
+      body: _loadingListes
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                _barreProgression(),
+                if (_erreur != null) _bandeauErreur(),
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    physics: const NeverScrollableScrollPhysics(), // navigation via boutons
+                    onPageChanged: (i) => setState(() => _etapeActuelle = i),
+                    children: [
+                      _pageProfil(),
+                      _pageStage(),
+                      _pageLieu(),
+                    ],
+                  ),
+                ),
+                _barreNavigation(),
+              ],
+            ),
     );
   }
 }

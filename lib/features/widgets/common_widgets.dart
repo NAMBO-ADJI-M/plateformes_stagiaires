@@ -270,17 +270,133 @@ class GreetingHeader extends StatelessWidget {
   }
 }
 
+/// Widget Skeleton pour l'effet de chargement "shimmer" (scintillement).
+class Skeleton extends StatefulWidget {
+  final double? height;
+  final double? width;
+  final double borderRadius;
+
+  const Skeleton({super.key, this.height, this.width, this.borderRadius = 12});
+
+  @override
+  State<Skeleton> createState() => _SkeletonState();
+}
+
+class _SkeletonState extends State<Skeleton> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
+    _animation = Tween<double>(begin: -2, end: 2).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Container(
+          width: widget.width,
+          height: widget.height,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(widget.borderRadius),
+            gradient: LinearGradient(
+              begin: Alignment(_animation.value - 1, 0),
+              end: Alignment(_animation.value, 0),
+              colors: [
+                Colors.grey.shade200,
+                Colors.grey.shade100,
+                Colors.grey.shade200,
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// État vide (Empty State) illustré et élégant.
+class EmptyState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget? action;
+
+  const EmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.action,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: ColorConstants.primary.withValues(alpha: 0.05),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 64, color: ColorConstants.primary.withValues(alpha: 0.4)),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: ColorConstants.textPrimary),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: ColorConstants.textSecondary),
+            ),
+            if (action != null) ...[
+              const SizedBox(height: 24),
+              action!,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Bouton principal plein-largeur (indigo) utilisé pour les CTA.
 class PrimaryButton extends StatelessWidget {
   final String label;
   final IconData? icon;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
+  final bool isLoading;
 
   const PrimaryButton({
     super.key,
     required this.label,
     required this.onPressed,
     this.icon,
+    this.isLoading = false,
   });
 
   @override
@@ -288,17 +404,35 @@ class PrimaryButton extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       height: 52,
-      child: ElevatedButton.icon(
-        onPressed: onPressed,
-        icon: icon != null ? Icon(icon, size: 18) : const SizedBox.shrink(),
-        label: Text(label,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+      child: ElevatedButton(
+        onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: ColorConstants.primary,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14)),
         ),
+        child: isLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon, size: 18),
+                    const SizedBox(width: 8),
+                  ],
+                  Text(label,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 15)),
+                ],
+              ),
       ),
     );
   }

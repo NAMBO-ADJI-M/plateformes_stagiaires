@@ -14,7 +14,7 @@ class ApiService {
   factory ApiService() => _instance;
 
   // IP hôte recommandée pour l'émulateur Android (10.0.2.2) ou localhost pour le web/desktop
-  static const String baseUrl = "http://127.0.0.1:8000/api";
+  static const String baseUrl = "https://backend-stagiaires-laravel-1.onrender.com/api";
 
   String? _token;
   String? _userRole;
@@ -385,6 +385,16 @@ class ApiService {
     await clearToken();
   }
 
+  Future<void> deleteAccount() async {
+    try {
+      await http.post(
+        Uri.parse('$baseUrl/auth/delete-account'),
+        headers: _authHeaders,
+      );
+    } catch (_) {}
+    await clearToken();
+  }
+
   Future<Map<String, dynamic>> getProfile() async {
     return _readCachedOrRefresh<Map<String, dynamic>>(
       'profile',
@@ -437,7 +447,7 @@ class ApiService {
     try {
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse('$baseUrl/stagiaire/photo'),
+        Uri.parse('$baseUrl/user/photo'),
       );
       request.headers.addAll(_authHeadersMultipart);
       request.files
@@ -462,20 +472,26 @@ class ApiService {
         throw ApiException(
             'Réponse inattendue du serveur après l\'envoi de la photo.');
       }
+
+      // ✅ TRÈS IMPORTANT : Invalider le cache du profil pour forcer la mise à jour
+      await _cache.delete('profile');
+
       return url;
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException.networkError('/stagiaire/photo');
+      throw ApiException.networkError('/user/photo');
     }
   }
 
   /// Supprime la photo de profil actuelle.
   Future<void> supprimerPhotoProfil() async {
     try {
-      await _delete('/stagiaire/photo');
+      await _delete('/user/photo');
+      // ✅ Invalider le cache du profil
+      await _cache.delete('profile');
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException.networkError('/stagiaire/photo');
+      throw ApiException.networkError('/user/photo');
     }
   }
 
@@ -690,9 +706,43 @@ class ApiService {
   }
 
   Future<List<dynamic>> getMesAttestations() async {
-    final response = await http.get(Uri.parse('$baseUrl/mes-attestations'),
-        headers: _authHeaders);
-    return _decodeList(response);
+    return _readCachedOrRefresh<List<dynamic>>(
+      'mes_attestations',
+      () async {
+        final response = await http.get(Uri.parse('$baseUrl/mes-attestations'),
+            headers: _authHeaders);
+        return _decodeList(response);
+      },
+      ttl: const Duration(minutes: 30),
+    );
+  }
+
+  // ============================================
+  // NOTIFICATIONS
+  // ============================================
+
+  Future<List<dynamic>> getNotifications() async {
+    return _readCachedOrRefresh<List<dynamic>>(
+      'notifications',
+      () async {
+        final response = await http.get(Uri.parse('$baseUrl/notifications'),
+            headers: _authHeaders);
+        return _decodeList(response);
+      },
+      ttl: const Duration(minutes: 5),
+    );
+  }
+
+  Future<void> markNotificationAsRead(String id) async {
+    await _post('/notifications/$id/read', '{}');
+    await _cache.delete('notifications');
+    await _cache.delete('profile');
+  }
+
+  Future<void> markAllNotificationsAsRead() async {
+    await _post('/notifications/read-all', '{}');
+    await _cache.delete('notifications');
+    await _cache.delete('profile');
   }
 
   /// Journal complet d'un carnet (missions + difficultés), sans limite,
@@ -740,6 +790,14 @@ class ApiService {
     return decoded;
   }
 
+  Future<Map<String, dynamic>> createEntreeJournal(
+      String carnetId, Map<String, dynamic> data) async {
+    final body = await _post('/carnets/$carnetId/entrees', jsonEncode(data));
+    await _cache.delete('journal_entrees_$carnetId');
+    await _cache.delete('carnet_stats_$carnetId');
+    return body;
+  }
+
   /// URL directe du PDF d'une attestation (à ouvrir dans un navigateur/lecteur
   /// externe via url_launcher, par ex.).
   String urlTelechargementAttestation(String attestationId) {
@@ -748,7 +806,29 @@ class ApiService {
 
   Future<Map<String, dynamic>> createBilanReflexif(
       Map<String, dynamic> data) async {
-    return await _post('/bilans-reflexifs', jsonEncode(data));
+    final body = await _post('/bilans-reflexifs', jsonEncode(data));
+    if (data.containsKey('carnet_id')) {
+      await _cache.delete('bilans_reflexifs_${data['carnet_id']}');
+    }
+    return body;
+  }
+
+  Future<List<dynamic>> getBilansReflexifs(String carnetId) async {
+    final cacheKey = 'bilans_reflexifs_$carnetId';
+    final cached = await _cache.getJson<List<dynamic>>(cacheKey);
+    if (cached != null) return cached;
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/bilans-reflexifs/carnets/$carnetId/bilans-reflexifs'),
+      headers: _authHeaders,
+    );
+    if (response.statusCode != 200) {
+      throw ApiException('Erreur de chargement des bilans',
+          statusCode: response.statusCode);
+    }
+    final decoded = _decodeList(response);
+    await _cache.setJson(cacheKey, decoded, ttl: const Duration(minutes: 5));
+    return decoded;
   }
 
   // ============================================
@@ -772,14 +852,15 @@ class ApiService {
     return _decodeList(response);
   }
 
-  Future<Map<String, dynamic>> reserverTrajet(int trajetId,
+  // Les identifiants du backend sont des UUID (String), pas des int.
+  Future<Map<String, dynamic>> reserverTrajet(String trajetId,
       {int nombrePlaces = 1}) async {
     final body = await _post('/reservations/$trajetId/reserver',
         jsonEncode({'nombre_places': nombrePlaces}));
     return body;
   }
 
-  Future<void> annulerReservation(int reservationId) async {
+  Future<void> annulerReservation(String reservationId) async {
     await _post('/reservations/$reservationId/annuler', '{}');
   }
 
@@ -790,7 +871,7 @@ class ApiService {
     return _decodeList(response);
   }
 
-  Future<List<dynamic>> getTrajetMessages(int trajetId) async {
+  Future<List<dynamic>> getTrajetMessages(String trajetId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/trajets/$trajetId/messages'),
       headers: _authHeaders,
@@ -799,18 +880,47 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> sendTrajetMessage(
-      int trajetId, String message) async {
+      String trajetId, String message) async {
     return await _post(
         '/trajets/$trajetId/messages', jsonEncode({'contenu': message}));
   }
 
-  Future<void> signalerTrajet(int trajetId, String motif) async {
+  Future<void> signalerTrajet(String trajetId, String motif) async {
     await _post('/trajets/$trajetId/signaler', jsonEncode({'motif': motif}));
   }
 
   // ============================================
   // ENTREPRISE / TUTEUR
   // ============================================
+
+  Future<List<dynamic>> getEntrepriseStagiaires() async {
+    return _readCachedOrRefresh<List<dynamic>>(
+      'entreprise_stagiaires',
+      () async {
+        final response = await http.get(
+          Uri.parse('$baseUrl/stagiaires'),
+          headers: _authHeaders,
+        );
+        return _decodeList(response);
+      },
+      ttl: const Duration(minutes: 5),
+    );
+  }
+
+  Future<Map<String, dynamic>> getEntrepriseDashboardStats() async {
+    return _readCachedOrRefresh<Map<String, dynamic>>(
+      'entreprise_dashboard_stats',
+      () async {
+        final response = await http.get(
+          Uri.parse('$baseUrl/dashboard-stats'),
+          headers: _authHeaders,
+        );
+        final data = jsonDecode(response.body);
+        return data['data'] ?? {};
+      },
+      ttl: const Duration(minutes: 5),
+    );
+  }
 
   Future<Map<String, dynamic>> createFicheInvitation(
       Map<String, dynamic> data) async {
@@ -823,24 +933,51 @@ class ApiService {
     return _decodeList(response);
   }
 
+  Future<List<dynamic>> getEvaluations(String carnetId) async {
+    final response = await http.get(
+        Uri.parse('$baseUrl/carnets/$carnetId/evaluations'),
+        headers: _authHeaders);
+    return _decodeList(response);
+  }
+
   Future<Map<String, dynamic>> evaluerCompetence(
       Map<String, dynamic> data) async {
     return await _post('/evaluations', jsonEncode(data));
   }
 
-  Future<Map<String, dynamic>> genererAttestation(int evaluationId) async {
+  Future<Map<String, dynamic>> genererAttestation(String evaluationId) async {
     return await _post(
         '/documents/evaluations/$evaluationId/attestation', '{}');
   }
 
-  Future<Map<String, dynamic>> genererCarteAppui(int evaluationId) async {
+  Future<Map<String, dynamic>> genererCarteAppui(
+      String evaluationId, Map<String, dynamic> data) async {
     return await _post(
-        '/documents/evaluations/$evaluationId/carte-appui', '{}');
+        '/documents/evaluations/$evaluationId/carte-appui', jsonEncode(data));
   }
 
   Future<Map<String, dynamic>> evaluerSavoirEtre(
       Map<String, dynamic> data) async {
     return await _post('/evaluations-savoir-etre', jsonEncode(data));
+  }
+
+  Future<Map<String, dynamic>> envoyerEncouragement(
+      String carnetId, String type, String contenu) async {
+    final body = await _post(
+      '/carnets/$carnetId/encourager',
+      jsonEncode({'type': type, 'contenu': contenu}),
+    );
+    await _cache.delete('encouragements_$carnetId');
+    await _cache.delete('carnet_stats_$carnetId');
+    return body;
+  }
+
+  Future<void> commenterEntree(String entreeId, String commentaire) async {
+    await _post(
+      '/entrees-carnet/$entreeId/commentaire',
+      jsonEncode({'commentaire_tuteur': commentaire}),
+    );
+    // Invalider le cache du journal car une entrée a été modifiée
   }
 
   // ============================================

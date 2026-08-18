@@ -1,12 +1,63 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
+import '../../../services/api_service.dart';
+import 'package:intl/intl.dart';
 
-/// Reproduit notifications-screen.png : liste de notifications avec
-/// distinction encouragement (bienveillant) / validation / covoiturage / système,
-/// conformément à la séparation encouragements vs signalements décidée pour le projet.
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
+
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  final ApiService _api = ApiService();
+  bool _isLoading = true;
+  List<dynamic> _notifications = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotifications();
+  }
+
+  Future<void> _loadNotifications() async {
+    setState(() => _isLoading = true);
+    try {
+      final data = await _api.getNotifications();
+      if (mounted) {
+        setState(() {
+          _notifications = data;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur : $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _markAllRead() async {
+    try {
+      await _api.markAllNotificationsAsRead();
+      if (!mounted) {
+        return;
+      }
+      _loadNotifications();
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur : $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,77 +70,83 @@ class NotificationsScreen extends StatelessWidget {
         title: const Text('Notifications',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
         actions: [
-          TextButton(
-            onPressed: () {},
-            child: const Text('Marquer tout comme lu',
-                style: TextStyle(color: ColorConstants.primary, fontSize: 13)),
-          ),
+          if (_notifications.isNotEmpty)
+            TextButton(
+              onPressed: _markAllRead,
+              child: const Text('Tout lire',
+                  style: TextStyle(color: ColorConstants.primary, fontSize: 13)),
+            ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-        children: const [
-          _NotifCard(
-            icon: Icons.favorite,
-            iconColor: Color(0xFFEC4899),
-            title: 'Encouragement de votre tuteur',
-            body: "Mme. Martin a laissé un commentaire positif sur votre rapport de stage.",
-            time: 'Il y a 10 min',
-            unread: true,
-          ),
-          SizedBox(height: 10),
-          _NotifCard(
-            icon: Icons.check,
-            iconColor: ColorConstants.success,
-            title: 'Carnet validé !',
-            body: 'Votre carnet pour la semaine 6 a été officiellement approuvé par Ubisoft.',
-            time: 'Il y a 2h',
-            unread: true,
-          ),
-          SizedBox(height: 10),
-          _NotifCard(
-            icon: Icons.directions_car_outlined,
-            iconColor: ColorConstants.info,
-            title: 'Nouveau trajet covoiturage',
-            body: 'Lucas Bernard propose un départ correspondant à vos horaires demain matin.',
-            time: 'Hier',
-            unread: false,
-          ),
-          SizedBox(height: 10),
-          _NotifCard(
-            icon: Icons.notifications_none_rounded,
-            iconColor: ColorConstants.textSecondary,
-            title: 'Mise à jour plateforme',
-            body: "StageConnect s'est refait une beauté ! Découvrez la nouvelle vue calendrier.",
-            time: '3 jours',
-            unread: false,
-          ),
-        ],
+      body: RefreshIndicator(
+        onRefresh: _loadNotifications,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _notifications.isEmpty
+                ? _buildEmptyState()
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                    itemCount: _notifications.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final n = _notifications[index];
+                      return _NotifCard(
+                        notification: n,
+                        onTap: () async {
+                          if (n['read_at'] == null) {
+                            await _api.markNotificationAsRead(n['id']);
+                            _loadNotifications();
+                          }
+                        },
+                      );
+                    },
+                  ),
       ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return const EmptyState(
+      icon: Icons.notifications_none_rounded,
+      title: 'Aucune notification',
+      subtitle: 'Vous êtes à jour ! Vos prochaines notifications apparaîtront ici.',
     );
   }
 }
 
 class _NotifCard extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String body;
-  final String time;
-  final bool unread;
+  final Map<String, dynamic> notification;
+  final VoidCallback onTap;
 
-  const _NotifCard({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.body,
-    required this.time,
-    required this.unread,
-  });
+  const _NotifCard({required this.notification, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final data = notification['data'] ?? {};
+    final type = notification['type'] ?? '';
+    final isRead = notification['read_at'] != null;
+    final createdAt = DateTime.tryParse(notification['created_at'] ?? '') ?? DateTime.now();
+
+    // Style par défaut
+    IconData icon = Icons.notifications_none_rounded;
+    Color iconColor = ColorConstants.textSecondary;
+    String title = data['title'] ?? 'Notification';
+    String body = data['message'] ?? '';
+
+    // Personnalisation selon le type (logique Laravel Notification)
+    if (type.contains('Encouragement')) {
+      icon = Icons.favorite;
+      iconColor = const Color(0xFFEC4899);
+    } else if (type.contains('CarnetValide')) {
+      icon = Icons.check_circle;
+      iconColor = ColorConstants.success;
+    } else if (type.contains('Covoiturage')) {
+      icon = Icons.directions_car_outlined;
+      iconColor = ColorConstants.info;
+    }
+
     return AppCard(
+      onTap: onTap,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -108,8 +165,8 @@ class _NotifCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700,
+                    style: TextStyle(
+                        fontWeight: isRead ? FontWeight.w600 : FontWeight.bold,
                         fontSize: 13.5,
                         color: ColorConstants.textPrimary)),
                 const SizedBox(height: 4),
@@ -117,13 +174,13 @@ class _NotifCard extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 12.5, color: ColorConstants.textSecondary)),
                 const SizedBox(height: 6),
-                Text(time,
+                Text(_timeAgo(createdAt),
                     style: const TextStyle(
                         fontSize: 11, color: ColorConstants.textSecondary)),
               ],
             ),
           ),
-          if (unread)
+          if (!isRead)
             Container(
               margin: const EdgeInsets.only(top: 4),
               width: 8,
@@ -134,5 +191,13 @@ class _NotifCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _timeAgo(DateTime date) {
+    final diff = DateTime.now().difference(date);
+    if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes} min';
+    if (diff.inHours < 24) return 'Il y a ${diff.inHours}h';
+    if (diff.inDays == 1) return 'Hier';
+    return DateFormat('dd/MM').format(date);
   }
 }

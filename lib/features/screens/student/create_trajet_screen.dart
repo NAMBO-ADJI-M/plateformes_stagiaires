@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../../services/api_service.dart';
 import '../../../services/api_exception.dart';
-import '../../widgets/common_widgets.dart';
 
 /// Écran de création d'un trajet : formulaire pour proposer un covoiturage.
 class CreateTrajetScreen extends StatefulWidget {
@@ -78,6 +78,21 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
     setState(() => _submitting = true);
 
     try {
+      // Géocodage des adresses pour la carte
+      double? latDep, lngDep, latArr, lngArr;
+      try {
+        final locDep = await locationFromAddress(_lieuDepartCtrl.text);
+        if (locDep.isNotEmpty) {
+          latDep = locDep.first.latitude;
+          lngDep = locDep.first.longitude;
+        }
+        final locArr = await locationFromAddress(_lieuArriveeCtrl.text);
+        if (locArr.isNotEmpty) {
+          latArr = locArr.first.latitude;
+          lngArr = locArr.first.longitude;
+        }
+      } catch (_) {}
+
       // Combiner la date et l'heure
       final dateTimeDepart = DateTime(
         _dateDepart!.year,
@@ -90,6 +105,10 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
       await _apiService.createTrajet({
         'lieu_depart': _lieuDepartCtrl.text.trim(),
         'lieu_arrivee': _lieuArriveeCtrl.text.trim(),
+        'depart_lat': latDep,
+        'depart_lng': lngDep,
+        'arrivee_lat': latArr,
+        'arrivee_lng': lngArr,
         'date_depart': dateTimeDepart.toIso8601String(),
         'description': _descriptionCtrl.text.trim(),
         'tarif': double.tryParse(_tarifCtrl.text.replaceAll(',', '.')) ?? 0,
@@ -109,9 +128,13 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
         if (mounted) Navigator.pop(context, true);
       });
     } on ApiException catch (e) {
-      setState(() => _erreur = e.userFriendlyMessage);
+      if (mounted) {
+        setState(() => _erreur = e.userFriendlyMessage);
+      }
     } catch (e) {
-      setState(() => _erreur = 'Erreur lors de la création du trajet');
+      if (mounted) {
+        setState(() => _erreur = 'Erreur lors de la création du trajet');
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
