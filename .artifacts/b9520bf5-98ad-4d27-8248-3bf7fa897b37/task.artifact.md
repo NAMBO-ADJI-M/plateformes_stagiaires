@@ -1,0 +1,6 @@
+- [x] Correction du système d'envoi d'emails dans `AuthController`
+- [x] Correction du chemin du certificat SSL Aiven dans `config/database.php`
+- [x] Mise à jour de `TestEmailController` pour le diagnostic
+- [/] Validation de l'envoi d'email via la route de test
+- [ ] Test du flux complet d'authentification (OTP)
+- [ ] Vérification finale de la démonstration de bout en bout

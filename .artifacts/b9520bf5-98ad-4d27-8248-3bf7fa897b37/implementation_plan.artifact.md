@@ -1,47 +1,53 @@
-# Plan d'Implémentation : Dynamisation de l'Interface Entreprise
+# Plan de Démonstration Finale et Correction SMTP - StageLink
 
-Ce plan vise à rendre fonctionnel le Dashboard et la Liste des Stagiaires pour l'espace Entreprise/Tuteur en connectant le frontend Flutter au backend Laravel.
+Ce plan a été mis à jour pour inclure la correction critique du système d'envoi d'emails OTP, suite au rapport d'échec de réception.
 
-## Proposed Changes
+## [URGENT] Correction du Système Email (OTP)
 
-### [Backend] Laravel (backend-stagiaires-laravel)
+L'absence de réception de l'email est probablement due à un décalage entre l'adresse d'expédition (`From`) codée en dur et l'authentification SMTP Gmail.
 
-#### [MODIFY] [api.php](file:///C:/laragon/www/backend-stagiaires-laravel/routes/api.php)
-- Ajouter les routes suivantes dans le groupe `middleware('profil:entreprise')` :
-    - `GET /entreprise/stagiaires` : Liste des carnets rattachés à l'entreprise.
-    - `GET /entreprise/dashboard-stats` : Statistiques globales pour le tuteur.
+### [Backend] Laravel
 
-#### [MODIFY] [CarnetController.php](file:///C:/laragon/www/backend-stagiaires-laravel/app/Http/Controllers/CarnetController.php)
-- Implémenter `listeEntreprise(Request $request)` : Filtre les `CarnetDeStage` par `entreprise_id`.
-- Implémenter `statsEntreprise(Request $request)` : Calcule le nombre de stagiaires actifs, le nombre total de missions et la progression moyenne.
+#### [MODIFY] [AuthController.php](file:///C:/laragon/www/backend-stagiaires-laravel/app/Http/Controllers/Auth/AuthController.php)
+- Remplacer `->from('noreply@stagelink.com', 'StageLink')` par `->from(config('mail.from.address'), config('mail.from.name'))`.
+- Ajouter un log détaillé dans le `catch` de `sendVerificationEmail` pour capturer l'exception exacte si l'envoi échoue à nouveau.
+
+#### [MODIFY] [TestEmailController.php](file:///C:/laragon/www/backend-stagiaires-laravel/app/Http/Controllers/TestEmailController.php)
+- Mettre à jour le texte de test (supprimer la mention "Brevo" qui prête à confusion avec la config Gmail).
+- Permettre de passer l'email de destination en paramètre pour faciliter le test.
+
+---
+
+## Scénarios de Test de Démonstration
+
+### 1. Validation SMTP & Authentification
+- **Test Technique** : Appeler `GET /api/test-email?email=votre@email.com` et vérifier la réception.
+- **Connexion Marie** : Tester le flux `login` -> `verify` avec un email réel.
+
+### 2. Flux Stagiaire (Marie Dupont)
+- **Pointage** : Arrivée géolocalisée.
+- **Journal** : Ajout d'une mission.
+- **Bilan** : Rédaction d'un bilan réflexif.
+- **Documents** : Téléchargement PDF de l'attestation.
+
+### 3. Flux Tuteur / Entreprise (TechCorp)
+- **Encadrement** : Évaluation d'une compétence et envoi d'une félicitation.
+- **Commentaires** : Annotation d'une entrée du journal de Marie.
+
+### 4. Flux Covoiturage
+- **Carte** : Création et réservation d'un trajet via l'interface interactive.
+- **Messagerie** : Test du polling 5s.
 
 ---
 
-### [Frontend] Flutter (plateforme_stagiaires)
-
-#### [MODIFY] [api_service.dart](file:///C:/laragon/www/plateforme_stagiaires/lib/services/api_service.dart)
-- Ajouter `getEntrepriseStagiaires()` : Appel à `GET /entreprise/stagiaires`.
-- Ajouter `getEntrepriseDashboardStats()` : Appel à `GET /entreprise/dashboard-stats`.
-
-#### [MODIFY] [DashboardTuteurScreen.dart](file:///C:/laragon/www/plateforme_stagiaires/lib/features/screens/tuteur/dashboard_tuteur_screen.dart)
-- Convertir en `StatefulWidget` pour gérer le chargement des données.
-- Remplacer les données statiques par les données de `ApiService`.
-- Gérer les états de chargement (Loading) et d'erreur.
-
-#### [MODIFY] [ListeStagiairesScreen.dart](file:///C:/laragon/www/plateforme_stagiaires/lib/features/screens/tuteur/liste_stagiaires_screen.dart)
-- Utiliser `ApiService` pour récupérer la liste complète des stagiaires.
-- Implémenter le filtrage par statut (Tous, Actifs, Terminés).
-- Connecter la barre de recherche.
-
----
+## Points de Contrôle Techniques
+- **Certificat SSL Aiven** : S'assurer que `MYSQL_ATTR_SSL_CA` pointe vers le bon chemin absolu ou relatif fonctionnel sur Laragon.
+- **Offline-first** : Validation de la queue de synchronisation SQLite en mode avion.
 
 ## Verification Plan
 
-### Automated Tests
-- Pas de tests automatisés prévus dans cette phase immédiate, mais vérification de la compilation.
+### Automated Verification
+- Vérification des logs `storage/logs/laravel.log` après une tentative d'envoi.
 
-### Manual Verification
-1. **Connexion en tant qu'Entreprise** : Vérifier que le Dashboard affiche les stats réelles.
-2. **Ajout d'un stagiaire** : Vérifier qu'un stagiaire rattaché via code apparaît dans la liste.
-3. **Navigation** : Vérifier que cliquer sur un stagiaire mène bien à ses détails (attestations/suivi).
-4. **Offline** : Vérifier que les listes sont mises en cache par `SqliteCacheService`.
+### Manual Validation
+- Confirmation par l'utilisateur de la réception effective du code OTP sur son adresse email.
