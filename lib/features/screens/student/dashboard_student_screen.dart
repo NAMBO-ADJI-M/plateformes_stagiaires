@@ -10,6 +10,7 @@ import '../../widgets/common_widgets.dart';
 import 'covoiturage_home_screen.dart';
 import 'notifications_screen.dart';
 import 'messages_screen.dart';
+import 'reservations_screen.dart';
 import 'carnet_creation_page.dart';
 import 'carnet_list_page.dart';
 
@@ -534,38 +535,70 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
                   avatarLoading: _photoUploading,
                 ),
               ),
-              Stack(
-                clipBehavior: Clip.none,
+              Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.notifications_none_rounded,
+                    icon: const Icon(Icons.chat_bubble_outline_rounded,
                         color: ColorConstants.textPrimary),
-                    onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const NotificationsScreen())),
+                    tooltip: 'Messagerie & Réservations',
+                    onPressed: () {
+                      if (_prochaineReservation != null &&
+                          _prochaineReservation!['trajet_id'] != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MessagesScreen(
+                              trajetId:
+                                  _prochaineReservation!['trajet_id'].toString(),
+                              trajetTitre: 'Messages Covoiturage',
+                            ),
+                          ),
+                        );
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const ReservationsScreen()),
+                        );
+                      }
+                    },
                   ),
-                  if (_notifCount > 0)
-                    Positioned(
-                      right: 6,
-                      top: 6,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                            color: ColorConstants.error,
-                            shape: BoxShape.circle),
-                        constraints:
-                            const BoxConstraints(minWidth: 16, minHeight: 16),
-                        child: Text(
-                          '$_notifCount',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold),
-                        ),
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.notifications_none_rounded,
+                            color: ColorConstants.textPrimary),
+                        tooltip: 'Notifications',
+                        onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const NotificationsScreen())),
                       ),
-                    ),
+                      if (_notifCount > 0)
+                        Positioned(
+                          right: 6,
+                          top: 6,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                                color: ColorConstants.error,
+                                shape: BoxShape.circle),
+                            constraints:
+                                const BoxConstraints(minWidth: 16, minHeight: 16),
+                            child: Text(
+                              '$_notifCount',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ],

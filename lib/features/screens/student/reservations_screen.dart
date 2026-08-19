@@ -5,6 +5,7 @@ import '../../../services/api_service.dart';
 import '../../../services/api_exception.dart';
 import '../../widgets/common_widgets.dart';
 import 'trajet_details_screen.dart';
+import 'messages_screen.dart';
 
 /// Écran de gestion des réservations : affiche les trajets réservés avec possibilité d'annuler.
 class ReservationsScreen extends StatefulWidget {
@@ -312,29 +313,58 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
               ],
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
 
-            // Bouton annuler
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: enAnnulation || reservationId == null
-                    ? null
-                    : () => _annulerReservation(reservationId),
-                icon: enAnnulation
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.close, size: 16),
-                label: Text(
-                    enAnnulation ? 'Annulation...' : 'Annuler la réservation'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
+            // Boutons d'action : Messages et Annuler
+            Row(
+              children: [
+                if (trajetId != null) ...[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MessagesScreen(
+                              trajetId: trajetId,
+                              trajetTitre: 'Discussion - $chauffeurNom',
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
+                      label: const Text('Message'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: ColorConstants.primary,
+                        side: const BorderSide(color: ColorConstants.primary),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                ],
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: enAnnulation || reservationId == null
+                        ? null
+                        : () => _annulerReservation(reservationId),
+                    icon: enAnnulation
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.close, size: 16),
+                    label: Text(
+                        enAnnulation ? 'Annulation...' : 'Annuler'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         ),

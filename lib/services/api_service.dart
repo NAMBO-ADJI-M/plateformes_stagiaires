@@ -495,14 +495,15 @@ class ApiService {
       }
 
       final data = (body['data'] ?? body) as Map<String, dynamic>;
-      final url =
-          data['photo_profil'] as String? ?? data['photo_url'] as String?;
+      final url = data['photo_profil_url'] as String? ??
+          data['photo_url'] as String? ??
+          data['photo_profil'] as String?;
       if (url == null || url.isEmpty) {
         throw ApiException(
-            'RÃ©ponse inattendue du serveur aprÃ¨s l\'envoi de la photo.');
+            'Réponse inattendue du serveur après l\'envoi de la photo.');
       }
 
-      // âœ… TRÃˆS IMPORTANT : Invalider le cache du profil pour forcer la mise Ã  jour
+      // ✅ TRÈS IMPORTANT : Invalider le cache du profil pour forcer la mise à jour
       await _cache.delete('profile');
 
       return url;

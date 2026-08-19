@@ -199,6 +199,11 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
         actions: [
           IconButton(
+            icon: const Icon(Icons.chat_bubble_outline_rounded),
+            tooltip: 'Messages & Réservations',
+            onPressed: _openReservations,
+          ),
+          IconButton(
             icon: const Icon(Icons.bookmark_outline),
             tooltip: 'Mes réservations',
             onPressed: _openReservations,

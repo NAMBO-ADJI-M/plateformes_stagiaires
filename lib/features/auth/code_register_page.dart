@@ -98,139 +98,148 @@ class _CodeRegisterPageState extends State<CodeRegisterPage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            Container(
-              alignment: Alignment.center,
-              padding: const EdgeInsets.only(top: 40),
-              child: SafeArea(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 70,
-                      height: 70,
-                      decoration: BoxDecoration(
-                        color: ColorConstants.primary,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Icon(
-                        Icons.person_add,
-                        size: 35,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'PS',
-                      style: GoogleFonts.poppins(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Accès $title',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 30),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Connexion',
-                    style: GoogleFonts.poppins(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Saisissez votre email',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Email
-                  _buildTextField(
-                    controller: _emailController,
-                    label: 'Email',
-                    icon: Icons.alternate_email,
-                    hint: 'votre@email.com',
-                    keyboardType: TextInputType.emailAddress,
-                    enabled: !_isLoading,
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Bouton d'envoi du code
-                  _buildActionButton(
-                    label: 'RECEVOIR MON CODE',
-                    onPressed: _handleRequestCode,
-                    isLoading: _isLoading,
-                  ),
-
-                  if (_message.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: const BackButton(color: ColorConstants.textPrimary),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Logo / Header
+                Center(
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 70,
+                        height: 70,
                         decoration: BoxDecoration(
-                          color:
-                              _message.contains('✅') || _message.contains('📧')
-                                  ? Colors.blue.shade50
-                                  : _message.contains('Erreur') ||
-                                          _message.contains('incorrect') ||
-                                          _message.contains('invalide')
-                                      ? Colors.red.shade50
-                                      : Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: _message.contains('✅') ||
-                                    _message.contains('📧')
-                                ? Colors.blue.shade200
-                                : _message.contains('Erreur') ||
-                                        _message.contains('incorrect') ||
-                                        _message.contains('invalide')
-                                    ? Colors.red.shade200
-                                    : Colors.green.shade200,
-                          ),
+                          color: ColorConstants.primary,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: ColorConstants.glowShadow(ColorConstants.primary),
+                        ),
+                        child: const Icon(
+                          Icons.person_add_rounded,
+                          size: 36,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'StageLink',
+                        style: GoogleFonts.poppins(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: ColorConstants.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: ColorConstants.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          _message,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: _message.contains('✅') ||
-                                    _message.contains('📧')
-                                ? Colors.blue.shade700
-                                : _message.contains('Erreur') ||
-                                        _message.contains('incorrect') ||
-                                        _message.contains('invalide')
-                                    ? Colors.red.shade700
-                                    : Colors.green.shade700,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
+                          'Accès $title',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: ColorConstants.primary,
                           ),
                         ),
                       ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 28),
+
+                Text(
+                  'Connexion / Inscription',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: ColorConstants.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Saisissez votre adresse email pour recevoir un code à 6 chiffres.',
+                  style: GoogleFonts.poppins(
+                    color: ColorConstants.textSecondary,
+                    fontSize: 13.5,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Email
+                _buildTextField(
+                  controller: _emailController,
+                  label: 'Email',
+                  icon: Icons.alternate_email_rounded,
+                  hint: 'votre@email.com',
+                  keyboardType: TextInputType.emailAddress,
+                  enabled: !_isLoading,
+                ),
+                const SizedBox(height: 20),
+
+                // Bouton d'envoi du code
+                _buildActionButton(
+                  label: 'RECEVOIR MON CODE',
+                  onPressed: _handleRequestCode,
+                  isLoading: _isLoading,
+                ),
+
+                if (_message.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _message.contains('✅') || _message.contains('📧')
+                            ? Colors.blue.shade50
+                            : _message.contains('Erreur') ||
+                                    _message.contains('incorrect') ||
+                                    _message.contains('invalide')
+                                ? Colors.red.shade50
+                                : Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: _message.contains('✅') || _message.contains('📧')
+                              ? Colors.blue.shade200
+                              : _message.contains('Erreur') ||
+                                      _message.contains('incorrect') ||
+                                      _message.contains('invalide')
+                                  ? Colors.red.shade200
+                                  : Colors.green.shade200,
+                        ),
+                      ),
+                      child: Text(
+                        _message,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: _message.contains('✅') || _message.contains('📧')
+                              ? Colors.blue.shade700
+                              : _message.contains('Erreur') ||
+                                      _message.contains('incorrect') ||
+                                      _message.contains('invalide')
+                                  ? Colors.red.shade700
+                                  : Colors.green.shade700,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13.5,
+                        ),
+                      ),
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
