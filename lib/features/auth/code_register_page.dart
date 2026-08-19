@@ -132,7 +132,7 @@ class _CodeRegisterPageState extends State<CodeRegisterPage> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'StageLink',
+                        'Carnet de Stage',
                         style: GoogleFonts.poppins(
                           fontSize: 26,
                           fontWeight: FontWeight.bold,
@@ -161,7 +161,7 @@ class _CodeRegisterPageState extends State<CodeRegisterPage> {
                 const SizedBox(height: 28),
 
                 Text(
-                  'Connexion / Inscription',
+                  'Connexion',
                   style: GoogleFonts.poppins(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,

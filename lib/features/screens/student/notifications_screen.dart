@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
 import '../../../services/api_service.dart';
@@ -134,9 +135,15 @@ class _NotifCard extends StatelessWidget {
     String body = data['message'] ?? '';
 
     // Personnalisation selon le type (logique Laravel Notification)
+    final isInvitation = type.contains('InvitationRattachement') || data['type'] == 'invitation_rattachement';
+
     if (type.contains('Encouragement')) {
       icon = Icons.favorite;
       iconColor = const Color(0xFFEC4899);
+    } else if (isInvitation) {
+      icon = Icons.handshake_rounded;
+      iconColor = ColorConstants.primary;
+      title = '🤝 Invitation Reçue';
     } else if (type.contains('CarnetValide')) {
       icon = Icons.check_circle;
       iconColor = ColorConstants.success;
@@ -177,6 +184,25 @@ class _NotifCard extends StatelessWidget {
                 Text(_timeAgo(createdAt),
                     style: const TextStyle(
                         fontSize: 11, color: ColorConstants.textSecondary)),
+                if (isInvitation && data['code'] != null) ...[
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: data['code']));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('✅ Code copié !')),
+                      );
+                    },
+                    icon: const Icon(Icons.copy_rounded, size: 14),
+                    label: Text('Copier le code : ${data['code']}',
+                      style: const TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

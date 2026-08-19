@@ -157,7 +157,10 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
   }
 
   Future<void> _loadDashboard({bool silentRefresh = false}) async {
-    if (!silentRefresh) {
+    // Si on a déjà des données, on évite le spinner plein écran pour une sensation d'instantanéité
+    final hasData = _prenom.isNotEmpty || _hasCarnet;
+
+    if (!silentRefresh && !hasData) {
       setState(() {
         _loading = true;
         _error = null;
@@ -165,37 +168,27 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
     }
 
     try {
-      // Profil et carnets sont indépendants l'un de l'autre,
-      // on les lance en parallèle plutôt que l'un après l'autre.
-      final results = await Future.wait([
-        _api.getProfile(),
-        _api.getCarnets(),
-      ]);
+      // 1. Charger le profil (sera instantané si en cache SQLite)
+      final profileResponse = await _api.getProfile();
+      final stagiaire = profileResponse['profile_data'] as Map<String, dynamic>?;
 
-      final profileResponse = results[0] as Map<String, dynamic>;
-      final carnets = results[1] as List<dynamic>;
+      if (mounted) {
+        setState(() {
+          _prenom = (stagiaire?['prenom'] as String?) ?? '';
+          _ecole = (stagiaire?['ecole'] as String?) ?? '';
+          _filiere = (stagiaire?['filiere'] as String?) ?? '';
+          _photoUrl = stagiaire?['photo_profil_url'] as String?;
+          _notifCount = (profileResponse['notifications_non_lues'] as int?) ?? 0;
+          // Si on n'avait pas de données, on peut déjà arrêter le chargement du header
+          if (!hasData) _loading = false;
+        });
+      }
 
-      final stagiaire =
-          profileResponse['profile_data'] as Map<String, dynamic>?;
-
-      final newPrenom = (stagiaire?['prenom'] as String?) ?? '';
-      final newEcole = (stagiaire?['ecole'] as String?) ?? '';
-      final newFiliere = (stagiaire?['filiere'] as String?) ?? '';
-      final newPhotoUrl = stagiaire?['photo_profil_url'] as String?;
-      final newNotifCount = (profileResponse['notifications_non_lues'] as int?) ?? 0;
+      // 2. Charger les carnets
+      final carnets = await _api.getCarnets();
 
       if (carnets.isEmpty) {
-        if (mounted) {
-          setState(() {
-            _prenom = newPrenom;
-            _ecole = newEcole;
-            _filiere = newFiliere;
-            _photoUrl = newPhotoUrl;
-            _notifCount = newNotifCount;
-            _hasCarnet = false;
-            _loading = false;
-          });
-        }
+        if (mounted) setState(() { _hasCarnet = false; _loading = false; });
         return;
       }
 
@@ -204,80 +197,54 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
         orElse: () => carnets.first,
       ) as Map<String, dynamic>;
 
-      final newRattache = carnet['entreprise_id'] != null &&
-          carnet['autorisation_suivi'] == true;
-      final newTuteurNom = carnet['tuteur_nom'] as String?;
+      if (mounted) {
+        setState(() {
+          _rattache = carnet['entreprise_id'] != null && carnet['autorisation_suivi'] == true;
+          _tuteurNom = carnet['tuteur_nom'] as String?;
+          _hasCarnet = true;
+        });
+      }
 
       final carnetId = carnet['id'] as String;
 
-      // Ces trois appels ne dépendent que de carnetId, donc indépendants
-      // entre eux — on les lance aussi en parallèle. Chacun est protégé
-      // individuellement pour qu'un échec isolé (ex. pas encore de
-      // pointage aujourd'hui) ne bloque pas les autres.
-      final statsFuture = _api.getCarnetStats(carnetId);
-      final historiqueFuture = _api
-          .getHistoriquePointage(carnetId)
-          .then<List<dynamic>?>((h) => h)
-          .catchError((_) => null);
-      final reservationsFuture = _api
-          .getMesReservations()
-          .then<List<dynamic>?>((r) => r)
-          .catchError((_) => null);
-
+      // 3. Charger les détails en parallèle (Stats, Pointage, Réservations)
       final secondaryResults = await Future.wait([
-        statsFuture,
-        historiqueFuture,
-        reservationsFuture,
+        _api.getCarnetStats(carnetId),
+        _api.getHistoriquePointage(carnetId).catchError((_) => []),
+        _api.getMesReservations().catchError((_) => []),
       ]);
-
-      final stats = secondaryResults[0] as Map<String, dynamic>;
-      final historique = secondaryResults[1] as List<dynamic>?;
-      final reservations = secondaryResults[2] as List<dynamic>?;
-
-      if (historique != null) {
-        _computePointageDuJour(historique);
-      }
-
-      if (reservations != null) {
-        final aVenir = reservations
-            .cast<Map<String, dynamic>>()
-            .where((r) => r['statut'] != 'ANNULEE' && r['statut'] != 'TERMINEE')
-            .toList();
-        _prochaineReservation = aVenir.isNotEmpty ? aVenir.first : null;
-      }
 
       if (mounted) {
         setState(() {
-          _prenom = newPrenom;
-          _ecole = newEcole;
-          _filiere = newFiliere;
-          _photoUrl = newPhotoUrl;
-          _notifCount = newNotifCount;
-          _rattache = newRattache;
-          _tuteurNom = newTuteurNom;
-          _hasCarnet = true;
-          _stats = stats;
+          _stats = secondaryResults[0] as Map<String, dynamic>;
+          _computePointageDuJour(secondaryResults[1] as List<dynamic>);
+
+          final reservations = secondaryResults[2] as List<dynamic>;
+          final aVenir = reservations
+              .cast<Map<String, dynamic>>()
+              .where((r) => r['statut'] != 'ANNULEE' && r['statut'] != 'TERMINEE')
+              .toList();
+          _prochaineReservation = aVenir.isNotEmpty ? aVenir.first : null;
+
           _loading = false;
         });
       }
     } on ApiException catch (e) {
-      if (mounted && !silentRefresh) {
+      if (mounted && !hasData) {
         setState(() {
           _error = e.message;
           _loading = false;
         });
-      } else if (mounted) {
-        setState(() => _loading = false);
       }
     } catch (e) {
-      if (mounted && !silentRefresh) {
+      if (mounted && !hasData) {
         setState(() {
           _error = 'Une erreur est survenue. Vérifiez votre connexion.';
           _loading = false;
         });
-      } else if (mounted) {
-        setState(() => _loading = false);
       }
+    }
+  }
     }
   }
 

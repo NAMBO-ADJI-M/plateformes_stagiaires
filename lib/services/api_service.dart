@@ -942,19 +942,31 @@ class ApiService {
   }
 
   Future<List<dynamic>> getConversations() async {
-    final response = await _httpClient.get(
-      Uri.parse('$baseUrl/messages'),
-      headers: _authHeaders,
+    return _readCachedOrRefresh<List<dynamic>>(
+      'conversations_list',
+      () async {
+        final response = await _httpClient.get(
+          Uri.parse('$baseUrl/messages'),
+          headers: _authHeaders,
+        );
+        return _decodeList(response);
+      },
+      ttl: const Duration(minutes: 5),
     );
-    return _decodeList(response);
   }
 
   Future<List<dynamic>> getTrajetMessages(String trajetId) async {
-    final response = await _httpClient.get(
-      Uri.parse('$baseUrl/trajets/$trajetId/messages'),
-      headers: _authHeaders,
+    return _readCachedOrRefresh<List<dynamic>>(
+      'messages_$trajetId',
+      () async {
+        final response = await _httpClient.get(
+          Uri.parse('$baseUrl/trajets/$trajetId/messages'),
+          headers: _authHeaders,
+        );
+        return _decodeList(response);
+      },
+      ttl: const Duration(minutes: 2), // TTL plus court pour les messages
     );
-    return _decodeList(response);
   }
 
   Future<Map<String, dynamic>> sendTrajetMessage(
@@ -1006,16 +1018,28 @@ class ApiService {
   }
 
   Future<List<dynamic>> getFichesInvitation() async {
-    final response = await _httpClient.get(Uri.parse('$baseUrl/fiches-invitation'),
-        headers: _authHeaders);
-    return _decodeList(response);
+    return _readCachedOrRefresh<List<dynamic>>(
+      'fiches_invitation',
+      () async {
+        final response = await _httpClient.get(Uri.parse('$baseUrl/fiches-invitation'),
+            headers: _authHeaders);
+        return _decodeList(response);
+      },
+      ttl: const Duration(minutes: 10),
+    );
   }
 
   Future<List<dynamic>> getEvaluations(String carnetId) async {
-    final response = await _httpClient.get(
-        Uri.parse('$baseUrl/carnets/$carnetId/evaluations'),
-        headers: _authHeaders);
-    return _decodeList(response);
+    return _readCachedOrRefresh<List<dynamic>>(
+      'evaluations_$carnetId',
+      () async {
+        final response = await _httpClient.get(
+            Uri.parse('$baseUrl/carnets/$carnetId/evaluations'),
+            headers: _authHeaders);
+        return _decodeList(response);
+      },
+      ttl: const Duration(minutes: 10),
+    );
   }
 
   Future<Map<String, dynamic>> evaluerCompetence(
