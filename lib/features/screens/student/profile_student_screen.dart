@@ -366,6 +366,8 @@ class _LabelValue extends StatelessWidget {
                 color: ColorConstants.textSecondary)),
         const SizedBox(height: 4),
         Text(value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -390,7 +392,7 @@ class _InfoRow extends StatelessWidget {
         Text(label,
             style: const TextStyle(
                 fontSize: 13.5, color: ColorConstants.textSecondary)),
-        const Spacer(),
+        const SizedBox(width: 12),
         Expanded(
           child: Text(value,
               textAlign: TextAlign.right,

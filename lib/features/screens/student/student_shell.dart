@@ -10,8 +10,7 @@ import 'covoiturage_home_screen.dart';
 import 'profile_student_screen.dart';
 
 /// Coquille de navigation de l'espace stagiaire.
-/// Onglets : Accueil / Logbook / Stats / Profil (cf. mockups dashboard-student,
-/// progression-screen, profile-student).
+/// Onglets : Accueil / Logbook / Stats / Covoiturage / Profil.
 class StudentShell extends StatefulWidget {
   const StudentShell({super.key});
 
@@ -83,15 +82,30 @@ class _StudentShellState extends State<StudentShell> {
         showUnselectedLabels: true,
         items: const [
           BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined), label: 'Accueil'),
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home_rounded),
+            label: 'Accueil',
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.menu_book_outlined), label: 'Logbook'),
+            icon: Icon(Icons.menu_book_outlined),
+            activeIcon: Icon(Icons.menu_book_rounded),
+            label: 'Logbook',
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart_rounded), label: 'Stats'),
+            icon: Icon(Icons.bar_chart_rounded),
+            activeIcon: Icon(Icons.leaderboard_rounded),
+            label: 'Stats',
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.directions_car_outlined), label: 'Covoiturage'),
+            icon: Icon(Icons.directions_car_outlined),
+            activeIcon: Icon(Icons.directions_car_rounded),
+            label: 'Covoiturage',
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline), label: 'Profil'),
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person_rounded),
+            label: 'Profil',
+          ),
         ],
       ),
     );

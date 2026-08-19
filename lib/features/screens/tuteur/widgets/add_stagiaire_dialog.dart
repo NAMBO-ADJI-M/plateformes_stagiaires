@@ -107,13 +107,21 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
           onPressed: _isLoading ? null : () => Navigator.pop(context),
           child: const Text('Annuler'),
         ),
-        SizedBox(
-          width: 150,
-          child: PrimaryButton(
-            label: 'Générer le code',
-            isLoading: _isLoading,
-            onPressed: _submit,
+        ElevatedButton(
+          onPressed: _isLoading ? null : _submit,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: ColorConstants.primary,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           ),
+          child: _isLoading
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : const Text('Générer le code'),
         ),
       ],
     );
@@ -129,7 +137,17 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
-      validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
+      validator: (v) {
+        if (v == null || v.trim().isEmpty) return 'Champ requis';
+        if (keyboardType == TextInputType.emailAddress) {
+          final email = v.trim().toLowerCase();
+          final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+          if (!emailRegex.hasMatch(email)) {
+            return 'Email invalide';
+          }
+        }
+        return null;
+      },
     );
   }
 }

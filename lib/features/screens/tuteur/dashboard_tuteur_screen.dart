@@ -353,11 +353,17 @@ class StagiaireTile extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(name,
+                    Expanded(
+                      child: Text(
+                        name,
                         style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 14,
-                            color: ColorConstants.textPrimary)),
+                            color: ColorConstants.textPrimary),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     StatusPill(label: status, color: statusColor),
                   ],
                 ),

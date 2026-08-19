@@ -152,181 +152,183 @@ class _CodeVerifyPageState extends State<CodeVerifyPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Icône
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: ColorConstants.primary.withAlpha(20),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(
-                  Icons.mark_email_read_outlined,
-                  size: 40,
-                  color: ColorConstants.primary,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Titre
-              Text(
-                'Vérification',
-                style: GoogleFonts.poppins(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // Sous-titre
-              Text(
-                'Un code de vérification a été envoyé à',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
-                ),
-              ),
-              Text(
-                widget.email,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // Code
-              TextField(
-                controller: _codeController,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                decoration: InputDecoration(
-                  labelText: 'Code à 6 chiffres',
-                  hintText: '000000',
-                  prefixIcon: const Icon(Icons.pin_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Icône
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: ColorConstants.primary.withAlpha(20),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: ColorConstants.primary),
+                  child: const Icon(
+                    Icons.mark_email_read_outlined,
+                    size: 40,
+                    color: ColorConstants.primary,
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // Bouton vérifier
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _verifyCode,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ColorConstants.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
+                // Titre
+                Text(
+                  'Vérification',
+                  style: GoogleFonts.poppins(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Sous-titre
+                Text(
+                  'Un code de vérification a été envoyé à',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  widget.email,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Code
+                TextField(
+                  controller: _codeController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  decoration: InputDecoration(
+                    labelText: 'Code à 6 chiffres',
+                    hintText: '000000',
+                    prefixIcon: const Icon(Icons.pin_outlined),
+                    border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: ColorConstants.primary),
                     ),
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('VÉRIFIER'),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 24),
 
-              // Renvoyer le code
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Vous n\'avez pas reçu le code ?',
-                    style: TextStyle(color: Colors.grey[600]),
+                // Bouton vérifier
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _verifyCode,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ColorConstants.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('VÉRIFIER'),
                   ),
-                  const SizedBox(width: 8),
-                  if (_canResend)
-                    TextButton(
-                      onPressed: _resendCode,
-                      child: const Text('Renvoyer'),
-                    )
-                  else
+                ),
+                const SizedBox(height: 16),
+
+                // Renvoyer le code
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
                     Text(
-                      '($_resendCountdown s)',
-                      style: TextStyle(
-                        color: Colors.grey[500],
-                        fontWeight: FontWeight.bold,
-                      ),
+                      'Vous n\'avez pas reçu le code ?',
+                      style: TextStyle(color: Colors.grey[600]),
                     ),
-                ],
-              ),
-              const SizedBox(height: 16),
+                    const SizedBox(width: 8),
+                    if (_canResend)
+                      TextButton(
+                        onPressed: _resendCode,
+                        child: const Text('Renvoyer'),
+                      )
+                    else
+                      Text(
+                        '($_resendCountdown s)',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
 
-              // Retour
-              TextButton(
-                onPressed: _goBackToLogin,
-                child: const Text('Retour à la connexion'),
-              ),
+                // Retour
+                TextButton(
+                  onPressed: _goBackToLogin,
+                  child: const Text('Retour à la connexion'),
+                ),
 
-              if (_message.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: _message.contains('📧')
-                          ? Colors.blue.shade50
-                          : _message.contains('Erreur') ||
-                                  _message.contains('incorrect') ||
-                                  _message.contains('invalide')
-                              ? Colors.red.shade50
-                              : Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
+                if (_message.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
                         color: _message.contains('📧')
-                            ? Colors.blue.shade200
+                            ? Colors.blue.shade50
                             : _message.contains('Erreur') ||
                                     _message.contains('incorrect') ||
                                     _message.contains('invalide')
-                                ? Colors.red.shade200
-                                : Colors.green.shade200,
+                                ? Colors.red.shade50
+                                : Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _message.contains('📧')
+                              ? Colors.blue.shade200
+                              : _message.contains('Erreur') ||
+                                      _message.contains('incorrect') ||
+                                      _message.contains('invalide')
+                                  ? Colors.red.shade200
+                                  : Colors.green.shade200,
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      _message,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: _message.contains('📧')
-                            ? Colors.blue.shade700
-                            : _message.contains('Erreur') ||
-                                    _message.contains('incorrect') ||
-                                    _message.contains('invalide')
-                                ? Colors.red.shade700
-                                : Colors.green.shade700,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
+                      child: Text(
+                        _message,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: _message.contains('📧')
+                              ? Colors.blue.shade700
+                              : _message.contains('Erreur') ||
+                                      _message.contains('incorrect') ||
+                                      _message.contains('invalide')
+                                  ? Colors.red.shade700
+                                  : Colors.green.shade700,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

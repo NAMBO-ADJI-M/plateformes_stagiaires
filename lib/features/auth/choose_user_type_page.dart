@@ -28,7 +28,7 @@ class _ChooseUserTypePageState extends State<ChooseUserTypePage> {
         leading: const BackButton(color: ColorConstants.textPrimary),
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -65,6 +65,7 @@ class _ChooseUserTypePageState extends State<ChooseUserTypePage> {
                 badgeText: 'Tuteur & Suivi',
                 gradient: ColorConstants.accentGradient,
               ),
+              const SizedBox(height: 16),
             ],
           ),
         ),

@@ -528,13 +528,21 @@ class _TrajetDetailsScreenState extends State<TrajetDetailsScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label,
               style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
-          Text(valeur,
-              style:
-                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              valeur,
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
+            ),
+          ),
         ],
       ),
     );

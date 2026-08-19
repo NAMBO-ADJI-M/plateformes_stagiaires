@@ -88,18 +88,22 @@ class _AddLogbookEntryScreenState extends State<AddLogbookEntryScreen> {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  _TypeChip(
-                    label: 'Mission',
-                    icon: Icons.assignment_outlined,
-                    selected: _type == 'MISSION',
-                    onTap: () => setState(() => _type = 'MISSION'),
+                  Expanded(
+                    child: _TypeChip(
+                      label: 'Mission',
+                      icon: Icons.assignment_outlined,
+                      selected: _type == 'MISSION',
+                      onTap: () => setState(() => _type = 'MISSION'),
+                    ),
                   ),
                   const SizedBox(width: 12),
-                  _TypeChip(
-                    label: 'Difficulté',
-                    icon: Icons.warning_amber_rounded,
-                    selected: _type == 'DIFFICULTE',
-                    onTap: () => setState(() => _type = 'DIFFICULTE'),
+                  Expanded(
+                    child: _TypeChip(
+                      label: 'Difficulté',
+                      icon: Icons.warning_amber_rounded,
+                      selected: _type == 'DIFFICULTE',
+                      onTap: () => setState(() => _type = 'DIFFICULTE'),
+                    ),
                   ),
                 ],
               ),
@@ -177,17 +181,27 @@ class _TypeChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: selected ? ColorConstants.primary : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: selected ? ColorConstants.primary : ColorConstants.border),
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, color: selected ? Colors.white : ColorConstants.textSecondary, size: 18),
             const SizedBox(width: 8),
-            Text(label, style: TextStyle(color: selected ? Colors.white : ColorConstants.textPrimary, fontWeight: FontWeight.bold)),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: selected ? Colors.white : ColorConstants.textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
       ),

@@ -275,21 +275,29 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 16,
-                      backgroundColor:
-                          ColorConstants.primary.withValues(alpha: 0.2),
-                      child: Text(chauffeurNom[0].toUpperCase(),
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(chauffeurNom,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w500, fontSize: 12)),
-                  ],
+                Expanded(
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor:
+                            ColorConstants.primary.withValues(alpha: 0.2),
+                        child: Text(chauffeurNom.isNotEmpty ? chauffeurNom[0].toUpperCase() : '?',
+                            style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          chauffeurNom,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w500, fontSize: 12),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
