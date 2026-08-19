@@ -138,7 +138,7 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         children: [
           GreetingHeader(
-            title: 'Bonjour, ${userName.isEmpty ? 'M. Laurent' : userName} 👋',
+            title: 'Bonjour, ${userName.isEmpty ? 'M. Laurent' : userName}',
             subtitle: '$entrepriseName • Tuteur Principal',
           ),
           const SizedBox(height: 16),

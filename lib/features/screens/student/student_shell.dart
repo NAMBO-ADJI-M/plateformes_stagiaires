@@ -6,6 +6,7 @@ import '../../../services/geofencing_service.dart';
 import 'dashboard_student_screen.dart';
 import 'logbook_tab_screen.dart'; 
 import 'progression_screen.dart';
+import 'covoiturage_home_screen.dart';
 import 'profile_student_screen.dart';
 
 /// Coquille de navigation de l'espace stagiaire.
@@ -25,6 +26,7 @@ class _StudentShellState extends State<StudentShell> {
     DashboardStudentScreen(),
     LogbookTabScreen(),
     ProgressionScreen(),
+    CovoiturageHomeScreen(),
     ProfileStudentScreen(),
   ];
 
@@ -86,6 +88,8 @@ class _StudentShellState extends State<StudentShell> {
               icon: Icon(Icons.menu_book_outlined), label: 'Logbook'),
           BottomNavigationBarItem(
               icon: Icon(Icons.bar_chart_rounded), label: 'Stats'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.directions_car_outlined), label: 'Covoiturage'),
           BottomNavigationBarItem(
               icon: Icon(Icons.person_outline), label: 'Profil'),
         ],

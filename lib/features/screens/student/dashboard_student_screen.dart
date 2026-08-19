@@ -9,6 +9,7 @@ import '../../../services/api_exception.dart';
 import '../../widgets/common_widgets.dart';
 import 'covoiturage_home_screen.dart';
 import 'notifications_screen.dart';
+import 'messages_screen.dart';
 import 'carnet_creation_page.dart';
 import 'carnet_list_page.dart';
 
@@ -757,7 +758,7 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
             children: [
               _ShortcutTile(
                 icon: Icons.menu_book_outlined,
-                label: ' Mes Carnets',
+                label: ' Carnets',
                 onTap: () async {
                   if (!_hasCarnet) {
                     final cree = await Navigator.push<bool>(
@@ -781,8 +782,14 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
                         builder: (_) => const CovoiturageHomeScreen())),
               ),
               const SizedBox(width: 10),
-              const _ShortcutTile(
-                  icon: Icons.chat_bubble_outline, label: 'Messages'),
+              _ShortcutTile(
+                icon: Icons.chat_bubble_outline,
+                label: 'Messages',
+                onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const MessagesScreen())),
+              ),
             ],
           ),
 
