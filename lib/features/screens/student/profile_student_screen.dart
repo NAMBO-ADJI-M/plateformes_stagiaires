@@ -6,6 +6,7 @@ import '../../widgets/common_widgets.dart';
 import '../../../services/api_service.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/geofencing_service.dart';
+import '../../../services/profile_event_bus.dart';
 
 /// Version dynamisée du profil stagiaire.
 class ProfileStudentScreen extends StatefulWidget {
@@ -70,6 +71,7 @@ class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
     try {
       await _api.updatePhotoProfil(File(image.path));
       await _loadData();
+      ProfileEventBus().notifyProfileUpdate();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Photo mise à jour !')));
       }

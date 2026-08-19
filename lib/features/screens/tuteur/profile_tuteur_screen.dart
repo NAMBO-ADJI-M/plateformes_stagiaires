@@ -6,6 +6,7 @@ import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
 import '../../../services/api_service.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/profile_event_bus.dart';
 
 /// Page de profil de l'espace tuteur/entreprise : infos personnelles,
 /// informations entreprise, et déconnexion.
@@ -60,6 +61,7 @@ class _ProfileTuteurScreenState extends State<ProfileTuteurScreen> {
     try {
       await _api.updatePhotoProfil(File(image.path));
       await _loadData();
+      ProfileEventBus().notifyProfileUpdate();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Photo mise à jour !')));
       }

@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
 import '../../../services/api_service.dart';
+import '../../../services/profile_event_bus.dart';
 import 'widgets/add_stagiaire_dialog.dart';
 import 'suivi_stagiaire_screen.dart';
 
@@ -20,10 +22,23 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
   Map<String, dynamic>? _profile;
   bool _isLoading = true;
 
+  StreamSubscription? _profileSub;
+
   @override
   void initState() {
     super.initState();
     _loadData();
+
+    // ✅ Écouter les mises à jour du profil pour rafraîchir l'en-tête
+    _profileSub = ProfileEventBus().onProfileUpdate.listen((_) {
+      _loadData();
+    });
+  }
+
+  @override
+  void dispose() {
+    _profileSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -131,6 +146,7 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
     final userName =
         '${profileData['prenom'] ?? ''} ${profileData['nom'] ?? ''}'.trim();
     final entrepriseName = profileData['raison_sociale'] ?? 'Mon Entreprise';
+    final photoUrl = profileData['photo_profil_url'];
 
     return RefreshIndicator(
       onRefresh: _loadData,
@@ -140,6 +156,7 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
           GreetingHeader(
             title: 'Bonjour, ${userName.isEmpty ? 'M. Laurent' : userName}',
             subtitle: '$entrepriseName • Tuteur Principal',
+            avatarUrl: photoUrl,
           ),
           const SizedBox(height: 16),
           // Alertes réelles de baisse d'activité

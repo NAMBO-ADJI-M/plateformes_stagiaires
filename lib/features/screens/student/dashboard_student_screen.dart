@@ -7,10 +7,12 @@ import '../../../core/constants/constants_colors.dart';
 import '../../../services/api_service.dart';
 import '../../../services/api_exception.dart';
 import '../../../services/geofencing_service.dart';
+import '../../../services/profile_event_bus.dart';
 import '../../widgets/common_widgets.dart';
 import 'covoiturage_home_screen.dart';
 import 'notifications_screen.dart';
 import 'conversations_screen.dart';
+import 'internship_map_screen.dart';
 import 'carnet_creation_page.dart';
 import 'carnet_list_page.dart';
 
@@ -58,17 +60,25 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
   bool _geofencingActive = false;
   bool _checkingGeofencing = true;
 
+  StreamSubscription? _profileSub;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _checkGeofencingStatus();
     _loadDashboard();
+
+    // ✅ Écouter les mises à jour du profil pour rafraîchir l'avatar
+    _profileSub = ProfileEventBus().onProfileUpdate.listen((_) {
+      _loadDashboard(silentRefresh: true);
+    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _profileSub?.cancel();
     super.dispose();
   }
 
@@ -768,11 +778,17 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
                   fontSize: 16,
                   color: ColorConstants.textPrimary)),
           const SizedBox(height: 10),
-          Row(
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 2.2,
             children: [
               _ShortcutTile(
                 icon: Icons.menu_book_outlined,
-                label: ' Carnets',
+                label: 'Carnets',
                 onTap: () async {
                   if (!_hasCarnet) {
                     final cree = await Navigator.push<bool>(
@@ -786,7 +802,6 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
                   }
                 },
               ),
-              const SizedBox(width: 10),
               _ShortcutTile(
                 icon: Icons.directions_car_outlined,
                 label: 'Covoiturage',
@@ -795,7 +810,14 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
                     MaterialPageRoute(
                         builder: (_) => const CovoiturageHomeScreen())),
               ),
-              const SizedBox(width: 10),
+              _ShortcutTile(
+                icon: Icons.map_outlined,
+                label: 'Carte Stages',
+                onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const InternshipMapScreen())),
+              ),
               _ShortcutTile(
                 icon: Icons.chat_bubble_outline,
                 label: 'Messages',
@@ -1211,22 +1233,21 @@ class _ShortcutTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: AppCard(
-        onTap: onTap,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-        child: Column(
-          children: [
-            Icon(icon, color: ColorConstants.primary),
-            const SizedBox(height: 8),
-            Text(label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: ColorConstants.primary)),
-          ],
-        ),
+    return AppCard(
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: ColorConstants.primary, size: 22),
+          const SizedBox(height: 6),
+          Text(label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: ColorConstants.primary)),
+        ],
       ),
     );
   }

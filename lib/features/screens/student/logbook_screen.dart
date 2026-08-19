@@ -503,8 +503,16 @@ class _AsyncTabBodyState<T> extends State<_AsyncTabBody<T>> {
   }
 
   Future<void> _reload() async {
-    setState(() => _future = widget.loader());
+    if (mounted) {
+      setState(() => _future = widget.loader());
+    }
     await _future;
+  }
+
+  @override
+  void didUpdateWidget(covariant _AsyncTabBody<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _reload();
   }
 
   @override
@@ -586,6 +594,7 @@ class _JournalTab extends StatelessWidget {
           final e = entrees[i];
           final type = e['type'] as String? ?? '';
           final isDifficulte = type == 'DIFFICULTE';
+          final titre = e['titre'] as String? ?? (isDifficulte ? 'Difficulté signalée' : 'Mission');
           final commentaire = (e['commentaire_tuteur'] as String?) ??
               (e['commentaire_stagiaire'] as String?) ??
               '';
@@ -622,7 +631,7 @@ class _JournalTab extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isDifficulte ? 'Difficulté signalée' : 'Mission',
+                        titre,
                         style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 13.5,

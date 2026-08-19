@@ -38,15 +38,44 @@ class ApiService {
     while (count < attempts) {
       try {
         final response = await action();
-        // Si le serveur se réveille, il peut renvoyer un code 503 temporaire
-        if (response.statusCode != 503) return response;
+        // Si le serveur se réveille ou est en surcharge (502/503/504), on retente
+        if (response.statusCode != 502 && response.statusCode != 503 && response.statusCode != 504) {
+          return response;
+        }
       } catch (e) {
+        // En cas d'erreur de connexion (SocketException), on retente
         if (count == attempts - 1) rethrow;
       }
       count++;
+      // Attente exponentielle : 1s, 2s, 3s...
       await Future.delayed(Duration(seconds: 1 * count));
     }
-    throw Exception("Serveur indisponible après plusieurs tentatives");
+    throw Exception("Le serveur Render met trop de temps à répondre (Cold Start).");
+  }
+
+  /// Helper générique pour les appels GET sécurisés et robustes
+  Future<dynamic> _get(String endpoint) async {
+    try {
+      final response = await _withRetry(() => _httpClient.get(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: _authHeaders,
+      ));
+
+      final decoded = jsonDecode(response.body);
+
+      if (response.statusCode != 200) {
+        throw ApiException(
+          decoded['message'] ?? 'Erreur serveur',
+          statusCode: response.statusCode,
+          errors: decoded['errors'] as Map<String, dynamic>?,
+        );
+      }
+
+      return decoded;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException.networkError(endpoint);
+    }
   }
 
   String? _token;
@@ -449,24 +478,7 @@ class ApiService {
   Future<Map<String, dynamic>> getProfile() async {
     return _readCachedOrRefresh<Map<String, dynamic>>(
       'profile',
-      () async {
-        final response = await _httpClient.get(
-          Uri.parse('$baseUrl/auth/profile'),
-          headers: _authHeaders,
-        );
-
-        final data = jsonDecode(response.body);
-
-        if (response.statusCode != 200) {
-          throw ApiException(
-            data['message'] ?? 'Erreur de chargement du profil',
-            statusCode: response.statusCode,
-            errors: data['errors'] as Map<String, dynamic>?,
-          );
-        }
-
-        return data;
-      },
+      () async => await _get('/auth/profile'),
       ttl: const Duration(minutes: 10),
     );
   }
@@ -620,6 +632,14 @@ class ApiService {
     );
   }
 
+  Future<List<dynamic>> getCarteStages() async {
+    final response = await _httpClient.get(
+      Uri.parse('$baseUrl/referentiel/carte-stages'),
+      headers: _authHeaders,
+    );
+    return _decodeList(response);
+  }
+
   Future<List<dynamic>> getCriteresSavoirEtre() async {
     return _readCachedOrRefresh<List<dynamic>>(
       'referentiel_criteres_savoir_etre',
@@ -642,21 +662,18 @@ class ApiService {
     return _readCachedOrRefresh<List<dynamic>>(
       'carnets',
       () async {
-        final response = await _httpClient.get(
-          Uri.parse('$baseUrl/carnets'),
-          headers: _authHeaders,
-        );
-        if (response.statusCode != 200) {
-          final body = jsonDecode(response.body);
-          throw ApiException(
-            body['message'] ?? 'Erreur de chargement des carnets',
-            statusCode: response.statusCode,
-          );
-        }
-        return _decodeList(response);
+        final response = await _get('/carnets');
+        return _decodeListResponse(response);
       },
       ttl: const Duration(minutes: 10),
     );
+  }
+
+  /// Aide au décodage des listes car le backend peut renvoyer {data: []} ou []
+  List<dynamic> _decodeListResponse(dynamic response) {
+    if (response is List) return response;
+    if (response is Map && response.containsKey('data')) return response['data'];
+    return [];
   }
 
   Future<Map<String, dynamic>> getCarnetStats(String carnetId) async {
@@ -666,18 +683,8 @@ class ApiService {
       return cached;
     }
 
-    final response = await _httpClient.get(
-      Uri.parse('$baseUrl/carnets/$carnetId/stats'),
-      headers: _authHeaders,
-    );
-    final body = jsonDecode(response.body);
-    if (response.statusCode != 200) {
-      throw ApiException(
-        body['message'] ?? 'Erreur de chargement des statistiques',
-        statusCode: response.statusCode,
-      );
-    }
-    final data = body['data'] ?? {};
+    final response = await _get('/carnets/$carnetId/stats');
+    final data = response['data'] ?? {};
     await _cache.setJson(cacheKey, data, ttl: const Duration(minutes: 5));
     return data;
   }
@@ -744,15 +751,8 @@ class ApiService {
       return cached;
     }
 
-    final response = await _httpClient.get(
-      Uri.parse('$baseUrl/pointage/$carnetId/historique'),
-      headers: _authHeaders,
-    );
-    if (response.statusCode != 200) {
-      throw ApiException('Erreur de chargement de l\'historique',
-          statusCode: response.statusCode);
-    }
-    final decoded = _decodeList(response);
+    final response = await _get('/pointage/$carnetId/historique');
+    final decoded = _decodeListResponse(response);
     await _cache.setJson(cacheKey, decoded, ttl: const Duration(minutes: 5));
     return decoded;
   }
@@ -906,6 +906,14 @@ class ApiService {
     return body;
   }
 
+  Future<void> updateTrajetPosition(String trajetId, double lat, double lng) async {
+    await _httpClient.post(
+      Uri.parse('$baseUrl/trajets/$trajetId/position'),
+      headers: _authHeaders,
+      body: jsonEncode({'lat': lat, 'lng': lng}),
+    );
+  }
+
   Future<List<dynamic>> getMesTrajets() async {
     return _readCachedOrRefresh<List<dynamic>>(
       'mes_trajets',
@@ -937,10 +945,8 @@ class ApiService {
     return _readCachedOrRefresh<List<dynamic>>(
       'mes_reservations',
       () async {
-        final response = await _httpClient.get(
-            Uri.parse('$baseUrl/reservations/mes-reservations'),
-            headers: _authHeaders);
-        return _decodeList(response);
+        final response = await _get('/reservations/mes-reservations');
+        return _decodeListResponse(response);
       },
       ttl: const Duration(minutes: 5),
     );
@@ -950,11 +956,8 @@ class ApiService {
     return _readCachedOrRefresh<List<dynamic>>(
       'conversations_list',
       () async {
-        final response = await _httpClient.get(
-          Uri.parse('$baseUrl/messages'),
-          headers: _authHeaders,
-        );
-        return _decodeList(response);
+        final response = await _get('/messages');
+        return _decodeListResponse(response);
       },
       ttl: const Duration(minutes: 5),
     );
@@ -964,11 +967,8 @@ class ApiService {
     return _readCachedOrRefresh<List<dynamic>>(
       'messages_$trajetId',
       () async {
-        final response = await _httpClient.get(
-          Uri.parse('$baseUrl/trajets/$trajetId/messages'),
-          headers: _authHeaders,
-        );
-        return _decodeList(response);
+        final response = await _get('/trajets/$trajetId/messages');
+        return _decodeListResponse(response);
       },
       ttl: const Duration(minutes: 2), // TTL plus court pour les messages
     );

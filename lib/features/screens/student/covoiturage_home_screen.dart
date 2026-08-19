@@ -12,6 +12,7 @@ import 'recherche_trajet_screen.dart';
 import 'create_trajet_screen.dart';
 import 'trajet_details_screen.dart';
 import 'reservations_screen.dart';
+import '../../../services/live_tracking_service.dart';
 
 /// Reproduit covoiturage-home.png : toggle géolocalisation, mini-carte,
 /// barre de recherche (pousse vers RechercheTrajetScreen), tabs
@@ -32,10 +33,12 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
   bool _locatingInProgress = false;
 
   List<dynamic> _trajets = [];
+  List<dynamic> _mesTrajets = [];
   bool _chargement = true;
   String? _erreur;
   LatLng _myPos = const LatLng(45.764043, 4.835659); // Lyon par défaut
   bool _hasPrecisePos = false; // true = position GPS réelle obtenue
+  Timer? _refreshTimer;
 
   StreamSubscription<Position>? _positionStream;
 
@@ -43,11 +46,17 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
   void initState() {
     super.initState();
     _chargerTrajets();
+
+    // ✅ Rafraîchir les positions des voitures toutes les 30 secondes
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _chargerTrajets(silent: true);
+    });
   }
 
   @override
   void dispose() {
     _positionStream?.cancel();
+    _refreshTimer?.cancel();
     super.dispose();
   }
 
@@ -140,6 +149,9 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
     final priceVal = (trajet['tarif'] as dynamic)?.toDouble() ?? 0.0;
     final price = priceVal == 0 ? 'Gratuit' : '${priceVal.toStringAsFixed(2)} €';
 
+    final currentPos = trajet['current_pos'];
+    final bool isLive = currentPos != null;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -156,14 +168,26 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
               children: [
                 CircleAvatar(
                   radius: 25,
-                  backgroundImage: NetworkImage(chauffeur?['photo_profil'] ?? 'https://i.pravatar.cc/150?u=$name'),
+                  backgroundImage: NetworkImage(chauffeur?['photo_profil_url'] ?? chauffeur?['photo_profil'] ?? 'https://i.pravatar.cc/150?u=$name'),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Row(
+                        children: [
+                          Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          if (isLive) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(4)),
+                              child: const Text('LIVE', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ],
+                      ),
                       Text('${trajet['lieu_depart']} → ${trajet['lieu_arrivee']}',
                         style: const TextStyle(color: ColorConstants.textSecondary, fontSize: 12),
                         maxLines: 2,
@@ -190,24 +214,29 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
     );
   }
 
-  Future<void> _chargerTrajets() async {
-    setState(() => _chargement = true);
+  Future<void> _chargerTrajets({bool silent = false}) async {
+    if (!silent) setState(() => _chargement = true);
     try {
-      final trajets = await _apiService.getTrajets();
+      final results = await Future.wait([
+        _apiService.getTrajets(),
+        _apiService.getMesTrajets(),
+      ]);
+
       if (!mounted) return;
       setState(() {
-        _trajets = trajets;
+        _trajets = results[0];
+        _mesTrajets = results[1];
         _chargement = false;
         _erreur = null;
       });
     } on ApiException catch (e) {
-      if (!mounted) return;
+      if (!mounted || silent) return;
       setState(() {
         _erreur = e.userFriendlyMessage;
         _chargement = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || silent) return;
       setState(() {
         _erreur = 'Impossible de charger les trajets';
         _chargement = false;
@@ -432,30 +461,38 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
                           // Marqueurs des trajets disponibles
                           ..._trajets
                               .where((t) => t['depart_lat'] != null)
-                              .map((t) => Marker(
-                                    point: LatLng(
-                                      (t['depart_lat'] as num).toDouble(),
-                                      (t['depart_lng'] as num).toDouble(),
-                                    ),
+                              .map((t) {
+                                // On utilise la position actuelle (Live) si dispo, sinon le départ
+                                final currentPos = t['current_pos'];
+                                final lat = (currentPos?['lat'] ?? t['depart_lat'] as num).toDouble();
+                                final lng = (currentPos?['lng'] ?? t['depart_lng'] as num).toDouble();
+                                final bool isLive = currentPos != null;
+
+                                return Marker(
+                                    point: LatLng(lat, lng),
                                     width: 50,
                                     height: 50,
                                     child: GestureDetector(
                                       onTap: () => _showTrajetPopup(t),
                                       child: Container(
                                         decoration: BoxDecoration(
-                                          color: Colors.white,
+                                          color: isLive ? Colors.red : Colors.white,
                                           shape: BoxShape.circle,
                                           border: Border.all(
-                                              color: ColorConstants.primary, width: 2),
+                                              color: isLive ? Colors.white : ColorConstants.primary,
+                                              width: 2),
                                           boxShadow: const [
                                             BoxShadow(color: Colors.black26, blurRadius: 4)
                                           ],
                                         ),
-                                        child: const Icon(Icons.directions_car,
-                                            color: ColorConstants.primary, size: 24),
+                                        child: Icon(
+                                            isLive ? Icons.local_taxi : Icons.directions_car,
+                                            color: isLive ? Colors.white : ColorConstants.primary,
+                                            size: 24),
                                       ),
                                     ),
-                                  )),
+                                  );
+                              }),
                         ],
                       ),
                     ],
@@ -536,21 +573,46 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
               const SizedBox(height: 18),
 
             if (!_rejoindre) ...[
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: EmptyState(
-                    icon: Icons.directions_car_filled_outlined,
-                    title: 'Vous avez un véhicule ?',
-                    subtitle: 'Proposez vos places libres aux autres étudiants.',
-                    action: PrimaryButton(
-                      label: 'Créer un trajet',
-                      icon: Icons.add_circle_outline,
-                      onPressed: _openCreateTrajet,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Mes trajets proposés',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: ColorConstants.textPrimary)),
+                  TextButton.icon(
+                    onPressed: _openCreateTrajet,
+                    icon: const Icon(Icons.add_circle_outline, size: 16),
+                    label: const Text('Nouveau', style: TextStyle(fontSize: 13)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              if (_mesTrajets.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: EmptyState(
+                      icon: Icons.directions_car_filled_outlined,
+                      title: 'Aucun trajet proposé',
+                      subtitle: 'Proposez vos places libres aux autres étudiants.',
+                      action: PrimaryButton(
+                        label: 'Créer un trajet',
+                        icon: Icons.add_circle_outline,
+                        onPressed: _openCreateTrajet,
+                      ),
                     ),
                   ),
-                ),
-              ),
+                )
+              else
+                ..._mesTrajets.map((t) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _MyTrajetCard(
+                    trajet: t,
+                    onRefresh: _chargerTrajets,
+                  ),
+                )),
             ] else ...[
               const Text('Trajets disponibles',
                   style: TextStyle(
@@ -737,6 +799,76 @@ class _RouteLine extends StatelessWidget {
               overflow: TextOverflow.ellipsis),
         ),
       ],
+    );
+  }
+}
+
+class _MyTrajetCard extends StatefulWidget {
+  final Map<String, dynamic> trajet;
+  final VoidCallback onRefresh;
+
+  const _MyTrajetCard({required this.trajet, required this.onRefresh});
+
+  @override
+  State<_MyTrajetCard> createState() => _MyTrajetCardState();
+}
+
+class _MyTrajetCardState extends State<_MyTrajetCard> {
+  @override
+  Widget build(BuildContext context) {
+    final t = widget.trajet;
+    final isThisTripTracking = LiveTrackingService().activeTrajetId == t['id'];
+
+    final dateStr = t['date_depart'] as String?;
+    final date = dateStr != null ? DateTime.tryParse(dateStr) : null;
+    final heure = date != null ? DateFormat('HH:mm').format(date) : '--:--';
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(heure, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              StatusPill(
+                label: t['statut'] ?? 'ACTIF',
+                color: t['statut'] == 'TERMINE' ? Colors.grey : ColorConstants.success,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text('${t['lieu_depart']} → ${t['lieu_arrivee']}',
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: t['statut'] == 'TERMINE' ? null : () async {
+                    if (isThisTripTracking) {
+                      await LiveTrackingService().stopTracking();
+                      setState(() {}); // Re-build pour changer l'icône
+                    } else {
+                      await LiveTrackingService().startTracking(t['id']);
+                      setState(() {});
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('📡 Suivi GPS activé pour ce trajet')),
+                      );
+                    }
+                  },
+                  icon: Icon(isThisTripTracking ? Icons.stop_circle : Icons.play_circle_fill, size: 18),
+                  label: Text(isThisTripTracking ? 'Arrêter Suivi' : 'Démarrer Trajet'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isThisTripTracking ? Colors.red : ColorConstants.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
