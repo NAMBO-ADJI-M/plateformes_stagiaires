@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
 import '../../../services/api_service.dart';
@@ -86,6 +87,9 @@ class _ProfileTuteurScreenState extends State<ProfileTuteurScreen> {
     final adresseCtrl = TextEditingController(text: _profile?['adresse_libelle']);
     final telCtrl = TextEditingController(text: _profile?['telephone']);
     final siteCtrl = TextEditingController(text: _profile?['site_web']);
+    final latCtrl = TextEditingController(text: _profile?['adresse_lat']?.toString());
+    final lngCtrl = TextEditingController(text: _profile?['adresse_lng']?.toString());
+    final rayonCtrl = TextEditingController(text: (_profile?['rayon_detection_metres'] ?? 100).toString());
 
     showDialog(
       context: context,
@@ -97,8 +101,31 @@ class _ProfileTuteurScreenState extends State<ProfileTuteurScreen> {
             children: [
               TextField(controller: raisonCtrl, decoration: const InputDecoration(labelText: 'Raison sociale')),
               TextField(controller: adresseCtrl, decoration: const InputDecoration(labelText: 'Adresse')),
-              TextField(controller: telCtrl, decoration: const InputDecoration(labelText: 'Téléphone')),
-              TextField(controller: siteCtrl, decoration: const InputDecoration(labelText: 'Site Web')),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  try {
+                    final pos = await Geolocator.getCurrentPosition();
+                    latCtrl.text = pos.latitude.toString();
+                    lngCtrl.text = pos.longitude.toString();
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Impossible d\'obtenir la position GPS.')));
+                  }
+                },
+                icon: const Icon(Icons.my_location, size: 16),
+                label: const Text('Ma position actuelle'),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(child: TextField(controller: latCtrl, decoration: const InputDecoration(labelText: 'Latitude'), keyboardType: TextInputType.number)),
+                  const SizedBox(width: 10),
+                  Expanded(child: TextField(controller: lngCtrl, decoration: const InputDecoration(labelText: 'Longitude'), keyboardType: TextInputType.number)),
+                ],
+              ),
+              TextField(controller: rayonCtrl, decoration: const InputDecoration(labelText: 'Rayon de détection (mètres)', hintText: 'Par défaut 100'), keyboardType: TextInputType.number),
+              TextField(controller: telCtrl, decoration: const InputDecoration(labelText: 'Téléphone'), keyboardType: TextInputType.phone),
+              TextField(controller: siteCtrl, decoration: const InputDecoration(labelText: 'Site Web'), keyboardType: TextInputType.url),
             ],
           ),
         ),
@@ -110,6 +137,9 @@ class _ProfileTuteurScreenState extends State<ProfileTuteurScreen> {
                 await _api.completeEntrepriseProfile({
                   'raison_sociale': raisonCtrl.text,
                   'adresse_libelle': adresseCtrl.text,
+                  'adresse_lat': double.tryParse(latCtrl.text),
+                  'adresse_lng': double.tryParse(lngCtrl.text),
+                  'rayon_detection_metres': int.tryParse(rayonCtrl.text),
                   'telephone': telCtrl.text,
                   'site_web': siteCtrl.text,
                 });
@@ -185,6 +215,8 @@ class _ProfileTuteurScreenState extends State<ProfileTuteurScreen> {
               _InfoRow(icon: Icons.business_outlined, label: 'Raison sociale', value: entreprise),
               const Divider(height: 26),
               _InfoRow(icon: Icons.location_on_outlined, label: 'Adresse', value: _profile?['adresse_libelle'] ?? 'Non renseignée'),
+              const Divider(height: 26),
+              _InfoRow(icon: Icons.track_changes_rounded, label: 'Rayon Pointage', value: '${_profile?['rayon_detection_metres'] ?? 100} mètres'),
               const Divider(height: 26),
               _InfoRow(icon: Icons.public_outlined, label: 'Site Web', value: _profile?['site_web'] ?? 'Non renseigné'),
               const SizedBox(height: 16),

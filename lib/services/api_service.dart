@@ -31,6 +31,23 @@ class ApiService {
   /// Client HTTP partagÃ© avec support TLS souple pour Render / Aiven.
   final http.Client _httpClient = _buildHttpClient();
 
+  /// Ajoute un mécanisme de Retry pour pallier au "Cold Start" de Render
+  Future<http.Response> _withRetry(Future<http.Response> Function() action, {int attempts = 3}) async {
+    int count = 0;
+    while (count < attempts) {
+      try {
+        final response = await action();
+        // Si le serveur se réveille, il peut renvoyer un code 503 temporaire
+        if (response.statusCode != 503) return response;
+      } catch (e) {
+        if (count == attempts - 1) rethrow;
+      }
+      count++;
+      await Future.delayed(Duration(seconds: 1 * count));
+    }
+    throw Exception("Serveur indisponible après plusieurs tentatives");
+  }
+
   String? _token;
   String? _userRole;
   final SqliteCacheService _cache = SqliteCacheService();
@@ -307,14 +324,14 @@ class ApiService {
     String role,
   ) async {
     try {
-      final response = await _httpClient.post(
+      final response = await _withRetry(() => _httpClient.post(
         Uri.parse('$baseUrl/auth/login'),
         headers: _headers,
         body: jsonEncode({
           'email': email,
           'role': role,
         }),
-      );
+      ));
 
       final data = jsonDecode(response.body);
 
@@ -338,14 +355,14 @@ class ApiService {
     String code,
   ) async {
     try {
-      final response = await _httpClient.post(
+      final response = await _withRetry(() => _httpClient.post(
         Uri.parse('$baseUrl/auth/verify'),
         headers: _headers,
         body: jsonEncode({
           'email': email,
           'code': code,
         }),
-      );
+      ));
 
       final data = jsonDecode(response.body);
 
@@ -866,20 +883,35 @@ class ApiService {
   // ============================================
 
   Future<List<dynamic>> getTrajets() async {
-    final response =
-        await _httpClient.get(Uri.parse('$baseUrl/trajets'), headers: _authHeaders);
-    return _decodeList(response);
+    return _readCachedOrRefresh<List<dynamic>>(
+      'trajets_list',
+      () async {
+        final response = await _httpClient.get(
+            Uri.parse('$baseUrl/trajets'), headers: _authHeaders);
+        return _decodeList(response);
+      },
+      ttl: const Duration(minutes: 5),
+    );
   }
 
   Future<Map<String, dynamic>> createTrajet(Map<String, dynamic> data) async {
     final body = await _post('/trajets', jsonEncode(data));
+    await _cache.delete('trajets_list');
+    await _cache.delete('mes_trajets');
     return body;
   }
 
   Future<List<dynamic>> getMesTrajets() async {
-    final response = await _httpClient.get(Uri.parse('$baseUrl/trajets/mes-trajets'),
-        headers: _authHeaders);
-    return _decodeList(response);
+    return _readCachedOrRefresh<List<dynamic>>(
+      'mes_trajets',
+      () async {
+        final response = await _httpClient.get(
+            Uri.parse('$baseUrl/trajets/mes-trajets'),
+            headers: _authHeaders);
+        return _decodeList(response);
+      },
+      ttl: const Duration(minutes: 5),
+    );
   }
 
   // Les identifiants du backend sont des UUID (String), pas des int.
@@ -887,17 +919,33 @@ class ApiService {
       {int nombrePlaces = 1}) async {
     final body = await _post('/reservations/$trajetId/reserver',
         jsonEncode({'nombre_places': nombrePlaces}));
+    await _cache.delete('mes_reservations');
     return body;
   }
 
   Future<void> annulerReservation(String reservationId) async {
     await _post('/reservations/$reservationId/annuler', '{}');
+    await _cache.delete('mes_reservations');
   }
 
   Future<List<dynamic>> getMesReservations() async {
+    return _readCachedOrRefresh<List<dynamic>>(
+      'mes_reservations',
+      () async {
+        final response = await _httpClient.get(
+            Uri.parse('$baseUrl/reservations/mes-reservations'),
+            headers: _authHeaders);
+        return _decodeList(response);
+      },
+      ttl: const Duration(minutes: 5),
+    );
+  }
+
+  Future<List<dynamic>> getConversations() async {
     final response = await _httpClient.get(
-        Uri.parse('$baseUrl/reservations/mes-reservations'),
-        headers: _authHeaders);
+      Uri.parse('$baseUrl/messages'),
+      headers: _authHeaders,
+    );
     return _decodeList(response);
   }
 

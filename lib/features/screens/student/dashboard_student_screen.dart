@@ -9,8 +9,7 @@ import '../../../services/api_exception.dart';
 import '../../widgets/common_widgets.dart';
 import 'covoiturage_home_screen.dart';
 import 'notifications_screen.dart';
-import 'messages_screen.dart';
-import 'reservations_screen.dart';
+import 'conversations_screen.dart';
 import 'carnet_creation_page.dart';
 import 'carnet_list_page.dart';
 
@@ -157,11 +156,13 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
     await _checkGeofencingStatus();
   }
 
-  Future<void> _loadDashboard() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _loadDashboard({bool silentRefresh = false}) async {
+    if (!silentRefresh) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
 
     try {
       // Profil et carnets sont indépendants l'un de l'autre,
@@ -177,18 +178,24 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
       final stagiaire =
           profileResponse['profile_data'] as Map<String, dynamic>?;
 
-      _prenom = (stagiaire?['prenom'] as String?) ?? '';
-      _ecole = (stagiaire?['ecole'] as String?) ?? '';
-      _filiere = (stagiaire?['filiere'] as String?) ?? '';
-      _photoUrl = stagiaire?['photo_profil_url'] as String?;
-      _notifCount = (profileResponse['notifications_non_lues'] as int?) ?? 0;
+      final newPrenom = (stagiaire?['prenom'] as String?) ?? '';
+      final newEcole = (stagiaire?['ecole'] as String?) ?? '';
+      final newFiliere = (stagiaire?['filiere'] as String?) ?? '';
+      final newPhotoUrl = stagiaire?['photo_profil_url'] as String?;
+      final newNotifCount = (profileResponse['notifications_non_lues'] as int?) ?? 0;
 
       if (carnets.isEmpty) {
-        setState(() {
-          _hasCarnet = false;
-          
-          _loading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _prenom = newPrenom;
+            _ecole = newEcole;
+            _filiere = newFiliere;
+            _photoUrl = newPhotoUrl;
+            _notifCount = newNotifCount;
+            _hasCarnet = false;
+            _loading = false;
+          });
+        }
         return;
       }
 
@@ -197,12 +204,11 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
         orElse: () => carnets.first,
       ) as Map<String, dynamic>;
 
-      _rattache = carnet['entreprise_id'] != null &&
+      final newRattache = carnet['entreprise_id'] != null &&
           carnet['autorisation_suivi'] == true;
-      _tuteurNom = carnet['tuteur_nom'] as String?;
+      final newTuteurNom = carnet['tuteur_nom'] as String?;
 
       final carnetId = carnet['id'] as String;
-      
 
       // Ces trois appels ne dépendent que de carnetId, donc indépendants
       // entre eux — on les lance aussi en parallèle. Chacun est protégé
@@ -242,24 +248,35 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
 
       if (mounted) {
         setState(() {
+          _prenom = newPrenom;
+          _ecole = newEcole;
+          _filiere = newFiliere;
+          _photoUrl = newPhotoUrl;
+          _notifCount = newNotifCount;
+          _rattache = newRattache;
+          _tuteurNom = newTuteurNom;
           _hasCarnet = true;
           _stats = stats;
           _loading = false;
         });
       }
     } on ApiException catch (e) {
-      if (mounted) {
+      if (mounted && !silentRefresh) {
         setState(() {
           _error = e.message;
           _loading = false;
         });
+      } else if (mounted) {
+        setState(() => _loading = false);
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && !silentRefresh) {
         setState(() {
           _error = 'Une erreur est survenue. Vérifiez votre connexion.';
           _loading = false;
         });
+      } else if (mounted) {
+        setState(() => _loading = false);
       }
     }
   }
@@ -541,28 +558,11 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
                   IconButton(
                     icon: const Icon(Icons.chat_bubble_outline_rounded,
                         color: ColorConstants.textPrimary),
-                    tooltip: 'Messagerie & Réservations',
-                    onPressed: () {
-                      if (_prochaineReservation != null &&
-                          _prochaineReservation!['trajet_id'] != null) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => MessagesScreen(
-                              trajetId:
-                                  _prochaineReservation!['trajet_id'].toString(),
-                              trajetTitre: 'Messages Covoiturage',
-                            ),
-                          ),
-                        );
-                      } else {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const ReservationsScreen()),
-                        );
-                      }
-                    },
+                    tooltip: 'Messagerie',
+                    onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const ConversationsScreen())),
                   ),
                   Stack(
                     clipBehavior: Clip.none,
@@ -821,7 +821,7 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
                 onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => const MessagesScreen())),
+                        builder: (_) => const ConversationsScreen())),
               ),
             ],
           ),

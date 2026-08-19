@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:intl/intl.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -24,30 +25,113 @@ class CovoiturageHomeScreen extends StatefulWidget {
 
 class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
   final ApiService _apiService = ApiService();
-  bool _geoloc = true;
+  final MapController _mapController = MapController();
+
+  bool _geoloc = false;
   bool _rejoindre = true;
+  bool _locatingInProgress = false;
 
   List<dynamic> _trajets = [];
   bool _chargement = true;
   String? _erreur;
   LatLng _myPos = const LatLng(45.764043, 4.835659); // Lyon par défaut
+  bool _hasPrecisePos = false; // true = position GPS réelle obtenue
+
+  StreamSubscription<Position>? _positionStream;
 
   @override
   void initState() {
     super.initState();
-    _initPosition();
     _chargerTrajets();
   }
 
-  Future<void> _initPosition() async {
-    try {
-      final pos = await Geolocator.getCurrentPosition();
-      if (mounted) {
-        setState(() {
-          _myPos = LatLng(pos.latitude, pos.longitude);
-        });
+  @override
+  void dispose() {
+    _positionStream?.cancel();
+    super.dispose();
+  }
+
+  /// Active/désactive le suivi GPS en temps réel
+  Future<void> _toggleGeoloc(bool enabled) async {
+    if (enabled) {
+      // Vérifier / demander la permission
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Activez la localisation dans les paramètres de votre appareil.'),
+            ),
+          );
+          await Geolocator.openLocationSettings();
+        }
+        return;
       }
-    } catch (_) {}
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.deniedForever ||
+          permission == LocationPermission.denied) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Permission de localisation refusée. Activez-la dans les réglages.'),
+            ),
+          );
+        }
+        return;
+      }
+
+      setState(() {
+        _geoloc = true;
+        _locatingInProgress = true;
+      });
+
+      // Position initiale rapide
+      try {
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+        );
+        if (mounted) {
+          setState(() {
+            _myPos = LatLng(pos.latitude, pos.longitude);
+            _hasPrecisePos = true;
+            _locatingInProgress = false;
+          });
+          _mapController.move(_myPos, 15);
+        }
+      } catch (_) {
+        if (mounted) setState(() => _locatingInProgress = false);
+      }
+
+      // Flux de mises à jour continues
+      _positionStream = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 10, // mise à jour tous les 10 mètres
+        ),
+      ).listen((Position pos) {
+        if (mounted) {
+          setState(() {
+            _myPos = LatLng(pos.latitude, pos.longitude);
+            _hasPrecisePos = true;
+          });
+          // Centrer la carte sur la nouvelle position
+          _mapController.move(_myPos, _mapController.camera.zoom);
+        }
+      });
+    } else {
+      // Désactiver
+      await _positionStream?.cancel();
+      _positionStream = null;
+      setState(() {
+        _geoloc = false;
+        _hasPrecisePos = false;
+        _myPos = const LatLng(45.764043, 4.835659);
+      });
+    }
   }
 
   void _showTrajetPopup(Map<String, dynamic> trajet) {
@@ -219,26 +303,61 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: Row(
                 children: [
-                  const Icon(Icons.location_on_outlined,
-                      color: ColorConstants.primary, size: 18),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    child: Icon(
+                      _geoloc ? Icons.location_on : Icons.location_off_outlined,
+                      color: _geoloc ? ColorConstants.primary : ColorConstants.textSecondary,
+                      size: 18,
+                    ),
+                  ),
                   const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text('Autoriser la géolocalisation',
-                        style: TextStyle(
-                            fontSize: 13.5, color: ColorConstants.textPrimary)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _geoloc ? 'Géolocalisation activée' : 'Autoriser la géolocalisation',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            color: _geoloc
+                                ? ColorConstants.textPrimary
+                                : ColorConstants.textSecondary,
+                            fontWeight: _geoloc ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                        ),
+                        if (_locatingInProgress)
+                          const Text(
+                            'Localisation en cours...',
+                            style: TextStyle(fontSize: 11, color: ColorConstants.primary),
+                          )
+                        else if (_geoloc && _hasPrecisePos)
+                          Text(
+                            '${_myPos.latitude.toStringAsFixed(5)}, ${_myPos.longitude.toStringAsFixed(5)}',
+                            style: const TextStyle(fontSize: 10.5, color: ColorConstants.textSecondary),
+                          ),
+                      ],
+                    ),
                   ),
-                  Switch(
-                    value: _geoloc,
-                    activeThumbColor: ColorConstants.primary,
-                    onChanged: (v) => setState(() => _geoloc = v),
-                  ),
+                  if (_locatingInProgress)
+                    const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  else
+                    Switch(
+                      value: _geoloc,
+                      activeThumbColor: ColorConstants.primary,
+                      onChanged: _toggleGeoloc,
+                    ),
                 ],
               ),
             ),
             const SizedBox(height: 14),
-            // Vraie carte interactive
+            // Carte interactive avec suivi GPS temps réel
             Container(
-              height: 180,
+              height: 200,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: [
@@ -249,49 +368,118 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
                 ],
               ),
               clipBehavior: Clip.antiAlias,
-              child: FlutterMap(
-                options: MapOptions(
-                  initialCenter: _myPos,
-                  initialZoom: 13,
-                ),
+              child: Stack(
                 children: [
-                  TileLayer(
-                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.stagelink.app',
-                  ),
-                  MarkerLayer(
-                    markers: [
-                      // Ma position
-                      Marker(
-                        point: _myPos,
-                        width: 40,
-                        height: 40,
-                        child: const Icon(Icons.my_location,
-                            color: Colors.blue, size: 28),
+                  FlutterMap(
+                    mapController: _mapController,
+                    options: MapOptions(
+                      initialCenter: _myPos,
+                      initialZoom: 13,
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.stagelink.app',
                       ),
-                      // Positions des trajets (si coordonnées dispo)
-                      ..._trajets
-                          .where((t) => t['depart_lat'] != null)
-                          .map((t) => Marker(
-                                point: LatLng(t['depart_lat'], t['depart_lng']),
-                                width: 50,
-                                height: 50,
-                                child: GestureDetector(
-                                  onTap: () => _showTrajetPopup(t),
-                                  child: Container(
+                      MarkerLayer(
+                        markers: [
+                          // Ma position (visible uniquement si géoloc activée avec précision)
+                          if (_geoloc && _hasPrecisePos)
+                            Marker(
+                              point: _myPos,
+                              width: 48,
+                              height: 48,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  // Halo de précision
+                                  Container(
+                                    width: 44,
+                                    height: 44,
                                     decoration: BoxDecoration(
-                                      color: Colors.white,
                                       shape: BoxShape.circle,
-                                      border: Border.all(color: ColorConstants.primary, width: 2),
-                                      boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                                      color: Colors.blue.withValues(alpha: 0.15),
+                                      border: Border.all(
+                                        color: Colors.blue.withValues(alpha: 0.4),
+                                        width: 1.5,
+                                      ),
                                     ),
-                                    child: const Icon(Icons.directions_car,
-                                        color: ColorConstants.primary, size: 24),
                                   ),
-                                ),
-                              )),
+                                  // Point GPS
+                                  Container(
+                                    width: 16,
+                                    height: 16,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.blue,
+                                      border: Border.all(color: Colors.white, width: 2.5),
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: Colors.blue,
+                                          blurRadius: 6,
+                                          spreadRadius: 1,
+                                        )
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          // Marqueurs des trajets disponibles
+                          ..._trajets
+                              .where((t) => t['depart_lat'] != null)
+                              .map((t) => Marker(
+                                    point: LatLng(
+                                      (t['depart_lat'] as num).toDouble(),
+                                      (t['depart_lng'] as num).toDouble(),
+                                    ),
+                                    width: 50,
+                                    height: 50,
+                                    child: GestureDetector(
+                                      onTap: () => _showTrajetPopup(t),
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                              color: ColorConstants.primary, width: 2),
+                                          boxShadow: const [
+                                            BoxShadow(color: Colors.black26, blurRadius: 4)
+                                          ],
+                                        ),
+                                        child: const Icon(Icons.directions_car,
+                                            color: ColorConstants.primary, size: 24),
+                                      ),
+                                    ),
+                                  )),
+                        ],
+                      ),
                     ],
                   ),
+                  // Bouton "Centrer sur ma position"
+                  if (_geoloc && _hasPrecisePos)
+                    Positioned(
+                      bottom: 10,
+                      right: 10,
+                      child: GestureDetector(
+                        onTap: () => _mapController.move(_myPos, 15),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.15),
+                                blurRadius: 6,
+                              )
+                            ],
+                          ),
+                          child: const Icon(Icons.my_location_rounded,
+                              color: ColorConstants.primary, size: 20),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
