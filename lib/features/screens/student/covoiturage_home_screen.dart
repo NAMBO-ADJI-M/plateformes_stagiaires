@@ -164,7 +164,11 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text(trajet['lieu_depart'] ?? '', style: const TextStyle(color: ColorConstants.textSecondary, fontSize: 12)),
+                      Text('${trajet['lieu_depart']} → ${trajet['lieu_arrivee']}',
+                        style: const TextStyle(color: ColorConstants.textSecondary, fontSize: 12),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
                 ),

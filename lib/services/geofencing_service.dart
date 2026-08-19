@@ -30,7 +30,6 @@ class GeofencingService {
       useActivityRecognition: false,
       allowMockLocations: false,
       printDevLog: true, // Activé pour le débuggage
-      geofencePrecision: gs.GeofencePrecision.medium,
     );
 
     // Ajout d'une notification pour que le service soit considéré comme prioritaire par Android

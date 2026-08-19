@@ -140,6 +140,10 @@ class _NotifCard extends StatelessWidget {
     if (type.contains('Encouragement')) {
       icon = Icons.favorite;
       iconColor = const Color(0xFFEC4899);
+    } else if (type.contains('new_reservation') || data['type'] == 'new_reservation') {
+      icon = Icons.directions_car_rounded;
+      iconColor = ColorConstants.success;
+      title = '🚗 Nouvelle réservation !';
     } else if (isInvitation) {
       icon = Icons.handshake_rounded;
       iconColor = ColorConstants.primary;

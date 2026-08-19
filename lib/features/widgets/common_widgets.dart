@@ -229,7 +229,21 @@ class GreetingHeader extends StatelessWidget {
           child: CircleAvatar(
             radius: 24,
             backgroundColor: ColorConstants.border,
-            backgroundImage: NetworkImage(avatarUrl!),
+            child: ClipOval(
+              child: Image.network(
+                avatarUrl!,
+                fit: BoxFit.cover,
+                width: 48,
+                height: 48,
+                errorBuilder: (context, error, stackTrace) {
+                  // En cas d'erreur de chargement (SSL ou 404), on affiche un avatar par défaut
+                  return Container(
+                    color: ColorConstants.border,
+                    child: const Icon(Icons.person, color: ColorConstants.textSecondary),
+                  );
+                },
+              ),
+            ),
           ),
         ),
         if (avatarLoading)

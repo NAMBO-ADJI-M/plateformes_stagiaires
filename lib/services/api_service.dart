@@ -8,6 +8,7 @@ import 'api_exception.dart';
 import 'sqlite_cache_service.dart';
 import 'offline_queue_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// CrÃ©e un [http.Client] dont le [HttpClient] sous-jacent accepte tous les
 /// certificats SSL. NÃ©cessaire pour les hÃ©bergements comme Render ou Aiven
@@ -53,6 +54,7 @@ class ApiService {
   final SqliteCacheService _cache = SqliteCacheService();
   final OfflineQueueService _queue = OfflineQueueService();
   final Connectivity _connectivity = Connectivity();
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   String? get token => _token;
   String? get userRole => _userRole;
@@ -63,31 +65,28 @@ class ApiService {
 
   Future<void> saveToken(String token, {String? role}) async {
     _token = token;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_token', token);
+    await _secureStorage.write(key: 'auth_token', value: token);
+
     if (role != null) {
       _userRole = role;
+      final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_role', role);
     }
   }
 
   Future<void> loadToken() async {
+    _token = await _secureStorage.read(key: 'auth_token');
+
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    final role = prefs.getString('user_role');
-    if (token != null) {
-      _token = token;
-    }
-    if (role != null) {
-      _userRole = role;
-    }
+    _userRole = prefs.getString('user_role');
   }
 
   Future<void> clearToken() async {
     _token = null;
     _userRole = null;
+    await _secureStorage.delete(key: 'auth_token');
+
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
     await prefs.remove('user_role');
     await _cache.clearAll();
   }

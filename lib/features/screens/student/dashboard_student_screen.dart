@@ -261,8 +261,6 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
       }
     }
   }
-    }
-  }
 
   void _computePointageDuJour(List<dynamic> historique) {
     final today = DateTime.now();

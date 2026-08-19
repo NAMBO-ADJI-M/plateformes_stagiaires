@@ -171,10 +171,20 @@ class _ProfileTuteurScreenState extends State<ProfileTuteurScreen> {
             children: [
               CircleAvatar(
                 radius: 28,
-                backgroundImage: _profile?['photo_profil_url'] != null ? NetworkImage(_profile!['photo_profil_url']) : null,
-                child: _profile?['photo_profil_url'] == null || _isPhotoLoading
-                    ? (_isPhotoLoading ? const CircularProgressIndicator() : const Icon(Icons.person, size: 30))
-                    : null,
+                backgroundColor: ColorConstants.border,
+                child: _isPhotoLoading
+                    ? const CircularProgressIndicator()
+                    : ClipOval(
+                        child: _profile?['photo_profil_url'] != null
+                            ? Image.network(
+                                _profile!['photo_profil_url'],
+                                fit: BoxFit.cover,
+                                width: 56,
+                                height: 56,
+                                errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 30),
+                              )
+                            : const Icon(Icons.person, size: 30),
+                      ),
               ),
               const SizedBox(width: 14),
               Expanded(

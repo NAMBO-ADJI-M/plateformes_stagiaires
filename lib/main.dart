@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:plateforme_stagiaires/core/constants/constants_colors.dart';
@@ -11,8 +12,21 @@ import 'package:plateforme_stagiaires/modeles/user_type.dart';
 import 'package:plateforme_stagiaires/services/api_service.dart';
 import 'package:plateforme_stagiaires/services/offline_sync_manager.dart'; // ✅ AJOUTER CET IMPORT
 
+/// Permet d'accepter les certificats SSL auto-signés ou Let's Encrypt mal gérés
+/// par certaines versions d'Android (nécessaire pour Render/Aiven).
+class MyHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+  }
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Appliquer les overrides SSL globalement (pour l'API et les IMAGES)
+  HttpOverrides.global = MyHttpOverrides();
 
   // Charger le token avant de lancer l'application
   final apiService = ApiService();
