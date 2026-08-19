@@ -680,7 +680,7 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
                     children: [
                       ProgressRing(
                         percent:
-                            ((_stats?['progression_globale'] ?? 0) as int) /
+                            (((_stats?['progression_globale'] ?? 0) as num).toDouble()) /
                                 100,
                       ),
                       const SizedBox(height: 6),
@@ -701,16 +701,16 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
                           icon: Icons.calendar_today_rounded,
                           iconColor: ColorConstants.primary,
                           label: 'Jours de présence',
-                          current: (_stats?['jours_presents'] ?? 0) as int,
-                          total: (_stats?['jours_attendus'] ?? 1) as int,
+                          current: ((_stats?['jours_presents'] ?? 0) as num).toInt(),
+                          total: ((_stats?['jours_attendus'] ?? 1) as num).toInt(),
                         ),
                         const SizedBox(height: 10),
                         _ProgressRow(
                           icon: Icons.checklist_rounded,
                           iconColor: ColorConstants.success,
                           label: 'Missions complétées',
-                          current: (_stats?['missions_completees'] ?? 0) as int,
-                          total: (_stats?['missions_totales'] ?? 1) as int,
+                          current: ((_stats?['missions_completees'] ?? 0) as num).toInt(),
+                          total: ((_stats?['missions_totales'] ?? 1) as num).toInt(),
                         ),
                         const SizedBox(height: 10),
                         _ProgressRow(
@@ -718,8 +718,8 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
                           iconColor: const Color(0xFF7F77DD),
                           label: 'Compétences validées',
                           current:
-                              (_stats?['competences_validees'] ?? 0) as int,
-                          total: (_stats?['competences_totales'] ?? 1) as int,
+                              ((_stats?['competences_validees'] ?? 0) as num).toInt(),
+                          total: ((_stats?['competences_totales'] ?? 1) as num).toInt(),
                         ),
                       ],
                     ),

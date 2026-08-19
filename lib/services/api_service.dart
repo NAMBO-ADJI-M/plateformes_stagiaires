@@ -2,19 +2,34 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_exception.dart';
 import 'sqlite_cache_service.dart';
 import 'offline_queue_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
+/// CrÃ©e un [http.Client] dont le [HttpClient] sous-jacent accepte tous les
+/// certificats SSL. NÃ©cessaire pour les hÃ©bergements comme Render ou Aiven
+/// qui utilisent des certificats Let's Encrypt parfois mal gÃ©rÃ©s par le
+/// moteur TLS de Dart sur certaines versions Android.
+http.Client _buildHttpClient() {
+  final httpClient = HttpClient()
+    ..badCertificateCallback =
+        (X509Certificate cert, String host, int port) => true;
+  return IOClient(httpClient);
+}
+
 class ApiService {
   ApiService._internal();
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
 
-  // IP hôte recommandée pour l'émulateur Android (10.0.2.2) ou localhost pour le web/desktop
+  // IP hÃ´te recommandÃ©e pour l'Ã©mulateur Android (10.0.2.2) ou localhost pour le web/desktop
   static const String baseUrl = "https://backend-stagiaires-laravel-1.onrender.com/api";
+
+  /// Client HTTP partagÃ© avec support TLS souple pour Render / Aiven.
+  final http.Client _httpClient = _buildHttpClient();
 
   String? _token;
   String? _userRole;
@@ -26,7 +41,7 @@ class ApiService {
   String? get userRole => _userRole;
 
   // ============================================
-  // GESTION DU TOKEN ET DU RÔLE
+  // GESTION DU TOKEN ET DU RÃ”LE
   // ============================================
 
   Future<void> saveToken(String token, {String? role}) async {
@@ -64,7 +79,7 @@ class ApiService {
   // OFFLINE MODE & QUEUE SYNC
   // ============================================
 
-  /// Vérifie si le réseau est disponible
+  /// VÃ©rifie si le rÃ©seau est disponible
   Future<bool> isOnline() async {
     try {
       final result = await _connectivity.checkConnectivity();
@@ -74,7 +89,7 @@ class ApiService {
     }
   }
 
-  /// Synchronise la queue d'attente quand le réseau revient
+  /// Synchronise la queue d'attente quand le rÃ©seau revient
   Future<void> syncOfflineQueue() async {
     final online = await isOnline();
     if (!online) return;
@@ -88,25 +103,25 @@ class ApiService {
         await _queue.remove(op.id);
       } catch (e) {
         await _queue.incrementRetry(op.id);
-        // Continue avec la prochaine opération, ne pas bloquer
+        // Continue avec la prochaine opÃ©ration, ne pas bloquer
       }
     }
   }
 
-  /// Réessaye une opération de la queue
+  /// RÃ©essaye une opÃ©ration de la queue
   Future<void> _retryQueuedOperation(QueuedOperation op) async {
     final url = Uri.parse('$baseUrl${op.endpoint}');
 
     late http.Response response;
 
     if (op.method == 'POST') {
-      response = await http.post(
+      response = await _httpClient.post(
         url,
         headers: op.headers ?? _authHeaders,
         body: op.body,
       );
     } else if (op.method == 'DELETE') {
-      response = await http.delete(
+      response = await _httpClient.delete(
         url,
         headers: op.headers ?? _authHeaders,
       );
@@ -116,7 +131,7 @@ class ApiService {
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ApiException(
-        'La synchronisation a échoué pour ${op.method} ${op.endpoint}',
+        'La synchronisation a Ã©chouÃ© pour ${op.method} ${op.endpoint}',
         statusCode: response.statusCode,
       );
     }
@@ -137,8 +152,8 @@ class ApiService {
         'Authorization': 'Bearer $_token',
       };
 
-  /// En-têtes pour un envoi multipart (upload de fichier) : pas de
-  /// Content-Type ici, http.MultipartRequest le fixe lui-même (avec la
+  /// En-tÃªtes pour un envoi multipart (upload de fichier) : pas de
+  /// Content-Type ici, http.MultipartRequest le fixe lui-mÃªme (avec la
   /// boundary), le forcer manuellement casserait l'envoi.
   Map<String, String> get _authHeadersMultipart => {
         'Accept': 'application/json',
@@ -146,7 +161,7 @@ class ApiService {
       };
 
   // ============================================
-  // HELPER DE PARSING DÉFENSIF
+  // HELPER DE PARSING DÃ‰FENSIF
   // ============================================
 
   Future<T> _readCachedOrRefresh<T>(
@@ -157,11 +172,19 @@ class ApiService {
   }) async {
     final cached = await _cache.getJson<T>(key);
 
-    if (cached != null && !forceRefresh) {
+    // Ne jamais servir un cache vide pour les listes :
+    // une liste vide signifie que le précédent appel avait échoué (ex. HandshakeException)
+    // ou que la BDD n'était pas encore seedée. On force un rafraîchissement.
+    final cachedIsEmptyList = cached is List && cached.isEmpty;
+
+    if (cached != null && !forceRefresh && !cachedIsEmptyList) {
       () async {
         try {
           final fresh = await loader();
-          await _cache.setJson(key, fresh, ttl: ttl);
+          // Ne met à jour le cache que si la réponse fraîche est non-vide
+          if (fresh is! List || (fresh as List).isNotEmpty) {
+            await _cache.setJson(key, fresh, ttl: ttl);
+          }
         } catch (_) {
           // on garde la donnée mise en cache en cas d'échec réseau ;
           // l'écran reste fluide pendant le rechargement en arrière-plan.
@@ -171,14 +194,20 @@ class ApiService {
     }
 
     final fresh = await loader();
-    await _cache.setJson(key, fresh, ttl: ttl);
+    // Ne mettre en cache que si la liste est non vide
+    if (fresh is! List || (fresh as List).isNotEmpty) {
+      await _cache.setJson(key, fresh, ttl: ttl);
+    } else {
+      // Supprimer le cache vide pour forcer le rechargement la prochaine fois
+      await _cache.delete(key);
+    }
     return fresh;
   }
 
-  /// Décode une réponse JSON qui doit représenter une liste, en gérant
-  /// les deux formats possibles renvoyés par le backend :
+  /// DÃ©code une rÃ©ponse JSON qui doit reprÃ©senter une liste, en gÃ©rant
+  /// les deux formats possibles renvoyÃ©s par le backend :
   /// - un tableau JSON brut : [ {...}, {...} ]
-  /// - un objet enveloppé : { "data": [ {...}, {...} ] }
+  /// - un objet enveloppÃ© : { "data": [ {...}, {...} ] }
   List<dynamic> _decodeList(http.Response response) {
     final decoded = jsonDecode(response.body);
     if (decoded is List) {
@@ -204,7 +233,7 @@ class ApiService {
     final online = await isOnline();
 
     if (!online) {
-      // Mode offline : enqueue l'opération
+      // Mode offline : enqueue l'opÃ©ration
       await _queue.enqueue(
         'POST',
         endpoint,
@@ -212,13 +241,13 @@ class ApiService {
         body: body,
       );
       throw ApiException(
-        'Vous êtes hors ligne. L\'opération sera envoyée une fois la connexion rétablie.',
+        'Vous Ãªtes hors ligne. L\'opÃ©ration sera envoyÃ©e une fois la connexion rÃ©tablie.',
         statusCode: 0,
       );
     }
 
     final url = Uri.parse('$baseUrl$endpoint');
-    final response = await http.post(
+    final response = await _httpClient.post(
       url,
       headers: headers ?? _authHeaders,
       body: body is String ? body : jsonEncode(body),
@@ -226,7 +255,7 @@ class ApiService {
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ApiException(
-        'Erreur lors de l\'envoi des données',
+        'Erreur lors de l\'envoi des donnÃ©es',
         statusCode: response.statusCode,
       );
     }
@@ -248,13 +277,13 @@ class ApiService {
         headers: headers ?? _authHeaders,
       );
       throw ApiException(
-        'Vous êtes hors ligne. L\'opération sera envoyée une fois la connexion rétablie.',
+        'Vous Ãªtes hors ligne. L\'opÃ©ration sera envoyÃ©e une fois la connexion rÃ©tablie.',
         statusCode: 0,
       );
     }
 
     final url = Uri.parse('$baseUrl$endpoint');
-    final response = await http.delete(
+    final response = await _httpClient.delete(
       url,
       headers: headers ?? _authHeaders,
     );
@@ -278,7 +307,7 @@ class ApiService {
     String role,
   ) async {
     try {
-      final response = await http.post(
+      final response = await _httpClient.post(
         Uri.parse('$baseUrl/auth/login'),
         headers: _headers,
         body: jsonEncode({
@@ -309,7 +338,7 @@ class ApiService {
     String code,
   ) async {
     try {
-      final response = await http.post(
+      final response = await _httpClient.post(
         Uri.parse('$baseUrl/auth/verify'),
         headers: _headers,
         body: jsonEncode({
@@ -333,7 +362,7 @@ class ApiService {
       final token = result is Map<String, dynamic> ? result['token'] : null;
       if (token == null || token is! String || token.isEmpty) {
         throw ApiException(
-          data['message'] ?? 'Code invalide ou expiré',
+          data['message'] ?? 'Code invalide ou expirÃ©',
           statusCode: response.statusCode,
           errors: data['errors'] as Map<String, dynamic>?,
         );
@@ -352,7 +381,7 @@ class ApiService {
 
   Future<void> resendCode(String email) async {
     try {
-      final response = await http.post(
+      final response = await _httpClient.post(
         Uri.parse('$baseUrl/auth/resend-code'),
         headers: _headers,
         body: jsonEncode({'email': email}),
@@ -376,7 +405,7 @@ class ApiService {
   Future<void> logout() async {
     if (_token != null) {
       try {
-        await http.post(
+        await _httpClient.post(
           Uri.parse('$baseUrl/auth/logout'),
           headers: _authHeaders,
         );
@@ -387,7 +416,7 @@ class ApiService {
 
   Future<void> deleteAccount() async {
     try {
-      await http.post(
+      await _httpClient.post(
         Uri.parse('$baseUrl/auth/delete-account'),
         headers: _authHeaders,
       );
@@ -399,7 +428,7 @@ class ApiService {
     return _readCachedOrRefresh<Map<String, dynamic>>(
       'profile',
       () async {
-        final response = await http.get(
+        final response = await _httpClient.get(
           Uri.parse('$baseUrl/auth/profile'),
           headers: _authHeaders,
         );
@@ -435,12 +464,12 @@ class ApiService {
   // ============================================
   // PHOTO DE PROFIL
   // ============================================
-  // NOTE : suppose deux routes côté Laravel à créer si elles n'existent
+  // NOTE : suppose deux routes cÃ´tÃ© Laravel Ã  crÃ©er si elles n'existent
   // pas encore :
   //   POST   /api/stagiaire/photo   (multipart, champ "photo")
   //          -> renvoie { "data": { "photo_profil": "https://.../xxx.jpg" } }
   //   DELETE /api/stagiaire/photo
-  // À adapter aux noms réels de tes routes/contrôleur si différents.
+  // Ã€ adapter aux noms rÃ©els de tes routes/contrÃ´leur si diffÃ©rents.
 
   /// Envoie une nouvelle photo de profil et renvoie son URL publique.
   Future<String> updatePhotoProfil(File fichier) async {
@@ -453,7 +482,7 @@ class ApiService {
       request.files
           .add(await http.MultipartFile.fromPath('photo', fichier.path));
 
-      final streamedResponse = await request.send();
+      final streamedResponse = await _httpClient.send(request);
       final response = await http.Response.fromStream(streamedResponse);
       final body = jsonDecode(response.body);
 
@@ -470,10 +499,10 @@ class ApiService {
           data['photo_profil'] as String? ?? data['photo_url'] as String?;
       if (url == null || url.isEmpty) {
         throw ApiException(
-            'Réponse inattendue du serveur après l\'envoi de la photo.');
+            'RÃ©ponse inattendue du serveur aprÃ¨s l\'envoi de la photo.');
       }
 
-      // ✅ TRÈS IMPORTANT : Invalider le cache du profil pour forcer la mise à jour
+      // âœ… TRÃˆS IMPORTANT : Invalider le cache du profil pour forcer la mise Ã  jour
       await _cache.delete('profile');
 
       return url;
@@ -487,7 +516,7 @@ class ApiService {
   Future<void> supprimerPhotoProfil() async {
     try {
       await _delete('/user/photo');
-      // ✅ Invalider le cache du profil
+      // âœ… Invalider le cache du profil
       await _cache.delete('profile');
     } catch (e) {
       if (e is ApiException) rethrow;
@@ -496,14 +525,14 @@ class ApiService {
   }
 
   // ============================================
-  // RÉFÉRENTIEL
+  // RÃ‰FÃ‰RENTIEL
   // ============================================
 
   Future<List<dynamic>> getDomaines() async {
     return _readCachedOrRefresh<List<dynamic>>(
       'referentiel_domaines',
       () async {
-        final response = await http.get(
+        final response = await _httpClient.get(
           Uri.parse('$baseUrl/referentiel/domaines'),
           headers: _authHeaders,
         );
@@ -525,11 +554,11 @@ class ApiService {
           queryParameters: domaineId != null ? {'domaineId': domaineId} : null,
         );
 
-        final response = await http.get(uri, headers: _authHeaders);
+        final response = await _httpClient.get(uri, headers: _authHeaders);
 
         if (response.statusCode != 200) {
           throw ApiException(
-            'Erreur de chargement des métiers',
+            'Erreur de chargement des mÃ©tiers',
             statusCode: response.statusCode,
           );
         }
@@ -544,7 +573,7 @@ class ApiService {
     return _readCachedOrRefresh<List<dynamic>>(
       'referentiel_niveaux_formation',
       () async {
-        final response = await http.get(
+        final response = await _httpClient.get(
           Uri.parse('$baseUrl/referentiel/niveaux-formation'),
           headers: _authHeaders,
         );
@@ -558,7 +587,7 @@ class ApiService {
     return _readCachedOrRefresh<List<dynamic>>(
       'referentiel_competences',
       () async {
-        final response = await http.get(
+        final response = await _httpClient.get(
           Uri.parse('$baseUrl/referentiel/competences'),
           headers: _authHeaders,
         );
@@ -572,7 +601,7 @@ class ApiService {
     return _readCachedOrRefresh<List<dynamic>>(
       'referentiel_criteres_savoir_etre',
       () async {
-        final response = await http.get(
+        final response = await _httpClient.get(
           Uri.parse('$baseUrl/criteres-savoir-etre'),
           headers: _authHeaders,
         );
@@ -590,7 +619,7 @@ class ApiService {
     return _readCachedOrRefresh<List<dynamic>>(
       'carnets',
       () async {
-        final response = await http.get(
+        final response = await _httpClient.get(
           Uri.parse('$baseUrl/carnets'),
           headers: _authHeaders,
         );
@@ -614,7 +643,7 @@ class ApiService {
       return cached;
     }
 
-    final response = await http.get(
+    final response = await _httpClient.get(
       Uri.parse('$baseUrl/carnets/$carnetId/stats'),
       headers: _authHeaders,
     );
@@ -636,10 +665,10 @@ class ApiService {
     return body;
   }
 
-  /// Rattache un carnet existant à une entreprise/tuteur via un code
-  /// d'invitation. [carnetId] est optionnel : à fournir lorsque
-  /// l'utilisateur (stagiaire) possède plusieurs carnets et qu'il faut
-  /// préciser lequel doit être rattaché.
+  /// Rattache un carnet existant Ã  une entreprise/tuteur via un code
+  /// d'invitation. [carnetId] est optionnel : Ã  fournir lorsque
+  /// l'utilisateur (stagiaire) possÃ¨de plusieurs carnets et qu'il faut
+  /// prÃ©ciser lequel doit Ãªtre rattachÃ©.
   Future<Map<String, dynamic>> rattacherCarnet(
     String codeInvitation, {
     String? carnetId,
@@ -692,7 +721,7 @@ class ApiService {
       return cached;
     }
 
-    final response = await http.get(
+    final response = await _httpClient.get(
       Uri.parse('$baseUrl/pointage/$carnetId/historique'),
       headers: _authHeaders,
     );
@@ -709,7 +738,7 @@ class ApiService {
     return _readCachedOrRefresh<List<dynamic>>(
       'mes_attestations',
       () async {
-        final response = await http.get(Uri.parse('$baseUrl/mes-attestations'),
+        final response = await _httpClient.get(Uri.parse('$baseUrl/mes-attestations'),
             headers: _authHeaders);
         return _decodeList(response);
       },
@@ -725,7 +754,7 @@ class ApiService {
     return _readCachedOrRefresh<List<dynamic>>(
       'notifications',
       () async {
-        final response = await http.get(Uri.parse('$baseUrl/notifications'),
+        final response = await _httpClient.get(Uri.parse('$baseUrl/notifications'),
             headers: _authHeaders);
         return _decodeList(response);
       },
@@ -745,9 +774,9 @@ class ApiService {
     await _cache.delete('profile');
   }
 
-  /// Journal complet d'un carnet (missions + difficultés), sans limite,
-  /// pour l'onglet "Journal" — distinct des stats qui n'en montrent
-  /// que les 5 dernières activités mélangées.
+  /// Journal complet d'un carnet (missions + difficultÃ©s), sans limite,
+  /// pour l'onglet "Journal" â€” distinct des stats qui n'en montrent
+  /// que les 5 derniÃ¨res activitÃ©s mÃ©langÃ©es.
   Future<List<dynamic>> getEntreesJournal(String carnetId) async {
     final cacheKey = 'journal_entrees_$carnetId';
     final cached = await _cache.getJson<List<dynamic>>(cacheKey);
@@ -755,7 +784,7 @@ class ApiService {
       return cached;
     }
 
-    final response = await http.get(
+    final response = await _httpClient.get(
       Uri.parse('$baseUrl/carnets/$carnetId/entrees'),
       headers: _authHeaders,
     );
@@ -777,7 +806,7 @@ class ApiService {
       return cached;
     }
 
-    final response = await http.get(
+    final response = await _httpClient.get(
       Uri.parse('$baseUrl/carnets/$carnetId/encouragements'),
       headers: _authHeaders,
     );
@@ -798,7 +827,7 @@ class ApiService {
     return body;
   }
 
-  /// URL directe du PDF d'une attestation (à ouvrir dans un navigateur/lecteur
+  /// URL directe du PDF d'une attestation (Ã  ouvrir dans un navigateur/lecteur
   /// externe via url_launcher, par ex.).
   String urlTelechargementAttestation(String attestationId) {
     return '$baseUrl/attestations/$attestationId/telecharger';
@@ -818,7 +847,7 @@ class ApiService {
     final cached = await _cache.getJson<List<dynamic>>(cacheKey);
     if (cached != null) return cached;
 
-    final response = await http.get(
+    final response = await _httpClient.get(
       Uri.parse('$baseUrl/bilans-reflexifs/carnets/$carnetId/bilans-reflexifs'),
       headers: _authHeaders,
     );
@@ -837,7 +866,7 @@ class ApiService {
 
   Future<List<dynamic>> getTrajets() async {
     final response =
-        await http.get(Uri.parse('$baseUrl/trajets'), headers: _authHeaders);
+        await _httpClient.get(Uri.parse('$baseUrl/trajets'), headers: _authHeaders);
     return _decodeList(response);
   }
 
@@ -847,7 +876,7 @@ class ApiService {
   }
 
   Future<List<dynamic>> getMesTrajets() async {
-    final response = await http.get(Uri.parse('$baseUrl/trajets/mes-trajets'),
+    final response = await _httpClient.get(Uri.parse('$baseUrl/trajets/mes-trajets'),
         headers: _authHeaders);
     return _decodeList(response);
   }
@@ -865,14 +894,14 @@ class ApiService {
   }
 
   Future<List<dynamic>> getMesReservations() async {
-    final response = await http.get(
+    final response = await _httpClient.get(
         Uri.parse('$baseUrl/reservations/mes-reservations'),
         headers: _authHeaders);
     return _decodeList(response);
   }
 
   Future<List<dynamic>> getTrajetMessages(String trajetId) async {
-    final response = await http.get(
+    final response = await _httpClient.get(
       Uri.parse('$baseUrl/trajets/$trajetId/messages'),
       headers: _authHeaders,
     );
@@ -897,7 +926,7 @@ class ApiService {
     return _readCachedOrRefresh<List<dynamic>>(
       'entreprise_stagiaires',
       () async {
-        final response = await http.get(
+        final response = await _httpClient.get(
           Uri.parse('$baseUrl/stagiaires'),
           headers: _authHeaders,
         );
@@ -911,7 +940,7 @@ class ApiService {
     return _readCachedOrRefresh<Map<String, dynamic>>(
       'entreprise_dashboard_stats',
       () async {
-        final response = await http.get(
+        final response = await _httpClient.get(
           Uri.parse('$baseUrl/dashboard-stats'),
           headers: _authHeaders,
         );
@@ -928,13 +957,13 @@ class ApiService {
   }
 
   Future<List<dynamic>> getFichesInvitation() async {
-    final response = await http.get(Uri.parse('$baseUrl/fiches-invitation'),
+    final response = await _httpClient.get(Uri.parse('$baseUrl/fiches-invitation'),
         headers: _authHeaders);
     return _decodeList(response);
   }
 
   Future<List<dynamic>> getEvaluations(String carnetId) async {
-    final response = await http.get(
+    final response = await _httpClient.get(
         Uri.parse('$baseUrl/carnets/$carnetId/evaluations'),
         headers: _authHeaders);
     return _decodeList(response);
@@ -977,7 +1006,7 @@ class ApiService {
       '/entrees-carnet/$entreeId/commentaire',
       jsonEncode({'commentaire_tuteur': commentaire}),
     );
-    // Invalider le cache du journal car une entrée a été modifiée
+    // Invalider le cache du journal car une entrÃ©e a Ã©tÃ© modifiÃ©e
   }
 
   // ============================================
