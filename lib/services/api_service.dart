@@ -271,8 +271,14 @@ class ApiService {
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
+      String serverMessage = 'Erreur lors de l\'envoi des données';
+      try {
+        final errorBody = jsonDecode(response.body);
+        serverMessage = errorBody['message'] ?? serverMessage;
+      } catch (_) {}
+
       throw ApiException(
-        'Erreur lors de l\'envoi des donnÃ©es',
+        serverMessage,
         statusCode: response.statusCode,
       );
     }

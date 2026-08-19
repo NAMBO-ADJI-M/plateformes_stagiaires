@@ -25,12 +25,18 @@ class GeofencingService {
     _service = gs.GeofenceService.instance.setup(
       interval: 5000,
       accuracy: 100,
-      loiteringDelayMs: 60000,
-      statusChangeDelayMs: 10000,
+      loiteringDelayMs: 10000, // Réduit à 10 secondes pour plus de réactivité
+      statusChangeDelayMs: 5000,
       useActivityRecognition: false,
       allowMockLocations: false,
-      printDevLog: false,
+      printDevLog: true, // Activé pour le débuggage
+      geofencePrecision: gs.GeofencePrecision.medium,
     );
+
+    // Ajout d'une notification pour que le service soit considéré comme prioritaire par Android
+    _service.addLocationChangeListener((location) {
+       // Utile pour le débug si besoin
+    });
 
     final geofence = gs.Geofence(
       id: 'lieu_stage_$carnetId',

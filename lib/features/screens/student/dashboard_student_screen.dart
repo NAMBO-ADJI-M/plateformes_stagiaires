@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../../services/api_service.dart';
 import '../../../services/api_exception.dart';
+import '../../../services/geofencing_service.dart';
 import '../../widgets/common_widgets.dart';
 import 'covoiturage_home_screen.dart';
 import 'notifications_screen.dart';
@@ -228,6 +229,21 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
 
           _loading = false;
         });
+
+        // ✅ Démarrer le géofencing dès que le carnet est chargé
+        final lat = carnet['geofence_lat'];
+        final lng = carnet['geofence_lng'];
+        if (lat != null && lng != null) {
+          final permission = await Geolocator.checkPermission();
+          if (permission == LocationPermission.always) {
+            GeofencingService().start(
+              carnetId: carnetId,
+              lat: (lat as num).toDouble(),
+              lng: (lng as num).toDouble(),
+              rayonMetres: ((carnet['geofence_rayon'] ?? 100) as num).toInt(),
+            );
+          }
+        }
       }
     } on ApiException catch (e) {
       if (mounted && !hasData) {
@@ -625,7 +641,7 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
                   child: _StatusMiniCard(
                     icon: Icons.people_alt_rounded,
                     iconBg: ColorConstants.primary,
-                    title: 'Rattachement',
+                    title: 'Profil',
                     value: _rattache ? 'Rattaché' : 'En attente',
                     subtitle: _rattache ? (_tuteurNom ?? '') : null,
                     valueColor: _rattache
