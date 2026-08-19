@@ -47,9 +47,9 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
     super.initState();
     _chargerTrajets();
 
-    // ✅ Rafraîchir les positions des voitures toutes les 30 secondes
-    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      _chargerTrajets(silent: true);
+    // ✅ Rafraîchir les positions des voitures moins souvent (60s) pour économiser Render
+    _refreshTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (mounted) _chargerTrajets(silent: true);
     });
   }
 

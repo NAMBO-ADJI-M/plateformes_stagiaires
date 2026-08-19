@@ -218,25 +218,40 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
 
       final carnetId = carnet['id'] as String;
 
-      // 3. Charger les détails en parallèle (Stats, Pointage, Réservations)
-      final secondaryResults = await Future.wait([
-        _api.getCarnetStats(carnetId).catchError((_) => <String, dynamic>{}),
-        _api.getHistoriquePointage(carnetId).catchError((_) => []),
-        _api.getMesReservations().catchError((_) => []),
-      ]);
+      // 3. Charger les détails SÉQUENTIELLEMENT pour ne pas saturer le serveur Render (limite 5 requêtes)
+      try {
+        _stats = await _api.getCarnetStats(carnetId);
+        if (mounted) setState(() {});
+      } catch (e) {
+        debugPrint('⚠️ Erreur stats (ignorée) : $e');
+      }
 
-      if (mounted) {
-        setState(() {
-          _stats = secondaryResults[0] as Map<String, dynamic>;
-          _computePointageDuJour(secondaryResults[1] as List<dynamic>);
+      try {
+        final historique = await _api.getHistoriquePointage(carnetId);
+        if (mounted) {
+          _computePointageDuJour(historique);
+          setState(() {});
+        }
+      } catch (e) {
+        debugPrint('⚠️ Erreur historique (ignorée) : $e');
+      }
 
-          final reservations = secondaryResults[2] as List<dynamic>;
+      try {
+        final reservations = await _api.getMesReservations();
+        if (mounted) {
           final aVenir = reservations
               .cast<Map<String, dynamic>>()
               .where((r) => r['statut'] != 'ANNULEE' && r['statut'] != 'TERMINEE')
               .toList();
           _prochaineReservation = aVenir.isNotEmpty ? aVenir.first : null;
+          setState(() {});
+        }
+      } catch (e) {
+        debugPrint('⚠️ Erreur réservations (ignorée) : $e');
+      }
 
+      if (mounted) {
+        setState(() {
           _loading = false;
         });
 
