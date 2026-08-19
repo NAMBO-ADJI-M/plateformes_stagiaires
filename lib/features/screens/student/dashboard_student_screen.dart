@@ -220,7 +220,7 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
 
       // 3. Charger les détails en parallèle (Stats, Pointage, Réservations)
       final secondaryResults = await Future.wait([
-        _api.getCarnetStats(carnetId),
+        _api.getCarnetStats(carnetId).catchError((_) => <String, dynamic>{}),
         _api.getHistoriquePointage(carnetId).catchError((_) => []),
         _api.getMesReservations().catchError((_) => []),
       ]);
@@ -258,14 +258,14 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
     } on ApiException catch (e) {
       if (mounted && !hasData) {
         setState(() {
-          _error = e.message;
+          _error = e.userFriendlyMessage;
           _loading = false;
         });
       }
     } catch (e) {
       if (mounted && !hasData) {
         setState(() {
-          _error = 'Une erreur est survenue. Vérifiez votre connexion.';
+          _error = 'Erreur inattendue : $e';
           _loading = false;
         });
       }
