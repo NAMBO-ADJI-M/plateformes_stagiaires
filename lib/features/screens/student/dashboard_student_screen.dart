@@ -256,6 +256,7 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
         }
       }
     } on ApiException catch (e) {
+      debugPrint('❌ Dashboard error (ApiException): ${e.toString()}');
       if (mounted && !hasData) {
         setState(() {
           _error = e.userFriendlyMessage;
@@ -263,6 +264,7 @@ class _DashboardStudentScreenState extends State<DashboardStudentScreen>
         });
       }
     } catch (e) {
+      debugPrint('❌ Dashboard error (Unknown): ${e.toString()}');
       if (mounted && !hasData) {
         setState(() {
           _error = 'Erreur inattendue : $e';

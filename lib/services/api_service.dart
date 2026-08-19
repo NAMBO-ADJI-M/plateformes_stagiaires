@@ -73,6 +73,7 @@ class ApiService {
 
       return decoded;
     } catch (e) {
+      debugPrint('❌ Erreur API sur endpoint $endpoint : $e');
       if (e is ApiException) rethrow;
       throw ApiException.networkError(endpoint);
     }
