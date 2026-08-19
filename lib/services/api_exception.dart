@@ -123,7 +123,7 @@ class ApiException implements Exception {
       return 'La ressource demandée n\'existe pas.';
     }
     if (isValidationError) {
-      return validationErrors.isNotEmpty ? validationErrors.first : 'Données invalides.';
+      return validationErrors.isNotEmpty ? validationErrors.first : message;
     }
     if (isServerError) {
       return 'Une erreur est survenue sur le serveur. Veuillez réessayer plus tard.';
