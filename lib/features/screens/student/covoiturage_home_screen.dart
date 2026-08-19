@@ -217,15 +217,14 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
   Future<void> _chargerTrajets({bool silent = false}) async {
     if (!silent) setState(() => _chargement = true);
     try {
-      final results = await Future.wait([
-        _apiService.getTrajets(),
-        _apiService.getMesTrajets(),
-      ]);
+      // ✅ Séquentiel plutôt que Future.wait pour ne pas saturer Render (limite 5 requêtes)
+      final trajets = await _apiService.getTrajets();
+      final mesTrajets = await _apiService.getMesTrajets();
 
       if (!mounted) return;
       setState(() {
-        _trajets = results[0];
-        _mesTrajets = results[1];
+        _trajets = trajets;
+        _mesTrajets = mesTrajets;
         _chargement = false;
         _erreur = null;
       });
