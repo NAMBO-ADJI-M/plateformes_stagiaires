@@ -165,94 +165,108 @@ class _ProfileTuteurScreenState extends State<ProfileTuteurScreen> {
     final name = '${_profile?['prenom'] ?? ''} ${_profile?['nom'] ?? ''}'.trim();
     final entreprise = _profile?['raison_sociale'] ?? 'Mon Entreprise';
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-      children: [
-        AppCard(
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: ColorConstants.border,
-                child: _isPhotoLoading
-                    ? const CircularProgressIndicator()
-                    : ClipOval(
-                        child: _profile?['photo_profil_url'] != null
-                            ? Image.network(
-                                _profile!['photo_profil_url'],
-                                fit: BoxFit.cover,
-                                width: 56,
-                                height: 56,
-                                errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 30),
-                              )
-                            : const Icon(Icons.person, size: 30),
+    return Container(
+      color: ColorConstants.paper,
+      child: Column(
+        children: [
+          const ScreenTopBar(
+            eyebrow: 'Paramètres',
+            title: 'Mon Profil',
+            showProfile: false, // On est déjà sur le profil
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              children: [
+                AppCard(
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 28,
+                        backgroundColor: ColorConstants.border,
+                        child: _isPhotoLoading
+                            ? const CircularProgressIndicator()
+                            : ClipOval(
+                                child: _profile?['photo_profil_url'] != null
+                                    ? Image.network(
+                                        _profile!['photo_profil_url'],
+                                        fit: BoxFit.cover,
+                                        width: 56,
+                                        height: 56,
+                                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 30),
+                                      )
+                                    : const Icon(Icons.person, size: 30),
+                              ),
                       ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(name.isEmpty ? 'Tuteur' : name,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: ColorConstants.textPrimary)),
+                            const SizedBox(height: 2),
+                            Text(_profile?['email'] ?? '', style: const TextStyle(fontSize: 12.5, color: ColorConstants.textSecondary)),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: ColorConstants.border)),
+                        child: IconButton(
+                          icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                          onPressed: _pickAndUploadPhoto,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
                   children: [
-                    Text(name.isEmpty ? 'Tuteur' : name,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: ColorConstants.textPrimary)),
-                    const SizedBox(height: 2),
-                    Text(_profile?['email'] ?? '', style: const TextStyle(fontSize: 12.5, color: ColorConstants.textSecondary)),
+                    Expanded(child: _LabelValue(label: 'ENTREPRISE', value: entreprise)),
+                    const SizedBox(width: 10),
+                    Expanded(child: _LabelValue(label: 'STAGIAIRES SUIVIS', value: _stats?['stagiaires_actifs']?.toString() ?? '0')),
                   ],
                 ),
-              ),
-              Container(
-                decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: ColorConstants.border)),
-                child: IconButton(
-                  icon: const Icon(Icons.camera_alt_outlined, size: 18),
-                  onPressed: _pickAndUploadPhoto,
+                const SizedBox(height: 18),
+                const Text('Entreprise', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: ColorConstants.textPrimary)),
+                const SizedBox(height: 10),
+                AppCard(
+                  child: Column(
+                    children: [
+                      _InfoRow(icon: Icons.business_outlined, label: 'Raison sociale', value: entreprise),
+                      const Divider(height: 26),
+                      _InfoRow(icon: Icons.location_on_outlined, label: 'Adresse', value: _profile?['adresse_libelle'] ?? 'Non renseignée'),
+                      const Divider(height: 26),
+                      _InfoRow(icon: Icons.track_changes_rounded, label: 'Rayon Pointage', value: '${_profile?['rayon_detection_metres'] ?? 100} mètres'),
+                      const Divider(height: 26),
+                      _InfoRow(icon: Icons.public_outlined, label: 'Site Web', value: _profile?['site_web'] ?? 'Non renseigné'),
+                      const SizedBox(height: 16),
+                      TextButton.icon(
+                        onPressed: _editEntrepriseInfo,
+                        icon: const Icon(Icons.settings_outlined, size: 16),
+                        label: const Text('Modifier les informations entreprise'),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 24),
+                OutlinedButton.icon(
+                  onPressed: _isLoggingOut ? null : _handleLogout,
+                  icon: _isLoggingOut ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.logout),
+                  label: Text(_isLoggingOut ? 'Déconnexion...' : 'Se déconnecter', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: ColorConstants.error,
+                    minimumSize: const Size(double.infinity, 54),
+                    side: const BorderSide(color: ColorConstants.error),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 14),
-        Row(
-          children: [
-            Expanded(child: _LabelValue(label: 'ENTREPRISE', value: entreprise)),
-            const SizedBox(width: 10),
-            Expanded(child: _LabelValue(label: 'STAGIAIRES SUIVIS', value: _stats?['stagiaires_actifs']?.toString() ?? '0')),
-          ],
-        ),
-        const SizedBox(height: 18),
-        const Text('Entreprise', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: ColorConstants.textPrimary)),
-        const SizedBox(height: 10),
-        AppCard(
-          child: Column(
-            children: [
-              _InfoRow(icon: Icons.business_outlined, label: 'Raison sociale', value: entreprise),
-              const Divider(height: 26),
-              _InfoRow(icon: Icons.location_on_outlined, label: 'Adresse', value: _profile?['adresse_libelle'] ?? 'Non renseignée'),
-              const Divider(height: 26),
-              _InfoRow(icon: Icons.track_changes_rounded, label: 'Rayon Pointage', value: '${_profile?['rayon_detection_metres'] ?? 100} mètres'),
-              const Divider(height: 26),
-              _InfoRow(icon: Icons.public_outlined, label: 'Site Web', value: _profile?['site_web'] ?? 'Non renseigné'),
-              const SizedBox(height: 16),
-              TextButton.icon(
-                onPressed: _editEntrepriseInfo,
-                icon: const Icon(Icons.settings_outlined, size: 16),
-                label: const Text('Modifier les informations entreprise'),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        OutlinedButton.icon(
-          onPressed: _isLoggingOut ? null : _handleLogout,
-          icon: _isLoggingOut ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.logout),
-          label: Text(_isLoggingOut ? 'Déconnexion...' : 'Se déconnecter', style: const TextStyle(fontWeight: FontWeight.bold)),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: ColorConstants.error,
-            minimumSize: const Size(double.infinity, 54),
-            side: const BorderSide(color: ColorConstants.error),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

@@ -31,6 +31,14 @@ class ColorConstants {
   static const textSecondary = Color(0xFF64748B);
   static const textMuted = Color(0xFF94A3B8);
 
+  // Nouveaux tokens pour la navigation personnalisée
+  static const teal = Color(0xFF0D9488);
+  static const clay = Color(0xFF944E33); // Couleur terre cuite pour le carnet
+  static const amber = Color(0xFFF59E0B);
+  static const inkSoft = Color(0xFF64748B);
+  static const line = Color(0xFFE2E8F0);
+  static const paper = Color(0xFFF8FAFC); // Fond légèrement grisé type papier
+
   // Gradients modernes
   static const primaryGradient = LinearGradient(
     colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
@@ -59,7 +67,7 @@ class ColorConstants {
   // Ombre subtile et élégante
   static List<BoxShadow> cardShadow = [
     BoxShadow(
-      color: Colors.black.withValues(alpha: 0.05),
+      color: Colors.black.withOpacity(0.05),
       blurRadius: 15,
       offset: const Offset(0, 5),
     ),
@@ -67,7 +75,7 @@ class ColorConstants {
 
   static List<BoxShadow> glowShadow(Color color) => [
         BoxShadow(
-          color: color.withValues(alpha: 0.3),
+          color: color.withOpacity(0.3),
           blurRadius: 20,
           spreadRadius: 2,
           offset: const Offset(0, 4),

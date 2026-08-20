@@ -3,7 +3,6 @@ import '../../../core/constants/constants_colors.dart';
 import '../../../services/api_service.dart';
 import '../../../services/api_exception.dart';
 import '../../widgets/common_widgets.dart';
-import 'logbook_screen.dart';
 import 'carnet_creation_page.dart';
 
 class CarnetListPage extends StatefulWidget {
@@ -34,17 +33,11 @@ class _CarnetListPageState extends State<CarnetListPage> {
   }
 
   void _ouvrirCarnet(Map<String, dynamic> carnet) {
-    final rattache =
-        carnet['entreprise_id'] != null && carnet['autorisation_suivi'] == true;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => LogbookScreen(
-          carnetId: carnet['id'] as String,
-          estRattache: rattache,
-        ),
-      ),
-    ).then((_) => _reload());
+    // Note: Pour l'instant, on n'ouvre que le carnet via l'onglet principal.
+    // Mais on peut rediriger vers une vue de détail si besoin.
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Le détail de ce carnet est accessible dans l\'onglet "Carnet"'))
+    );
   }
 
   Future<void> _creerCarnet() async {
@@ -136,7 +129,7 @@ class _CarnetListPageState extends State<CarnetListPage> {
                         height: 42,
                         decoration: BoxDecoration(
                           color: (rattache ? ColorConstants.success : ColorConstants.accentOrange)
-                              .withValues(alpha: 0.12),
+                              .withOpacity(0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(

@@ -101,7 +101,10 @@ class _CodeRegisterPageState extends State<CodeRegisterPage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: const BackButton(color: ColorConstants.textPrimary),
+        leading: BackButton(
+          color: ColorConstants.textPrimary,
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: SafeArea(
         child: Center(
@@ -143,7 +146,7 @@ class _CodeRegisterPageState extends State<CodeRegisterPage> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
-                          color: ColorConstants.primary.withValues(alpha: 0.1),
+                          color: ColorConstants.primary.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(

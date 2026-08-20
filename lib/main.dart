@@ -10,7 +10,8 @@ import 'package:plateforme_stagiaires/features/screens/home_router.dart';
 import 'package:plateforme_stagiaires/features/splash/splash_screen.dart';
 import 'package:plateforme_stagiaires/modeles/user_type.dart';
 import 'package:plateforme_stagiaires/services/api_service.dart';
-import 'package:plateforme_stagiaires/services/offline_sync_manager.dart'; // ✅ AJOUTER CET IMPORT
+import 'package:plateforme_stagiaires/services/offline_sync_manager.dart';
+import 'package:plateforme_stagiaires/services/notification_service.dart';
 
 /// Permet d'accepter les certificats SSL auto-signés ou Let's Encrypt mal gérés
 /// par certaines versions d'Android (nécessaire pour Render/Aiven).
@@ -35,6 +36,9 @@ Future<void> main() async {
   // Initialiser le monitoring de la connexion réseau et la synchro offline
   final syncManager = OfflineSyncManager();
   await syncManager.initialize();
+
+  // Initialiser le service de notifications locales
+  await NotificationService().initialize();
 
   runApp(const MonApplication());
 }

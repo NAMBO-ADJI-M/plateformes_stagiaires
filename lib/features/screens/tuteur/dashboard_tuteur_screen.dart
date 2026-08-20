@@ -66,6 +66,22 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
     }
   }
 
+  Future<void> _demanderSuivi(String stagiaireId) async {
+    try {
+      await _apiService.demanderSuiviPointage(stagiaireId);
+      if (mounted) {
+        _loadData();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Demande de suivi envoyée au stagiaire.'))
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
+      }
+    }
+  }
+
   void _showEncouragerDialog(Map<String, dynamic> carnet) {
     final contenuCtrl = TextEditingController();
     String type = 'ENCOURAGEMENT';
@@ -146,86 +162,96 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
     final userName =
         '${profileData['prenom'] ?? ''} ${profileData['nom'] ?? ''}'.trim();
     final entrepriseName = profileData['raison_sociale'] ?? 'Mon Entreprise';
-    final photoUrl = profileData['photo_profil_url'];
 
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+    return Container(
+      color: ColorConstants.paper,
+      child: Column(
         children: [
-          GreetingHeader(
-            title: 'Bonjour, ${userName.isEmpty ? 'M. Laurent' : userName}',
-            subtitle: '$entrepriseName • Tuteur Principal',
-            avatarUrl: photoUrl,
+          ScreenTopBar(
+            eyebrow: entrepriseName,
+            title: userName.isEmpty ? 'Espace Tuteur' : 'Bonjour, $userName',
           ),
-          const SizedBox(height: 16),
-          // Alertes réelles de baisse d'activité
-          if (_stats?['alertes'] != null && (_stats!['alertes'] as List).isNotEmpty)
-            ...(_stats!['alertes'] as List).map((alerte) => Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: _buildAlertBox(context, alerte),
-                )),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              StatMiniCard(
-                  icon: Icons.people_alt_outlined,
-                  iconColor: ColorConstants.primary,
-                  value: _stats?['stagiaires_actifs']?.toString() ?? '0',
-                  label: 'Stagiaires actifs'),
-              const SizedBox(width: 10),
-              StatMiniCard(
-                  icon: Icons.bolt_outlined,
-                  iconColor: ColorConstants.accent,
-                  value: _stats?['missions_assignees']?.toString() ?? '0',
-                  label: 'Missions assignées'),
-              const SizedBox(width: 10),
-              StatMiniCard(
-                  icon: Icons.trending_up_rounded,
-                  iconColor: ColorConstants.success,
-                  value: '${_stats?['progression_moyenne'] ?? 0}%',
-                  label: 'Complétion moy.'),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildActionButtons(context),
-          const SizedBox(height: 22),
-          const Text('Vos Stagiaires',
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: ColorConstants.textPrimary)),
-          const SizedBox(height: 10),
-          if (_stagiaires == null || _stagiaires!.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 40),
-              child: Center(
-                  child: Text('Aucun stagiaire rattaché pour le moment.',
-                      style: TextStyle(color: ColorConstants.textSecondary))),
-            )
-          else
-            ..._stagiaires!.take(3).map((s) {
-              final stagiaire = s['stagiaire'] ?? {};
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: StagiaireTile(
-                  name: '${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}',
-                  role: s['poste'] ?? 'Stagiaire',
-                  progress: 0.5, // À dynamiser via une nouvelle route si besoin
-                  status: s['statut'] == 'TERMINE' ? 'Terminé' : 'En cours',
-                  statusColor: s['statut'] == 'TERMINE'
-                      ? ColorConstants.success
-                      : ColorConstants.accentOrange,
-                  avatarUrl: 'https://i.pravatar.cc/150?u=${stagiaire['id']}',
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => SuiviStagiaireScreen(carnet: s),
-                    ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadData,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                children: [
+                  // Alertes réelles de baisse d'activité
+                  if (_stats?['alertes'] != null && (_stats!['alertes'] as List).isNotEmpty)
+                    ...(_stats!['alertes'] as List).map((alerte) => Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: _buildAlertBox(context, alerte),
+                        )),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      StatMiniCard(
+                          icon: Icons.people_alt_outlined,
+                          iconColor: ColorConstants.primary,
+                          value: _stats?['stagiaires_actifs']?.toString() ?? '0',
+                          label: 'Stagiaires actifs'),
+                      const SizedBox(width: 10),
+                      StatMiniCard(
+                          icon: Icons.bolt_outlined,
+                          iconColor: ColorConstants.accent,
+                          value: _stats?['missions_assignees']?.toString() ?? '0',
+                          label: 'Missions'),
+                      const SizedBox(width: 10),
+                      StatMiniCard(
+                          icon: Icons.trending_up_rounded,
+                          iconColor: ColorConstants.success,
+                          value: '${_stats?['progression_moyenne'] ?? 0}%',
+                          label: 'Complétion'),
+                    ],
                   ),
-                ),
-              );
-            }),
+                  const SizedBox(height: 24),
+                  _buildActionButtons(context),
+                  const SizedBox(height: 24),
+                  const Text('Vos Stagiaires',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: ColorConstants.textPrimary)),
+                  const SizedBox(height: 12),
+                  if (_stagiaires == null || _stagiaires!.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
+                      child: Center(
+                          child: Text('Aucun stagiaire rattaché pour le moment.',
+                              style: TextStyle(color: ColorConstants.textSecondary))),
+                    )
+                  else
+                    ..._stagiaires!.take(3).map((s) {
+                      final stagiaire = s['stagiaire'] ?? {};
+                      final autoStatut = s['autorisation_pointage_statut'] ?? 'INACTIVE';
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: StagiaireTile(
+                          name: '${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}',
+                          role: s['poste'] ?? 'Stagiaire',
+                          progress: 0.5, // À dynamiser via une nouvelle route si besoin
+                          status: s['statut'] == 'TERMINE' ? 'Terminé' : 'En cours',
+                          statusColor: s['statut'] == 'TERMINE'
+                              ? ColorConstants.success
+                              : ColorConstants.accentOrange,
+                          avatarUrl: 'https://i.pravatar.cc/150?u=${stagiaire['id']}',
+                          autoStatut: autoStatut,
+                          onDemanderSuivi: () => _demanderSuivi(stagiaire['id']),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => SuiviStagiaireScreen(carnet: s),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -235,9 +261,9 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: ColorConstants.error.withValues(alpha: 0.08),
+        color: ColorConstants.error.withOpacity(0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ColorConstants.error.withValues(alpha: 0.25)),
+        border: Border.all(color: ColorConstants.error.withOpacity(0.25)),
       ),
       child: Row(
         children: [
@@ -301,7 +327,7 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
             label: const Text('Ajouter un stagiaire'),
             style: OutlinedButton.styleFrom(
               foregroundColor: ColorConstants.primary,
-              backgroundColor: ColorConstants.primary.withValues(alpha: 0.08),
+              backgroundColor: ColorConstants.primary.withOpacity(0.08),
               side: BorderSide.none,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
@@ -342,7 +368,9 @@ class StagiaireTile extends StatelessWidget {
   final String status;
   final Color statusColor;
   final String avatarUrl;
+  final String autoStatut; // ACTIVE | INACTIVE | EN_ATTENTE | REFUSEE
   final VoidCallback? onTap;
+  final VoidCallback? onDemanderSuivi;
 
   const StagiaireTile({
     super.key,
@@ -352,59 +380,104 @@ class StagiaireTile extends StatelessWidget {
     required this.status,
     required this.statusColor,
     required this.avatarUrl,
+    this.autoStatut = 'INACTIVE',
     this.onTap,
+    this.onDemanderSuivi,
   });
 
   @override
   Widget build(BuildContext context) {
     return AppCard(
       onTap: onTap,
-      child: Row(
+      child: Column(
         children: [
-          CircleAvatar(radius: 22, backgroundImage: NetworkImage(avatarUrl)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Row(
+            children: [
+              CircleAvatar(radius: 22, backgroundImage: NetworkImage(avatarUrl)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        name,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                            color: ColorConstants.textPrimary),
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                                color: ColorConstants.textPrimary),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        StatusPill(label: status, color: statusColor),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    StatusPill(label: status, color: statusColor),
+                    const SizedBox(height: 2),
+                    Text(role,
+                        style: const TextStyle(
+                            fontSize: 12, color: ColorConstants.textSecondary)),
                   ],
                 ),
-                const SizedBox(height: 2),
-                Text(role,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          autoStatut == 'ACTIVE' ? Icons.visibility : Icons.visibility_off,
+                          size: 12,
+                          color: autoStatut == 'ACTIVE' ? ColorConstants.success : ColorConstants.textMuted,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          autoStatut == 'ACTIVE' ? 'Suivi actif' : 'Suivi privé',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: autoStatut == 'ACTIVE' ? ColorConstants.success : ColorConstants.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    LinearProgressRow(percent: progress, color: statusColor),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              if (autoStatut == 'INACTIVE' || autoStatut == 'REFUSEE')
+                TextButton(
+                  onPressed: onDemanderSuivi,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    backgroundColor: ColorConstants.primary.withOpacity(0.08),
+                  ),
+                  child: const Text('Demander l\'accès', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                )
+              else if (autoStatut == 'EN_ATTENTE')
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                  child: const Text('En attente...', style: TextStyle(fontSize: 10, fontStyle: FontStyle.italic)),
+                )
+              else
+                Text('${(progress * 100).round()}%',
                     style: const TextStyle(
-                        fontSize: 12, color: ColorConstants.textSecondary)),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: LinearProgressRow(
-                          percent: progress, color: statusColor),
-                    ),
-                    const SizedBox(width: 8),
-                    Text('${(progress * 100).round()}%',
-                        style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: ColorConstants.textPrimary)),
-                  ],
-                ),
-              ],
-            ),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: ColorConstants.textPrimary)),
+            ],
           ),
         ],
       ),

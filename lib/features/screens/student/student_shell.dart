@@ -3,14 +3,14 @@ import 'package:geolocator/geolocator.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../../services/api_service.dart';
 import '../../../services/geofencing_service.dart';
-import 'dashboard_student_screen.dart';
-import 'logbook_tab_screen.dart'; 
-import 'progression_screen.dart';
-import 'covoiturage_home_screen.dart';
+import 'home_screen.dart';
+import 'pointage_screen.dart';
+import 'carnet_screen.dart';
+import 'trajet_screen.dart';
 import 'profile_student_screen.dart';
 
 /// Coquille de navigation de l'espace stagiaire.
-/// Onglets : Accueil / Logbook / Stats / Covoiturage / Profil.
+/// Onglets : Accueil / Pointage / Carnet / Trajet / Profil.
 class StudentShell extends StatefulWidget {
   const StudentShell({super.key});
 
@@ -20,24 +20,47 @@ class StudentShell extends StatefulWidget {
 
 class _StudentShellState extends State<StudentShell> {
   int _index = 0;
-
-  final _pages = const [
-    DashboardStudentScreen(),
-    LogbookTabScreen(),
-    ProgressionScreen(),
-    CovoiturageHomeScreen(),
-    ProfileStudentScreen(),
-  ];
+  late final List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
-    // Démarre le pointage automatique par géofencing si la permission
-    // "toujours autoriser" est déjà accordée. Si elle ne l'est pas encore,
-    // c'est la bannière du dashboard (_activerGeofencing) qui prendra le
-    // relais une fois l'utilisateur activé la localisation.
+    _pages = [
+      HomeScreen(
+        onNavigateToPointage: () => setState(() => _index = 1),
+        onNavigateToCarnet: () => setState(() => _index = 2),
+        onNavigateToTrajet: () => setState(() => _index = 3),
+      ),
+      const PointageScreen(),
+      const CarnetScreen(),
+      const TrajetScreen(),
+      const ProfileStudentScreen(),
+    ];
     _initGeofencing();
   }
+
+  static const _items = [
+    _NavItem(
+        icon: Icons.home_rounded,
+        label: 'Accueil',
+        color: ColorConstants.primaryLight),
+    _NavItem(
+        icon: Icons.access_time_rounded,
+        label: 'Pointage',
+        color: ColorConstants.teal),
+    _NavItem(
+        icon: Icons.menu_book_rounded,
+        label: 'Carnet',
+        color: ColorConstants.clay),
+    _NavItem(
+        icon: Icons.directions_car_rounded,
+        label: 'Trajet',
+        color: ColorConstants.amber),
+    _NavItem(
+        icon: Icons.person_rounded,
+        label: 'Profil',
+        color: ColorConstants.primary),
+  ];
 
   Future<void> _initGeofencing() async {
     try {
@@ -62,52 +85,75 @@ class _StudentShellState extends State<StudentShell> {
         lng: (lng as num).toDouble(),
         rayonMetres: ((carnet['geofence_rayon'] ?? 100) as num).toInt(),
       );
-    } catch (_) {
-      // Pas bloquant : si le démarrage échoue (pas de réseau, pas de
-      // carnet, etc.), le pointage manuel reste disponible dans l'app.
-    }
+    } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: ColorConstants.background,
-      body: SafeArea(child: _pages[_index]),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _index,
-        onTap: (i) => setState(() => _index = i),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: ColorConstants.primary,
-        unselectedItemColor: ColorConstants.textSecondary,
-        showUnselectedLabels: true,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home_rounded),
-            label: 'Accueil',
+      body: SafeArea(
+        bottom: false,
+        child: IndexedStack(index: _index, children: _pages),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: ColorConstants.cardBackground,
+            border: Border(top: BorderSide(color: ColorConstants.line)),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.menu_book_outlined),
-            activeIcon: Icon(Icons.menu_book_rounded),
-            label: 'Logbook',
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            children: List.generate(_items.length, (i) {
+              final item = _items[i];
+              final active = i == _index;
+              return Expanded(
+                child: InkWell(
+                  onTap: () => setState(() => _index = i),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        height: 36,
+                        width: 36,
+                        decoration: BoxDecoration(
+                          color: active
+                              ? item.color.withOpacity(0.10)
+                              : Colors.transparent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          item.icon,
+                          size: 19,
+                          color: active ? item.color : ColorConstants.inkSoft,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        item.label,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: active ? item.color : ColorConstants.inkSoft,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart_rounded),
-            activeIcon: Icon(Icons.leaderboard_rounded),
-            label: 'Stats',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.directions_car_outlined),
-            activeIcon: Icon(Icons.directions_car_rounded),
-            label: 'Covoiturage',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person_rounded),
-            label: 'Profil',
-          ),
-        ],
+        ),
       ),
     );
   }
+}
+
+class _NavItem {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _NavItem({required this.icon, required this.label, required this.color});
 }

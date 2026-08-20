@@ -73,7 +73,6 @@ class ApiService {
 
       return decoded;
     } catch (e) {
-      debugPrint('❌ Erreur API sur endpoint $endpoint : $e');
       if (e is ApiException) rethrow;
       throw ApiException.networkError(endpoint);
     }
@@ -633,14 +632,6 @@ class ApiService {
     );
   }
 
-  Future<List<dynamic>> getCarteStages() async {
-    final response = await _httpClient.get(
-      Uri.parse('$baseUrl/referentiel/carte-stages'),
-      headers: _authHeaders,
-    );
-    return _decodeList(response);
-  }
-
   Future<List<dynamic>> getCriteresSavoirEtre() async {
     return _readCachedOrRefresh<List<dynamic>>(
       'referentiel_criteres_savoir_etre',
@@ -908,11 +899,10 @@ class ApiService {
   }
 
   Future<void> updateTrajetPosition(String trajetId, double lat, double lng) async {
-    await _httpClient.post(
-      Uri.parse('$baseUrl/trajets/$trajetId/position'),
-      headers: _authHeaders,
-      body: jsonEncode({'lat': lat, 'lng': lng}),
-    );
+    await _post('/trajets/$trajetId/position', {
+      'lat': lat,
+      'lng': lng,
+    });
   }
 
   Future<List<dynamic>> getMesTrajets() async {
@@ -1086,6 +1076,37 @@ class ApiService {
       jsonEncode({'commentaire_tuteur': commentaire}),
     );
     // Invalider le cache du journal car une entrÃ©e a Ã©tÃ© modifiÃ©e
+  }
+
+  // ============================================
+  // AUTORISATIONS POINTAGE
+  // ============================================
+
+  Future<Map<String, dynamic>> updateAutorisationPointage(String entrepriseId, bool autorise) async {
+    final body = await _post('/pointage/autorisation', jsonEncode({
+      'entreprise_id': entrepriseId,
+      'autorise': autorise
+    }));
+    await _cache.delete('profile');
+    return body;
+  }
+
+  Future<Map<String, dynamic>> repondreDemandeSuivi(String autorisationId, bool accepter) async {
+    final body = await _post('/pointage/repondre', jsonEncode({
+      'autorisation_id': autorisationId,
+      'accepter': accepter
+    }));
+    await _cache.delete('profile');
+    await _cache.delete('notifications');
+    return body;
+  }
+
+  Future<Map<String, dynamic>> demanderSuiviPointage(String stagiaireId) async {
+    final body = await _post('/entreprise/demander-suivi', jsonEncode({
+      'stagiaire_id': stagiaireId
+    }));
+    await _cache.delete('entreprise_stagiaires');
+    return body;
   }
 
   // ============================================

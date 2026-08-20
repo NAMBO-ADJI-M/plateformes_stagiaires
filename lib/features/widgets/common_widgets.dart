@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/constants_colors.dart';
+import '../screens/student/notifications_screen.dart';
+import '../screens/student/conversations_screen.dart';
 
 /// Carte blanche arrondie standard utilisée sur presque tous les écrans.
 class AppCard extends StatelessWidget {
@@ -24,7 +26,7 @@ class AppCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha:0.04),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -160,7 +162,7 @@ class StatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha:0.12),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -370,10 +372,10 @@ class EmptyState extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: ColorConstants.primary.withValues(alpha: 0.05),
+                color: ColorConstants.primary.withOpacity(0.05),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 64, color: ColorConstants.primary.withValues(alpha: 0.4)),
+              child: Icon(icon, size: 64, color: ColorConstants.primary.withValues(alpha:0.4)),
             ),
             const SizedBox(height: 24),
             Text(
@@ -447,6 +449,129 @@ class PrimaryButton extends StatelessWidget {
                           fontWeight: FontWeight.w600, fontSize: 15)),
                 ],
               ),
+      ),
+    );
+  }
+}
+
+/// Barre de titre d'écran avec "eyebrow" (petit texte au-dessus) et accès profil.
+class ScreenTopBar extends StatelessWidget {
+  final String eyebrow;
+  final String title;
+  final bool showProfile;
+  final bool showMessages;
+
+  const ScreenTopBar({
+    super.key,
+    required this.eyebrow,
+    required this.title,
+    this.showProfile = true,
+    this.showMessages = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 12, 12, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  eyebrow.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                    color: ColorConstants.textSecondary.withOpacity(0.7),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    color: ColorConstants.textPrimary,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (showMessages)
+            IconButton(
+              icon: const Icon(Icons.chat_bubble_outline_rounded,
+                  color: ColorConstants.textPrimary),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ConversationsScreen()),
+              ),
+            ),
+          if (showProfile) ...[
+            IconButton(
+              icon: const Icon(Icons.notifications_none_rounded,
+                  color: ColorConstants.textPrimary),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Bouton d'action avec bordure en pointillés.
+class DashedActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const DashedActionButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: ColorConstants.border,
+            width: 1.5,
+            style: BorderStyle.solid, // Flutter n'a pas de pointillés natifs sans pack, on simule par une bordure fine
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: ColorConstants.textSecondary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: ColorConstants.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

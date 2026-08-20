@@ -3,7 +3,6 @@ import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
 import 'dashboard_tuteur_screen.dart';
 import '../../../services/api_service.dart';
-import 'widgets/add_stagiaire_dialog.dart';
 import 'suivi_stagiaire_screen.dart';
 
 /// Version dynamisée de la liste des stagiaires pour l'entreprise.
@@ -55,6 +54,22 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
     }
   }
 
+  Future<void> _demanderSuivi(String stagiaireId) async {
+    try {
+      await _apiService.demanderSuiviPointage(stagiaireId);
+      if (mounted) {
+        _loadData();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Demande de suivi envoyée au stagiaire.'))
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
+      }
+    }
+  }
+
   void _applyFilters() {
     final query = _searchCtrl.text.toLowerCase();
     setState(() {
@@ -75,84 +90,79 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: ColorConstants.background,
-      appBar: AppBar(
-        backgroundColor: ColorConstants.background,
-        elevation: 0,
-        foregroundColor: ColorConstants.textPrimary,
-        title: const Text('Stagiaires',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 19)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_add_alt_1_outlined),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (_) => const AddStagiaireDialog(),
-              ).then((_) => _loadData());
-            },
+    return Container(
+      color: ColorConstants.paper,
+      child: Column(
+        children: [
+          ScreenTopBar(
+            eyebrow: 'Gestion',
+            title: 'Stagiaires',
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadData,
+              child: _isLoading
+                  ? _buildSkeletonList()
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                      children: [
+                        _buildSearchBar(),
+                        const SizedBox(height: 14),
+                        _buildTabs(),
+                        const SizedBox(height: 16),
+                        if (_filteredStagiaires.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 60),
+                            child: EmptyState(
+                              icon: Icons.search_off_rounded,
+                              title: 'Aucun stagiaire trouvé',
+                              subtitle: 'Essayez de modifier vos critères de recherche.',
+                            ),
+                          )
+                        else
+                          ..._filteredStagiaires.map((item) {
+                            final stagiaire = item['stagiaire'] ?? {};
+                            final autoStatut = item['autorisation_pointage_statut'] ?? 'INACTIVE';
+
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: StagiaireTile(
+                                name:
+                                    '${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}',
+                                role: '${item['poste'] ?? 'Stagiaire'}',
+                                progress: 0.5,
+                                status: item['statut'] == 'TERMINE'
+                                    ? 'Terminé'
+                                    : 'En cours',
+                                statusColor: item['statut'] == 'TERMINE'
+                                    ? ColorConstants.success
+                                    : ColorConstants.accentOrange,
+                                avatarUrl:
+                                    'https://i.pravatar.cc/150?u=${stagiaire['id']}',
+                                autoStatut: autoStatut,
+                                onDemanderSuivi: () => _demanderSuivi(stagiaire['id']),
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => SuiviStagiaireScreen(carnet: item),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        const SizedBox(height: 24),
+                        const Text('Historique',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: ColorConstants.textPrimary)),
+                        const SizedBox(height: 12),
+                        _buildHistoryPlaceholder(),
+                      ],
+                    ),
+            ),
           ),
         ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadData,
-        child: _isLoading
-            ? _buildSkeletonList()
-            : ListView(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                children: [
-                  _buildSearchBar(),
-                  const SizedBox(height: 14),
-                  _buildTabs(),
-                  const SizedBox(height: 16),
-                  if (_filteredStagiaires.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 60),
-                      child: EmptyState(
-                        icon: Icons.search_off_rounded,
-                        title: 'Aucun stagiaire trouvé',
-                        subtitle: 'Essayez de modifier vos critères de recherche ou vos filtres.',
-                      ),
-                    )
-                  else
-                    ..._filteredStagiaires.map((item) {
-                      final stagiaire = item['stagiaire'] ?? {};
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: StagiaireTile(
-                          name:
-                              '${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}',
-                          role:
-                              '${item['poste'] ?? 'Stagiaire'} • ${_formatDateRange(item)}',
-                          progress: 0.5,
-                          status: item['statut'] == 'TERMINE'
-                              ? 'Terminé'
-                              : 'En cours',
-                          statusColor: item['statut'] == 'TERMINE'
-                              ? ColorConstants.success
-                              : ColorConstants.accentOrange,
-                          avatarUrl:
-                              'https://i.pravatar.cc/150?u=${stagiaire['id']}',
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => SuiviStagiaireScreen(carnet: item),
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  const SizedBox(height: 22),
-                  const Text('Historique (Précédents stages)',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          color: ColorConstants.textPrimary)),
-                  const SizedBox(height: 10),
-                  _buildHistoryPlaceholder(),
-                ],
-              ),
       ),
     );
   }
@@ -272,11 +282,6 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
         ],
       ),
     );
-  }
-
-  String _formatDateRange(Map<String, dynamic> item) {
-    // Logique simplifiée de formattage de date
-    return '1 Fév. - 31 Juil.';
   }
 }
 

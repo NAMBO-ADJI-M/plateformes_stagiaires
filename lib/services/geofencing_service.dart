@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:geofence_service/geofence_service.dart' as gs;
 import 'api_service.dart';
 import 'pointage_event_bus.dart';
+import 'notification_service.dart';
 
 class GeofencingService {
   GeofencingService._internal();
@@ -29,7 +30,7 @@ class GeofencingService {
       statusChangeDelayMs: 5000,
       useActivityRecognition: false,
       allowMockLocations: false,
-      printDevLog: true, // Activé pour le débuggage
+      printDevLog: false, // Désactivé pour la production
     );
 
     // Ajout d'une notification pour que le service soit considéré comme prioritaire par Android
@@ -66,6 +67,13 @@ class GeofencingService {
           carnetId: _carnetId,
         );
         PointageEventBus().notifyPointageUpdate();
+
+        // ✅ Notification de succès
+        await NotificationService().showNotification(
+          id: 1,
+          title: '📍 Arrivée validée',
+          body: 'Votre présence en stage a été enregistrée automatiquement.',
+        );
       } else if (status == gs.GeofenceStatus.EXIT) {
         await _api.pointageDepart(
           latitude: location.latitude,
@@ -73,6 +81,13 @@ class GeofencingService {
           carnetId: _carnetId,
         );
         PointageEventBus().notifyPointageUpdate();
+
+        // ✅ Notification de succès
+        await NotificationService().showNotification(
+          id: 2,
+          title: '👋 Départ validé',
+          body: 'Votre fin de session a été enregistrée. Bonne fin de journée !',
+        );
       }
     } catch (_) {
       // Erreur réseau ponctuelle : le prochain changement de statut retentera.

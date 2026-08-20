@@ -512,7 +512,7 @@ class _CarnetCreationPageState extends State<CarnetCreationPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, -2)),
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, -2)),
         ],
       ),
       child: Row(
@@ -696,7 +696,7 @@ class _CarnetCreationPageState extends State<CarnetCreationPage> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: ColorConstants.primary.withValues(alpha: 0.06),
+        color: ColorConstants.primary.withOpacity(0.06),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(

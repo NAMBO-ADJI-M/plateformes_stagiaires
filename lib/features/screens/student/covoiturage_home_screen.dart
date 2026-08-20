@@ -11,7 +11,6 @@ import '../../widgets/common_widgets.dart';
 import 'recherche_trajet_screen.dart';
 import 'create_trajet_screen.dart';
 import 'trajet_details_screen.dart';
-import 'reservations_screen.dart';
 import '../../../services/live_tracking_service.dart';
 
 /// Reproduit covoiturage-home.png : toggle géolocalisation, mini-carte,
@@ -261,9 +260,10 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
   }
 
   void _openReservations() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ReservationsScreen()),
+    // Rediriger vers l'onglet Trajet (index 3) du StudentShell
+    // Ou simplement afficher un message si on ne veut pas gérer la navigation complexe ici
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Consultez vos réservations dans l\'onglet "Trajet"')),
     );
   }
 
@@ -394,7 +394,7 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
+                    color: Colors.black.withOpacity(0.1),
                     blurRadius: 10,
                   )
                 ],
@@ -430,9 +430,9 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
                                     height: 44,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: Colors.blue.withValues(alpha: 0.15),
+                                      color: Colors.blue.withOpacity(0.15),
                                       border: Border.all(
-                                        color: Colors.blue.withValues(alpha: 0.4),
+                                        color: Colors.blue.withOpacity(0.4),
                                         width: 1.5,
                                       ),
                                     ),
@@ -510,7 +510,7 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
                             borderRadius: BorderRadius.circular(10),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.15),
+                                color: Colors.black.withOpacity(0.15),
                                 blurRadius: 6,
                               )
                             ],
@@ -551,7 +551,7 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: ColorConstants.border.withValues(alpha: 0.5),
+                color: ColorConstants.border.withOpacity(0.5),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(

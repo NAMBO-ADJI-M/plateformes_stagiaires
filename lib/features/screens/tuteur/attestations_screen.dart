@@ -81,76 +81,112 @@ class _AttestationsScreenState extends State<AttestationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading && _stagiaires.isEmpty) return const Center(child: CircularProgressIndicator());
+    if (_isLoading && _stagiaires.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-    return Scaffold(
-      backgroundColor: ColorConstants.background,
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+    return Container(
+      color: ColorConstants.paper,
+      child: Column(
         children: [
-          const Text('Attestations & Recommandations',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: ColorConstants.textPrimary)),
-          const SizedBox(height: 16),
-
-          // Sélection du stagiaire
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          const ScreenTopBar(
+            eyebrow: 'Documents',
+            title: 'Attestations',
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
               children: [
-                const Text('1. Sélectionner le stagiaire', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<Map<String, dynamic>>(
-                  initialValue: _selectedStagiaire,
-                  items: _stagiaires.map((s) {
-                    final stagiaire = s['stagiaire'] ?? {};
-                    return DropdownMenuItem<Map<String, dynamic>>(
-                      value: s,
-                      child: Text('${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}'),
-                    );
-                  }).toList(),
-                  onChanged: (val) => setState(() => _selectedStagiaire = val),
-                  decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12)),
+                const Text(
+                    'Générez des attestations officielles et envoyez des recommandations aux futures entreprises.',
+                    style: TextStyle(
+                        fontSize: 13, color: ColorConstants.textSecondary)),
+                const SizedBox(height: 20),
+
+                // Sélection du stagiaire
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('1. Sélectionner le stagiaire',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<Map<String, dynamic>>(
+                        initialValue: _selectedStagiaire,
+                        items: _stagiaires.map((s) {
+                          final stagiaire = s['stagiaire'] ?? {};
+                          return DropdownMenuItem<Map<String, dynamic>>(
+                            value: s,
+                            child: Text(
+                                '${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}'),
+                          );
+                        }).toList(),
+                        onChanged: (val) =>
+                            setState(() => _selectedStagiaire = val),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: ColorConstants.background,
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none),
+                          contentPadding:
+                              const EdgeInsets.symmetric(horizontal: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 14),
+
+                // Infos Future Entreprise
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('2. Coordonnées de la future entreprise',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 12),
+                      _LabeledField(
+                          label: "Nom de l'entreprise destinataire",
+                          controller: _entrepriseFutureCtrl,
+                          hint: 'Ex: Orange, Decathlon...'),
+                      const SizedBox(height: 12),
+                      _LabeledField(
+                          label: 'Email du destinataire (RH ou Tuteur)',
+                          controller: _emailFutureCtrl,
+                          hint: 'Ex: rh@entreprise.com'),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 14),
+
+                // Recommandation
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('3. Votre recommandation',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 12),
+                      _LabeledField(
+                          label: 'Commentaire libre',
+                          controller: _appreciationCtrl,
+                          maxLines: 4),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                PrimaryButton(
+                  label: 'Générer et envoyer le dossier',
+                  isLoading: _isLoading,
+                  onPressed: _genererEtEnvoyer,
                 ),
               ],
             ),
-          ),
-
-          const SizedBox(height: 14),
-
-          // Infos Future Entreprise
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('2. Coordonnées de la future entreprise', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                _LabeledField(label: "Nom de l'entreprise destinataire", controller: _entrepriseFutureCtrl, hint: 'Ex: Orange, Decathlon...'),
-                const SizedBox(height: 12),
-                _LabeledField(label: 'Email du destinataire (RH ou Tuteur)', controller: _emailFutureCtrl, hint: 'Ex: rh@entreprise.com'),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 14),
-
-          // Recommandation
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('3. Votre recommandation', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                _LabeledField(label: 'Commentaire libre', controller: _appreciationCtrl, maxLines: 4),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          PrimaryButton(
-            label: 'Générer et envoyer le dossier',
-            isLoading: _isLoading,
-            onPressed: _genererEtEnvoyer,
           ),
         ],
       ),

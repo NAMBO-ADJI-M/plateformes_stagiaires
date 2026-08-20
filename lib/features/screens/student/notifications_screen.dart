@@ -46,17 +46,26 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _markAllRead() async {
     try {
       await _api.markAllNotificationsAsRead();
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       _loadNotifications();
     } catch (e) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
+    }
+  }
+
+  Future<void> _repondreSuivi(String notificationId, String autorisationId, bool accepter) async {
+    try {
+      await _api.repondreDemandeSuivi(autorisationId, accepter);
+      await _api.markNotificationAsRead(notificationId);
+      if (!mounted) return;
+      _loadNotifications();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur : $e')),
+        SnackBar(content: Text(accepter ? 'Demande acceptée !' : 'Demande refusée.'))
       );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
     }
   }
 
@@ -93,6 +102,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       final n = _notifications[index];
                       return _NotifCard(
                         notification: n,
+                        onAcceptSuivi: (autoId) => _repondreSuivi(n['id'], autoId, true),
+                        onRefuseSuivi: (autoId) => _repondreSuivi(n['id'], autoId, false),
                         onTap: () async {
                           if (n['read_at'] == null) {
                             await _api.markNotificationAsRead(n['id']);
@@ -118,8 +129,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 class _NotifCard extends StatelessWidget {
   final Map<String, dynamic> notification;
   final VoidCallback onTap;
+  final Function(String)? onAcceptSuivi;
+  final Function(String)? onRefuseSuivi;
 
-  const _NotifCard({required this.notification, required this.onTap});
+  const _NotifCard({
+    required this.notification,
+    required this.onTap,
+    this.onAcceptSuivi,
+    this.onRefuseSuivi,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -136,6 +154,7 @@ class _NotifCard extends StatelessWidget {
 
     // Personnalisation selon le type (logique Laravel Notification)
     final isInvitation = type.contains('InvitationRattachement') || data['type'] == 'invitation_rattachement';
+    final isDemandeSuivi = data['type'] == 'DEMANDE_SUIVI';
 
     if (type.contains('Encouragement')) {
       icon = Icons.favorite;
@@ -148,6 +167,9 @@ class _NotifCard extends StatelessWidget {
       icon = Icons.handshake_rounded;
       iconColor = ColorConstants.primary;
       title = '🤝 Invitation Reçue';
+    } else if (isDemandeSuivi) {
+      icon = Icons.visibility_outlined;
+      iconColor = ColorConstants.accent;
     } else if (type.contains('CarnetValide')) {
       icon = Icons.check_circle;
       iconColor = ColorConstants.success;
@@ -165,7 +187,7 @@ class _NotifCard extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.12),
+              color: iconColor.withOpacity(0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: iconColor, size: 18),
@@ -205,6 +227,31 @@ class _NotifCard extends StatelessWidget {
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
+                  ),
+                ],
+                if (isDemandeSuivi && data['autorisation_id'] != null && !isRead) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => onRefuseSuivi?.call(data['autorisation_id'].toString()),
+                          style: OutlinedButton.styleFrom(foregroundColor: ColorConstants.error),
+                          child: const Text('Refuser'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => onAcceptSuivi?.call(data['autorisation_id'].toString()),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: ColorConstants.success,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('Accepter'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ],
