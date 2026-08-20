@@ -129,15 +129,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Scaffold(backgroundColor: Color(0xFF0A1018), body: Center(child: CircularProgressIndicator(color: Color(0xFF5EEAD4))));
+    if (_isLoading) return const Scaffold(backgroundColor: ColorConstants.paper, body: Center(child: CircularProgressIndicator(color: ColorConstants.primary)));
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A1018),
+      backgroundColor: ColorConstants.paper,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _loadDashboardData,
-          color: const Color(0xFF5EEAD4),
-          backgroundColor: const Color(0xFF111A26),
+          color: ColorConstants.primary,
+          backgroundColor: ColorConstants.cardBackground,
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
             children: [
@@ -174,7 +174,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               if (_activites.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Center(child: Text("Aucune activité récente", style: TextStyle(color: Color(0xFF7E93A3), fontSize: 12))),
+                  child: Center(child: Text("Aucune activité récente", style: TextStyle(color: ColorConstants.textSecondary, fontSize: 12))),
                 )
               else
                 ..._activites.take(3).map((a) => _ActivityItem(
@@ -203,11 +203,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Color _getActivityColor(String? type) {
     switch(type) {
-      case 'presence': return const Color(0xFF5EEAD4);
-      case 'mission': return const Color(0xFFFDBA74);
-      case 'trajet': return const Color(0xFFFB7185);
-      default: return Colors.white;
+      case 'presence': return ColorConstants.teal;
+      case 'mission': return ColorConstants.clay;
+      case 'trajet': return ColorConstants.amber;
+      default: return ColorConstants.primary;
     }
+  }
   }
 
   String _formatActivityDate(String? iso) {
@@ -230,7 +231,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 fontSize: 11,
                 letterSpacing: 1.1,
                 fontWeight: FontWeight.w500,
-                color: const Color(0xFF5EEAD4),
+                color: ColorConstants.teal,
               ),
             ),
             const SizedBox(height: 3),
@@ -239,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               style: GoogleFonts.sora(
                 fontSize: 23,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFFEAF1F5),
+                color: ColorConstants.textPrimary,
               ),
             ),
           ],
@@ -248,9 +249,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: const Color(0xFF111A26),
+            color: ColorConstants.cardBackground,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0x2494B2C7)),
+            border: Border.all(color: ColorConstants.line),
           ),
           alignment: Alignment.center,
           child: Text(
@@ -258,7 +259,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             style: GoogleFonts.sora(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: const Color(0xFF5EEAD4),
+              color: ColorConstants.teal,
             ),
           ),
         ),
@@ -274,7 +275,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         style: GoogleFonts.jetBrainsMono(
           fontSize: 10,
           letterSpacing: 1.2,
-          color: const Color(0xFF7E93A3),
+          color: ColorConstants.textSecondary,
         ),
       ),
     );
@@ -290,9 +291,9 @@ class _Panel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF111A26),
+        color: ColorConstants.cardBackground,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x2494B2C7)),
+        border: Border.all(color: ColorConstants.line),
       ),
       child: child,
     );
@@ -348,7 +349,7 @@ class _PointageCard extends StatelessWidget {
                 children: [
                   const Text(
                     'Présence aujourd\'hui',
-                    style: TextStyle(fontSize: 13, color: Color(0xFF7E93A3)),
+                    style: TextStyle(fontSize: 13, color: ColorConstants.textSecondary),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -356,7 +357,7 @@ class _PointageCard extends StatelessWidget {
                     style: GoogleFonts.sora(
                       fontSize: 26,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFFEAF1F5),
+                      color: ColorConstants.textPrimary,
                     ),
                   ),
                 ],
@@ -480,16 +481,16 @@ class _MiniStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D1520),
+        color: ColorConstants.paper,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x2494B2C7)),
+        border: Border.all(color: ColorConstants.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: GoogleFonts.jetBrainsMono(fontSize: 10, letterSpacing: 0.5, color: const Color(0xFF7E93A3))),
+          Text(label, style: GoogleFonts.jetBrainsMono(fontSize: 10, letterSpacing: 0.5, color: ColorConstants.textSecondary)),
           const SizedBox(height: 3),
-          Text(value, style: GoogleFonts.jetBrainsMono(fontSize: 16, color: const Color(0xFFEAF1F5))),
+          Text(value, style: GoogleFonts.jetBrainsMono(fontSize: 16, color: ColorConstants.textPrimary)),
         ],
       ),
     );
@@ -536,9 +537,9 @@ class _CarnetCard extends StatelessWidget {
               Expanded(
                 child: Column(
                   children: [
-                    _infoLine('Progression globale', '${progress.round()}%'),
-                    _infoLine('Jours de présence', '$jours'),
-                    _infoLine('Missions complétées', '${stats?['missions_completees'] ?? 0}', showDivider: false),
+                    _miniStat('Progression globale', '${progress.round()}%'),
+                    _miniStat('Jours de présence', '$jours'),
+                    _miniStat('Missions complétées', '${stats?['missions_completees'] ?? 0}', showDivider: false),
                   ],
                 ),
               ),
@@ -564,17 +565,17 @@ class _CarnetCard extends StatelessWidget {
     );
   }
 
-  Widget _infoLine(String label, String value, {bool showDivider = true}) {
+  Widget _miniStat(String label, String value, {bool showDivider = true}) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
-        border: showDivider ? const Border(bottom: BorderSide(color: Color(0x2494B2C7))) : null,
+        border: showDivider ? const Border(bottom: BorderSide(color: ColorConstants.line)) : null,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF7E93A3))),
-          Text(value, style: GoogleFonts.jetBrainsMono(fontSize: 12, color: const Color(0xFFEAF1F5))),
+          Text(label, style: const TextStyle(fontSize: 12, color: ColorConstants.textSecondary)),
+          Text(value, style: GoogleFonts.jetBrainsMono(fontSize: 12, color: ColorConstants.textPrimary)),
         ],
       ),
     );
@@ -611,29 +612,29 @@ class _CovoiturageCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF0D1520),
+              color: ColorConstants.paper,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0x2494B2C7)),
+              border: Border.all(color: ColorConstants.line),
             ),
             child: Row(
               children: [
                 Column(
                   children: [
-                    Text(heure, style: GoogleFonts.jetBrainsMono(fontSize: 17, fontWeight: FontWeight.w600, color: const Color(0xFFFDBA74))),
-                    const Text('DÉPART', style: TextStyle(fontSize: 10, color: Color(0xFF7E93A3))),
+                    Text(heure, style: GoogleFonts.jetBrainsMono(fontSize: 17, fontWeight: FontWeight.w600, color: ColorConstants.amber)),
+                    const Text('DÉPART', style: TextStyle(fontSize: 10, color: ColorConstants.textSecondary)),
                   ],
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Container(width: 1, height: 32, color: const Color(0x2494B2C7)),
+                  child: Container(width: 1, height: 32, color: ColorConstants.line),
                 ),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(destination, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFFEAF1F5)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(destination, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: ColorConstants.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 2),
-                      Text(reservation != null ? 'Trajet réservé' : 'Aucun trajet prévu', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: const Color(0xFF7E93A3))),
+                      Text(reservation != null ? 'Trajet réservé' : 'Aucun trajet prévu', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: ColorConstants.textSecondary)),
                     ],
                   ),
                 ),
@@ -646,8 +647,8 @@ class _CovoiturageCard extends StatelessWidget {
             child: OutlinedButton(
               onPressed: onTap,
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFEAF1F5),
-                side: const BorderSide(color: Color(0x2494B2C7)),
+                foregroundColor: ColorConstants.textPrimary,
+                side: const BorderSide(color: ColorConstants.line),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
@@ -682,7 +683,7 @@ class _ActivityItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
-        border: showDivider ? const Border(bottom: BorderSide(color: Color(0x2494B2C7))) : null,
+        border: showDivider ? const Border(bottom: BorderSide(color: ColorConstants.line)) : null,
       ),
       child: Row(
         children: [
@@ -698,9 +699,9 @@ class _ActivityItem extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: Color(0xFFEAF1F5))),
+                Text(title, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: ColorConstants.textPrimary)),
                 const SizedBox(height: 1),
-                Text(time, style: GoogleFonts.jetBrainsMono(fontSize: 10.5, color: const Color(0xFF7E93A3))),
+                Text(time, style: GoogleFonts.jetBrainsMono(fontSize: 10.5, color: ColorConstants.textSecondary)),
               ],
             ),
           ),
