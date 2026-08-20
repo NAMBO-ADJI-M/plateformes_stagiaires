@@ -26,7 +26,7 @@ class AppCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -162,7 +162,7 @@ class StatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -372,7 +372,7 @@ class EmptyState extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: ColorConstants.primary.withOpacity(0.05),
+                color: ColorConstants.primary.withValues(alpha: 0.05),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, size: 64, color: ColorConstants.primary.withValues(alpha:0.4)),
@@ -487,7 +487,7 @@ class ScreenTopBar extends StatelessWidget {
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.2,
-                    color: ColorConstants.textSecondary.withOpacity(0.7),
+                    color: ColorConstants.textSecondary.withValues(alpha: 0.7),
                   ),
                 ),
                 const SizedBox(height: 4),

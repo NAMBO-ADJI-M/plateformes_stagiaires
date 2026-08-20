@@ -12,14 +12,18 @@ class OfflineSyncManager {
   final Connectivity _connectivity = Connectivity();
   final ApiService _api = ApiService();
 
-  StreamSubscription<ConnectivityResult>? _subscription;
+  StreamSubscription? _subscription;
   bool _isOnline = false;
 
   /// Initialise le monitoring de la connexion
   Future<void> initialize() async {
     // Vérifier l'état initial
-    final result = await _connectivity.checkConnectivity();
-    _isOnline = result != ConnectivityResult.none;
+    final dynamic result = await _connectivity.checkConnectivity();
+    if (result is List) {
+      _isOnline = result.isNotEmpty && result.any((res) => res != ConnectivityResult.none);
+    } else {
+      _isOnline = result != ConnectivityResult.none;
+    }
 
     // Si on est en ligne, syncer immédiatement
     if (_isOnline) {
@@ -28,9 +32,13 @@ class OfflineSyncManager {
 
     // Écouter les changements
     _subscription = _connectivity.onConnectivityChanged.listen(
-      (result) async {
+      (dynamic result) async {
         final wasOnline = _isOnline;
-        _isOnline = result != ConnectivityResult.none;
+        if (result is List) {
+          _isOnline = result.isNotEmpty && result.any((res) => res != ConnectivityResult.none);
+        } else {
+          _isOnline = result != ConnectivityResult.none;
+        }
 
         // Transition hors-ligne → en ligne : syncer
         if (!wasOnline && _isOnline) {

@@ -263,7 +263,7 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
                     child: OutlinedButton(
                       onPressed: () => setState(() => _stageUtile = true),
                       style: OutlinedButton.styleFrom(
-                        backgroundColor: _stageUtile ? ColorConstants.primary.withOpacity(0.1) : null,
+                        backgroundColor: _stageUtile ? ColorConstants.primary.withValues(alpha: 0.1) : null,
                         side: BorderSide(color: _stageUtile ? ColorConstants.primary : ColorConstants.border),
                       ),
                       child: const Text('Oui'),
@@ -274,7 +274,7 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
                     child: OutlinedButton(
                       onPressed: () => setState(() => _stageUtile = false),
                       style: OutlinedButton.styleFrom(
-                        backgroundColor: !_stageUtile ? ColorConstants.error.withOpacity(0.1) : null,
+                        backgroundColor: !_stageUtile ? ColorConstants.error.withValues(alpha: 0.1) : null,
                         side: BorderSide(color: !_stageUtile ? ColorConstants.error : ColorConstants.border),
                       ),
                       child: const Text('Non'),
@@ -351,9 +351,9 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: ColorConstants.primary.withOpacity(0.05),
+                      color: ColorConstants.primary.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: ColorConstants.primary.withOpacity(0.1)),
+                      border: Border.all(color: ColorConstants.primary.withValues(alpha: 0.1)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -440,7 +440,7 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
         final isFeli = enc['type'] == 'FELICITATION';
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
-          color: isFeli ? ColorConstants.success.withOpacity(0.05) : null,
+          color: isFeli ? ColorConstants.success.withValues(alpha: 0.05) : null,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: ListTile(
             leading: Icon(

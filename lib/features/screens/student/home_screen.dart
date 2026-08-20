@@ -179,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               else
                 ..._activites.take(3).map((a) => _ActivityItem(
                   icon: _getActivityIcon(a['type']),
-                  iconBg: _getActivityColor(a['type']).withOpacity(0.14),
+                  iconBg: _getActivityColor(a['type']).withValues(alpha: 0.14),
                   iconColor: _getActivityColor(a['type']),
                   title: a['title'] ?? '',
                   time: _formatActivityDate(a['date']),
@@ -442,7 +442,7 @@ class _RadarWidget extends StatelessWidget {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: color.withOpacity(0.35 + 0.25 * controller.value),
+                        color: color.withValues(alpha: 0.35 + 0.25 * controller.value),
                         blurRadius: 16,
                         spreadRadius: 1,
                       ),
@@ -452,7 +452,7 @@ class _RadarWidget extends StatelessWidget {
               },
             )
           else
-            Container(width: 12, height: 12, decoration: BoxDecoration(color: color.withOpacity(0.5), shape: BoxShape.circle)),
+            Container(width: 12, height: 12, decoration: BoxDecoration(color: color.withValues(alpha: 0.5), shape: BoxShape.circle)),
         ],
       ),
     );
@@ -464,7 +464,7 @@ class _RadarWidget extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: color.withOpacity(opacity)),
+        border: Border.all(color: color.withValues(alpha: opacity)),
       ),
     );
   }

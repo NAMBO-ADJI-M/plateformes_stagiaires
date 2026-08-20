@@ -261,9 +261,9 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: ColorConstants.error.withOpacity(0.08),
+        color: ColorConstants.error.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ColorConstants.error.withOpacity(0.25)),
+        border: Border.all(color: ColorConstants.error.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
@@ -327,7 +327,7 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
             label: const Text('Ajouter un stagiaire'),
             style: OutlinedButton.styleFrom(
               foregroundColor: ColorConstants.primary,
-              backgroundColor: ColorConstants.primary.withOpacity(0.08),
+              backgroundColor: ColorConstants.primary.withValues(alpha: 0.08),
               side: BorderSide.none,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
@@ -461,7 +461,7 @@ class StagiaireTile extends StatelessWidget {
                   onPressed: onDemanderSuivi,
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
-                    backgroundColor: ColorConstants.primary.withOpacity(0.08),
+                    backgroundColor: ColorConstants.primary.withValues(alpha: 0.08),
                   ),
                   child: const Text('Demander l\'accès', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                 )

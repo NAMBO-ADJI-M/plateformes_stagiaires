@@ -91,7 +91,7 @@ class _ChooseUserTypePageState extends State<ChooseUserTypePage> {
         child: InkWell(
           borderRadius: BorderRadius.circular(24),
           onTap: () => _goToRegisterCode(type),
-          splashColor: ColorConstants.primary.withOpacity(0.1),
+          splashColor: ColorConstants.primary.withValues(alpha: 0.1),
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Row(
@@ -113,7 +113,7 @@ class _ChooseUserTypePageState extends State<ChooseUserTypePage> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: ColorConstants.primary.withOpacity(0.08),
+                          color: ColorConstants.primary.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(8),
                         ),
 

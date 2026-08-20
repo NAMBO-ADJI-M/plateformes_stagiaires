@@ -129,7 +129,7 @@ class _CarnetListPageState extends State<CarnetListPage> {
                         height: 42,
                         decoration: BoxDecoration(
                           color: (rattache ? ColorConstants.success : ColorConstants.accentOrange)
-                              .withOpacity(0.12),
+                              .withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(

@@ -147,8 +147,8 @@ class _QuickSearchCard extends StatelessWidget {
             const Text('Besoin d\'un trajet ?',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white)),
             const SizedBox(height: 4),
-            Text('Trouvez un stagiaire qui fait le même chemin que vous.',
-                style: TextStyle(fontSize: 13, color: Colors.white.withOpacity(0.9))),
+            const Text('Trouvez un stagiaire qui fait le même chemin que vous.',
+                style: TextStyle(fontSize: 13, color: Colors.white)),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -158,7 +158,7 @@ class _QuickSearchCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.search_rounded, color: ColorConstants.amber.withOpacity(0.7), size: 20),
+                  Icon(Icons.search_rounded, color: ColorConstants.amber.withValues(alpha: 0.7), size: 20),
                   const SizedBox(width: 12),
                   const Text('Rechercher une destination...',
                     style: TextStyle(color: ColorConstants.textSecondary, fontSize: 13)),

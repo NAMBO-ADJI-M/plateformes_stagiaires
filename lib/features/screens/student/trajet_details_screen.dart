@@ -209,7 +209,7 @@ class _TrajetDetailsScreenState extends State<TrajetDetailsScreen> {
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withOpacity(0.05), blurRadius: 8),
+                color: Colors.black.withValues(alpha: 0.05), blurRadius: 8),
           ],
         ),
         child: Column(
@@ -360,8 +360,8 @@ class _TrajetDetailsScreenState extends State<TrajetDetailsScreen> {
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: placesDisponibles! > 0
-                        ? ColorConstants.success.withOpacity(0.1)
-                        : Colors.red.withOpacity(0.1),
+                        ? ColorConstants.success.withValues(alpha: 0.1)
+                        : Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -395,7 +395,7 @@ class _TrajetDetailsScreenState extends State<TrajetDetailsScreen> {
           // Avatar
           CircleAvatar(
             radius: 30,
-            backgroundColor: ColorConstants.primary.withOpacity(0.2),
+            backgroundColor: ColorConstants.primary.withValues(alpha: 0.2),
             backgroundImage: photo != null ? NetworkImage(photo) : null,
             child: photo == null
                 ? Icon(Icons.person, color: ColorConstants.primary, size: 28)
@@ -469,7 +469,7 @@ class _TrajetDetailsScreenState extends State<TrajetDetailsScreen> {
                     CircleAvatar(
                       radius: 18,
                       backgroundColor:
-                          ColorConstants.primary.withOpacity(0.2),
+                          ColorConstants.primary.withValues(alpha: 0.2),
                       child:
                           Text((p['nom'] as String? ?? '?')[0].toUpperCase()),
                     ),

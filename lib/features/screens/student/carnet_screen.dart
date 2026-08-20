@@ -377,9 +377,9 @@ class _EncouragementCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: ColorConstants.clay.withOpacity(0.05),
+        color: ColorConstants.clay.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: ColorConstants.clay.withOpacity(0.1)),
+        border: Border.all(color: ColorConstants.clay.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -163,7 +163,7 @@ class _CodeVerifyPageState extends State<CodeVerifyPage> {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: ColorConstants.primary.withAlpha(20),
+                    color: ColorConstants.primary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Icon(

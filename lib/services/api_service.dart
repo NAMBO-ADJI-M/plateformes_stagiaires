@@ -127,7 +127,10 @@ class ApiService {
   /// VÃ©rifie si le rÃ©seau est disponible
   Future<bool> isOnline() async {
     try {
-      final result = await _connectivity.checkConnectivity();
+      final dynamic result = await _connectivity.checkConnectivity();
+      if (result is List) {
+        return result.isNotEmpty && result.any((res) => res != ConnectivityResult.none);
+      }
       return result != ConnectivityResult.none;
     } catch (_) {
       return false;

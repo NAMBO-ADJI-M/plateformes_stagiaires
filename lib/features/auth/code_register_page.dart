@@ -146,7 +146,7 @@ class _CodeRegisterPageState extends State<CodeRegisterPage> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
-                          color: ColorConstants.primary.withOpacity(0.1),
+                          color: ColorConstants.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
@@ -296,7 +296,7 @@ class _CodeRegisterPageState extends State<CodeRegisterPage> {
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 18),
         elevation: 4,
-        shadowColor: ColorConstants.primary.withAlpha(100),
+        shadowColor: ColorConstants.primary.withValues(alpha: 0.39),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),

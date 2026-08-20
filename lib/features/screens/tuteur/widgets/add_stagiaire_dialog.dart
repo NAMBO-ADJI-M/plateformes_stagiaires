@@ -59,9 +59,9 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
-                color: ColorConstants.primary.withOpacity(0.1),
+                color: ColorConstants.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: ColorConstants.primary.withOpacity(0.3)),
+                border: Border.all(color: ColorConstants.primary.withValues(alpha: 0.3)),
               ),
               child: Text(
                 _generatedCode!,

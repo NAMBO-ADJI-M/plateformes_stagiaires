@@ -173,7 +173,7 @@ class _StatutGeofencingCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: enStage ? ColorConstants.teal : ColorConstants.textSecondary.withOpacity(0.1),
+        color: enStage ? ColorConstants.teal : ColorConstants.textSecondary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -188,7 +188,7 @@ class _StatutGeofencingCard extends StatelessWidget {
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.1,
-                    color: enStage ? Colors.white.withOpacity(0.9) : ColorConstants.textSecondary
+                    color: enStage ? Colors.white.withValues(alpha: 0.9) : ColorConstants.textSecondary
                   )),
             ],
           ),
@@ -207,14 +207,14 @@ class _StatutGeofencingCard extends StatelessWidget {
               : "Le pointage démarrera automatiquement quand vous entrerez dans la zone de l'entreprise.",
             style: TextStyle(
               fontSize: 13,
-              color: enStage ? Colors.white.withOpacity(0.9) : ColorConstants.textSecondary
+              color: enStage ? Colors.white.withValues(alpha: 0.9) : ColorConstants.textSecondary
             ),
           ),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: enStage ? Colors.white.withOpacity(0.15) : ColorConstants.textSecondary.withOpacity(0.1),
+              color: enStage ? Colors.white.withValues(alpha: 0.15) : ColorConstants.textSecondary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(999),
             ),
             child: Row(

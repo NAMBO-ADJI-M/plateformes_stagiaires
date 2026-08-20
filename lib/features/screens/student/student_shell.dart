@@ -120,7 +120,7 @@ class _StudentShellState extends State<StudentShell> {
                         width: 36,
                         decoration: BoxDecoration(
                           color: active
-                              ? item.color.withOpacity(0.10)
+                              ? item.color.withValues(alpha: 0.10)
                               : Colors.transparent,
                           shape: BoxShape.circle,
                         ),
