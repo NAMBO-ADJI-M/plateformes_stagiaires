@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/constants/constants_colors.dart';
+import '../../../services/stagiaire_event_bus.dart';
 import 'dashboard_tuteur_screen.dart';
 import 'liste_stagiaires_screen.dart';
 import 'attestations_screen.dart';
@@ -17,6 +19,8 @@ class TuteurShell extends StatefulWidget {
 
 class _TuteurShellState extends State<TuteurShell> {
   int _index = 0;
+  int _availableCount = 0;
+  StreamSubscription? _stagiaireSub;
 
   final _pages = const [
     DashboardTuteurScreen(),
@@ -24,6 +28,34 @@ class _TuteurShellState extends State<TuteurShell> {
     AttestationsScreen(),
     ProfileTuteurScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _stagiaireSub = StagiaireEventBus().onAvailableCountChanged.listen((count) {
+      if (mounted) setState(() => _availableCount = count);
+    });
+    
+    // Premier chargement silencieux du nombre de stagiaires disponibles
+    _fetchInitialCount();
+  }
+
+  Future<void> _fetchInitialCount() async {
+    try {
+      final res = await ApiService().getEntrepriseStagiaires();
+      final Map<String, dynamic> data = res as Map<String, dynamic>;
+      final disponibles = data['disponibles'] as List<dynamic>?;
+      if (mounted) {
+        setState(() => _availableCount = disponibles?.length ?? 0);
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _stagiaireSub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,8 +75,16 @@ class _TuteurShellState extends State<TuteurShell> {
               activeIcon: Icon(Icons.dashboard_rounded),
               label: 'Dashboard'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.groups_outlined),
-              activeIcon: Icon(Icons.groups_rounded),
+              icon: Badge(
+                label: Text('$_availableCount'),
+                isLabelVisible: _availableCount > 0,
+                child: const Icon(Icons.groups_outlined),
+              ),
+              activeIcon: Badge(
+                label: Text('$_availableCount'),
+                isLabelVisible: _availableCount > 0,
+                child: const Icon(Icons.groups_rounded),
+              ),
               label: 'Stagiaires'),
           BottomNavigationBarItem(
               icon: Icon(Icons.workspace_premium_outlined),

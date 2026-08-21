@@ -3,7 +3,8 @@ import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
 import 'dashboard_tuteur_screen.dart';
 import '../../../services/api_service.dart';
-import 'widgets/liaison_stagiaire_dialog.dart';
+import '../../../services/stagiaire_event_bus.dart';
+import 'widgets/add_stagiaire_dialog.dart';
 import 'suivi_stagiaire_screen.dart';
 
 /// Version dynamisée de la liste des stagiaires pour l'entreprise.
@@ -20,6 +21,7 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
   int _tab = 0; // 0 Tous, 1 Actifs, 2 Terminés
   List<dynamic> _allStagiaires = [];
   List<dynamic> _filteredStagiaires = [];
+  List<dynamic> _disponibles = [];
   bool _isLoading = true;
 
   @override
@@ -39,12 +41,19 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      final data = await _apiService.getEntrepriseStagiaires();
+      final res = await _apiService.getEntrepriseStagiaires();
       if (!mounted) return;
+      
+      final Map<String, dynamic> data = res as Map<String, dynamic>;
+      
       setState(() {
-        _allStagiaires = data;
+        _allStagiaires = data['rattaches'] ?? [];
+        _disponibles = data['disponibles'] ?? [];
         _isLoading = false;
         _applyFilters();
+        
+        // Notification du nombre de stagiaires disponibles pour le badge
+        StagiaireEventBus().updateAvailableCount(_disponibles.length);
       });
     } catch (e) {
       if (!mounted) return;
@@ -55,15 +64,16 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
     }
   }
 
-  Future<void> _demanderSuivi(Map<String, dynamic> item) async {
+  Future<void> _demanderAcces(Map<String, dynamic> item) async {
     final stagiaire = item['stagiaire'] ?? {};
-    final String name = '${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}';
     
+    // Ouvre directement le formulaire de convention pré-rempli
     showDialog(
       context: context,
-      builder: (_) => LiaisonStagiaireDialog(
-        stagiaireId: stagiaire['id'],
-        stagiaireNom: name,
+      builder: (_) => AddStagiaireDialog(
+        initialNom: stagiaire['nom'],
+        initialPrenom: stagiaire['prenom'],
+        initialEmail: stagiaire['email'],
       ),
     ).then((success) {
       if (success == true) _loadData();
@@ -111,13 +121,50 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
                         const SizedBox(height: 14),
                         _buildTabs(),
                         const SizedBox(height: 16),
+                        
+                        // SECTION DECOUVERTE (Nouveaux stagiaires sans entreprise)
+                        if (_disponibles.isNotEmpty && _tab == 0) ...[
+                          const Text('Stagiaires disponibles',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  color: ColorConstants.primary)),
+                          const SizedBox(height: 12),
+                          ..._disponibles.map((item) {
+                            final stagiaire = item['stagiaire'] ?? {};
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: StagiaireTile(
+                                name: '${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}',
+                                role: 'En recherche de stage',
+                                progress: 0.0,
+                                status: 'Nouveau',
+                                statusColor: ColorConstants.primary,
+                                avatarUrl: 'https://i.pravatar.cc/150?u=${stagiaire['id']}',
+                                autoStatut: 'DISPONIBLE',
+                                onDemanderSuivi: () => _demanderAcces(item),
+                              ),
+                            );
+                          }),
+                          const SizedBox(height: 24),
+                          const Divider(),
+                          const SizedBox(height: 24),
+                        ],
+
+                        const Text('Mes Stagiaires',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: ColorConstants.textPrimary)),
+                        const SizedBox(height: 12),
+                        
                         if (_filteredStagiaires.isEmpty)
                           const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 60),
+                            padding: EdgeInsets.symmetric(vertical: 40),
                             child: EmptyState(
                               icon: Icons.search_off_rounded,
                               title: 'Aucun stagiaire trouvé',
-                              subtitle: 'Essayez de modifier vos critères de recherche.',
+                              subtitle: 'Faites défiler pour voir les nouveaux inscrits.',
                             ),
                           )
                         else
@@ -141,7 +188,7 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
                                 avatarUrl:
                                     'https://i.pravatar.cc/150?u=${stagiaire['id']}',
                                 autoStatut: autoStatut,
-                                onDemanderSuivi: () => _demanderSuivi(item),
+                                onDemanderSuivi: () => _demanderAcces(item),
                                 onTap: () => Navigator.push(
                                   context,
                                   MaterialPageRoute(

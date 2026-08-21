@@ -4,7 +4,6 @@ import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
 import '../../../services/api_service.dart';
 import '../../../services/profile_event_bus.dart';
-import 'widgets/add_stagiaire_dialog.dart';
 import 'widgets/liaison_stagiaire_dialog.dart';
 import 'suivi_stagiaire_screen.dart';
 
@@ -54,7 +53,11 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
       if (!mounted) return;
       setState(() {
         _stats = results[0] as Map<String, dynamic>;
-        _stagiaires = results[1] as List<dynamic>;
+        
+        // On récupère uniquement les stagiaires déjà rattachés pour le dashboard
+        final stagiairesRes = results[1] as Map<String, dynamic>;
+        _stagiaires = (stagiairesRes['rattaches'] as List<dynamic>);
+        
         _profile = results[2] as Map<String, dynamic>;
         _isLoading = false;
       });
@@ -201,8 +204,6 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  _buildActionButtons(context),
-                  const SizedBox(height: 24),
                   const Text('Vos Stagiaires',
                       style: TextStyle(
                           fontWeight: FontWeight.bold,
@@ -304,53 +305,6 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildActionButtons(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (_) => const AddStagiaireDialog(),
-              ).then((_) => _loadData());
-            },
-            icon: const Icon(Icons.person_add_alt_outlined, size: 18),
-            label: const Text('Ajouter un stagiaire'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: ColorConstants.primary,
-              backgroundColor: ColorConstants.primary.withValues(alpha: 0.08),
-              side: BorderSide.none,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (_) => const AddStagiaireDialog(),
-              ).then((_) => _loadData());
-            },
-            icon: const Icon(Icons.vpn_key_outlined, size: 18),
-            label: const Text('Générer un code'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: ColorConstants.textPrimary,
-              side: const BorderSide(color: ColorConstants.border),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
