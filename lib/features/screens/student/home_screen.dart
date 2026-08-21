@@ -181,19 +181,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'Saisissez le code à 6 chiffres envoyé par votre tuteur.',
+                'Saisissez le code d\'invitation ou de liaison envoyé par votre tuteur.',
                 style: TextStyle(fontSize: 13, color: ColorConstants.textSecondary),
               ),
               const SizedBox(height: 20),
               TextField(
                 controller: codeCtrl,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
+                keyboardType: TextInputType.text,
+                textCapitalization: TextCapitalization.characters,
+                maxLength: 8,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.jetBrainsMono(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 8),
+                style: GoogleFonts.jetBrainsMono(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 4),
                 decoration: InputDecoration(
                   counterText: '',
                   filled: true,
+                  hintText: 'CODE8CH',
+                  hintStyle: TextStyle(color: ColorConstants.textMuted.withValues(alpha: 0.3), letterSpacing: 4),
                   fillColor: ColorConstants.paper,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
                 ),
@@ -204,11 +207,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
             ElevatedButton(
               onPressed: _isValidatingCode ? null : () async {
-                if (codeCtrl.text.length != 6) return;
+                if (codeCtrl.text.isEmpty) return;
                 setPopupState(() => _isValidatingCode = true);
                 try {
                   // Étape 1 : Vérifier le code et récupérer les conditions
-                  final info = await _api.verifierCodeSuivi(codeCtrl.text);
+                  final info = await _api.verifierCodeSuivi(codeCtrl.text.trim().toUpperCase());
                   if (mounted) {
                     Navigator.pop(ctx);
                     _showReviewConditionsPopup(codeCtrl.text, info);

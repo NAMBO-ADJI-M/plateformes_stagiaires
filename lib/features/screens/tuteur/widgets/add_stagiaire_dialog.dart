@@ -25,15 +25,11 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
   final _formKey = GlobalKey<FormState>();
   
   // 1. Identité Stagiaire
-  late final TextEditingController _nomCtrl;
-  late final TextEditingController _prenomCtrl;
   late final TextEditingController _emailCtrl;
 
   @override
   void initState() {
     super.initState();
-    _nomCtrl = TextEditingController(text: widget.initialNom);
-    _prenomCtrl = TextEditingController(text: widget.initialPrenom);
     _emailCtrl = TextEditingController(text: widget.initialEmail);
   }
 
@@ -93,8 +89,6 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
     setState(() => _isLoading = true);
     try {
       final Map<String, dynamic> data = {
-        'nom': _nomCtrl.text.trim(),
-        'prenom': _prenomCtrl.text.trim(),
         'email': _emailCtrl.text.trim(),
         'poste': _posteCtrl.text.trim(),
         'date_debut': DateFormat('yyyy-MM-dd').format(_dateDebut!),
@@ -188,11 +182,7 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _sectionTitle('1. Identité du Stagiaire'),
-                        _buildField('Prénom', _prenomCtrl, Icons.person_outline),
-                        const SizedBox(height: 12),
-                        _buildField('Nom', _nomCtrl, Icons.person_outline),
-                        const SizedBox(height: 12),
-                        _buildField('Email', _emailCtrl, Icons.email_outlined, keyboardType: TextInputType.emailAddress),
+                        _buildField('Email du stagiaire', _emailCtrl, Icons.email_outlined, keyboardType: TextInputType.emailAddress),
                         
                         const SizedBox(height: 24),
                         _sectionTitle('2. Cadre Administratif'),

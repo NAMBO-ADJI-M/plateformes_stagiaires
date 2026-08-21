@@ -132,15 +132,20 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
                           const SizedBox(height: 12),
                           ..._disponibles.map((item) {
                             final stagiaire = item['stagiaire'] ?? {};
+                            final String email = stagiaire['email'] ?? 'Sans email';
+                            final String displayName = (stagiaire['prenom'] != null && stagiaire['nom'] != null)
+                                ? '${stagiaire['prenom']} ${stagiaire['nom']}'
+                                : email;
+
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 12),
                               child: StagiaireTile(
-                                name: '${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}',
-                                role: 'En recherche de stage',
+                                name: displayName,
+                                role: 'Inscrit sur StageLink',
                                 progress: 0.0,
-                                status: 'Nouveau',
+                                status: 'Disponible',
                                 statusColor: ColorConstants.primary,
-                                avatarUrl: 'https://i.pravatar.cc/150?u=${stagiaire['id']}',
+                                avatarUrl: stagiaire['photo_profil_url'] ?? 'https://i.pravatar.cc/150?u=$email',
                                 autoStatut: 'DISPONIBLE',
                                 onDemanderSuivi: () => _demanderAcces(item),
                               ),
