@@ -230,127 +230,305 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _showReviewConditionsPopup(String code, Map<String, dynamic> info) {
+    final TextEditingController naissanceCtrl = TextEditingController();
+    final TextEditingController adresseCtrl = TextEditingController();
+    final TextEditingController telCtrl = TextEditingController(text: info['stagiaire_telephone'] ?? '');
+    final TextEditingController ecoleCtrl = TextEditingController(text: info['etablissement_nom'] ?? '');
+    final TextEditingController cursusCtrl = TextEditingController(text: info['cursus_rattachement'] ?? '');
+    final TextEditingController refNomCtrl = TextEditingController(text: info['referent_pedagogique_nom'] ?? '');
+    final TextEditingController refContactCtrl = TextEditingController(text: info['referent_pedagogique_contact'] ?? '');
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: ColorConstants.cardBackground,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Conditions de stage', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            Text('Proposées par ${info['entreprise_nom']}', style: const TextStyle(fontSize: 13, color: ColorConstants.textSecondary)),
-          ],
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _sectionTitle('1. Cadre administratif'),
-                _infoTile('Poste', info['poste']),
-                const SizedBox(height: 8),
-                _infoTile('Établissement', info['etablissement_nom']),
-                const SizedBox(height: 8),
-                _infoTile('Tuteur désigné', info['tuteur_designe']),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(child: _infoTile('Du', info['date_debut'])),
-                    const SizedBox(width: 10),
-                    Expanded(child: _infoTile('Au', info['date_fin'])),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                _infoTile('Objet du stage', info['objet_stage']),
-                const SizedBox(height: 8),
-                _infoTile('Cursus', info['cursus_rattachement']),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setPopupState) => AlertDialog(
+          backgroundColor: ColorConstants.cardBackground,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Convention de stage', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              Text('Offre de ${info['entreprise_nom']}', style: const TextStyle(fontSize: 13, color: ColorConstants.textSecondary)),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sectionTitle('1. Informations du Stagiaire'),
+                  _editableField('Votre adresse personnelle', adresseCtrl, Icons.home_outlined),
+                  const SizedBox(height: 12),
+                  _editableField('Téléphone', telCtrl, Icons.phone_android_outlined, keyboardType: TextInputType.phone),
+                  const SizedBox(height: 12),
+                  _datePickerField('Date de naissance', naissanceCtrl, context, (date) => setPopupState(() => naissanceCtrl.text = date)),
+                  const SizedBox(height: 12),
+                  _editableField('Établissement scolaire', ecoleCtrl, Icons.school_outlined),
+                  const SizedBox(height: 12),
+                  _editableField('Cursus / Filière', cursusCtrl, Icons.layers_outlined),
+                  const SizedBox(height: 12),
+                  _editableField('Référent pédagogique (Nom)', refNomCtrl, Icons.person_search_outlined),
+                  const SizedBox(height: 12),
+                  _editableField('Contact référent', refContactCtrl, Icons.contact_mail_outlined),
 
-                const SizedBox(height: 20),
-                _sectionTitle('2. Conditions matérielles'),
-                _infoTile('Lieu d\'exécution', info['lieu_execution']),
-                const SizedBox(height: 8),
-                if (info['lieu_execution_lat'] != null)
-                  Container(
-                    height: 120,
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: ColorConstants.line)),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(15),
-                      child: FlutterMap(
-                        options: MapOptions(
-                          initialCenter: LatLng((info['lieu_execution_lat'] as num).toDouble(), (info['lieu_execution_lng'] as num).toDouble()),
-                          initialZoom: 15,
-                        ),
-                        children: [
-                          TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
-                          MarkerLayer(
-                            markers: [
-                              Marker(
-                                point: LatLng((info['lieu_execution_lat'] as num).toDouble(), (info['lieu_execution_lng'] as num).toDouble()),
-                                child: const Icon(Icons.location_on, color: Colors.red, size: 30),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                  const SizedBox(height: 20),
+                  _sectionTitle('2. Détails du Poste'),
+                  _readOnlyTile('Poste', info['poste']),
+                  _readOnlyTile('Tuteur entreprise', info['tuteur_designe']),
+                  Row(
+                    children: [
+                      Expanded(child: _readOnlyTile('Du', info['date_debut'])),
+                      const SizedBox(width: 10),
+                      Expanded(child: _readOnlyTile('Au', info['date_fin'])),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: () => _showTermsModal(info, naissanceCtrl.text, adresseCtrl.text, ecoleCtrl.text),
+                    icon: const Icon(Icons.description_outlined, size: 18),
+                    label: const Text('Voir les termes de la convention'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: ColorConstants.primary,
+                      side: const BorderSide(color: ColorConstants.primary),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(child: _infoTile('Durée hebdo', info['duree_hebdomadaire'])),
-                    const SizedBox(width: 10),
-                    Expanded(child: _infoTile('Jours présence', info['jours_presence'])),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                _infoTile('Télétravail', info['teletravail_modalites']),
-
-                const SizedBox(height: 20),
-                _sectionTitle('3. Encadrement'),
-                _infoTile('Référent pédagogique', info['referent_pedagogique_nom']),
-                const SizedBox(height: 8),
-                _infoTile('Contact référent', info['referent_pedagogique_contact']),
-                const SizedBox(height: 12),
-                if (info['modalites_suivi_detail'] != null && info['modalites_suivi_detail'].toString().isNotEmpty) ...[
-                  const Text('Modalités de suivi :', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: ColorConstants.paper, borderRadius: BorderRadius.circular(12)),
-                    child: Text(info['modalites_suivi_detail'], style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
-                  ),
                 ],
-              ],
+              ),
             ),
           ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ElevatedButton(
+                  onPressed: () async {
+                    if (adresseCtrl.text.isEmpty || naissanceCtrl.text.isEmpty || ecoleCtrl.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veuillez remplir vos informations.')));
+                      return;
+                    }
+                    try {
+                      await _api.validerLiaisonDefinitive(code, {
+                        'entreprise_id': info['entreprise_id'],
+                        'stagiaire_date_naissance': naissanceCtrl.text,
+                        'stagiaire_adresse': adresseCtrl.text,
+                        'stagiaire_telephone': telCtrl.text,
+                        'etablissement_nom': ecoleCtrl.text,
+                        'cursus_rattachement': cursusCtrl.text,
+                        'referent_pedagogique_nom': refNomCtrl.text,
+                        'referent_pedagogique_contact': refContactCtrl.text,
+                      });
+                      if (mounted) {
+                        Navigator.pop(ctx);
+                        _loadDashboardData(silent: true);
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Convention signée !'), backgroundColor: ColorConstants.success));
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ColorConstants.success,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text('Accepter et signer la convention', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () async {
+                          final confirm = await _showConfirmDecline();
+                          if (confirm == true) {
+                            try {
+                              await _api.declinerLiaison(code, info['entreprise_id']);
+                              Navigator.pop(ctx);
+                              _loadDashboardData(silent: true);
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
+                            }
+                          }
+                        },
+                        style: TextButton.styleFrom(foregroundColor: ColorConstants.error),
+                        child: const Text('Décliner l\'offre'),
+                      ),
+                    ),
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Annuler', style: TextStyle(color: ColorConstants.textSecondary)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Future<bool?> _showConfirmDecline() {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Décliner l\'offre ?'),
+        content: const Text('Voulez-vous vraiment refuser cette offre de stage ? Le tuteur en sera informé.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Refuser')),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                await _api.validerLiaisonDefinitive(code, info['entreprise_id']);
-                if (mounted) {
-                  Navigator.pop(ctx);
-                  _loadDashboardData(silent: true);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('✅ Liaison établie pour la durée du stage !'), backgroundColor: ColorConstants.success)
-                  );
-                }
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
-              }
-            },
-            child: const Text('Accepter & Lier'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Non')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Oui, décliner', style: TextStyle(color: ColorConstants.error))),
         ],
+      ),
+    );
+  }
+
+  void _showTermsModal(Map<String, dynamic> info, String naissance, String adresse, String ecole) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+        child: Column(
+          children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 20),
+            const Text('TERMES DE LA CONVENTION', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1)),
+            const Divider(height: 32),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Text(
+                  _generateConventionText(info, naissance, adresse, ecole),
+                  style: GoogleFonts.merriweather(fontSize: 13, height: 1.6, color: Colors.black87),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: PrimaryButton(label: 'J\'ai lu les termes', onPressed: () => Navigator.pop(ctx)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _generateConventionText(Map<String, dynamic> info, String naissance, String adresse, String ecole) {
+    final String duree = info['duree_hebdomadaire'] ?? '...';
+    final String jours = info['jours_presence'] ?? '...';
+    final String tuteur = info['tuteur_designe'] ?? '...';
+    final String referent = info['referent_pedagogique_nom'] ?? '...';
+    final String contactRef = info['referent_pedagogique_contact'] ?? '...';
+    final String objet = info['objet_stage'] ?? 'Stage de formation professionnelle';
+    final String cursus = info['cursus_rattachement'] ?? 'Cursus scolaire/universitaire';
+    final String teletravail = info['teletravail_modalites'] ?? 'Non défini';
+    final String suivi = info['modalites_suivi_detail'] ?? 'Points réguliers avec le tuteur';
+
+    return """
+CONVENTION DE STAGE PROFESSIONNEL
+Réf : CONV-${info['entreprise_id'].toString().substring(0, 8).toUpperCase()}
+
+1. CADRE ADMINISTRATIF ET LÉGAL
+
+IDENTITÉ DES PARTIES :
+• L'ENTREPRISE : ${info['entreprise_nom']}
+• LE STAGIAIRE : $_prenom, né(e) le ${naissance.isEmpty ? '...' : naissance}, demeurant au ${adresse.isEmpty ? '...' : adresse}.
+• L'ÉTABLISSEMENT : ${ecole.isEmpty ? '...' : ecole}.
+
+OBJET ET RATTACHEMENT :
+Le présent stage a pour objet : $objet.
+Il s'inscrit dans le cadre du cursus suivant : $cursus.
+
+DURÉE DU STAGE :
+Le stage est conclu pour une période allant du ${info['date_debut']} au ${info['date_fin']}.
+
+2. CONDITIONS MATÉRIELLES D'EXÉCUTION
+
+LIEU DU STAGE :
+Le stage s'exécutera principalement à l'adresse suivante : ${info['lieu_execution'] ?? 'Locaux de l\'entreprise'}.
+
+ORGANISATION DU TEMPS DE TRAVAIL :
+• Durée hebdomadaire : $duree.
+• Jours de présence : $jours.
+• Modalités de télétravail : $teletravail.
+
+3. ENCADREMENT ET SUIVI
+
+MAÎTRE DE STAGE (Tuteur Entreprise) :
+Le stagiaire est placé sous la responsabilité directe de M/Mme $tuteur.
+
+RÉFÉRENT PÉDAGOGIQUE (Côté Formation) :
+Le suivi académique est assuré par M/Mme $referent (Contact : $contactRef).
+
+MODALITÉS DE SUIVI :
+$suivi.
+
+4. ENGAGEMENTS ET POINTAGE
+
+ASSIDUITÉ ET DISCIPLINE :
+Le stagiaire s'engage à respecter le règlement intérieur de l'entreprise. Sa présence sera certifiée en temps réel par le système de pointage GPS "StageLink". Toute absence doit être justifiée auprès du tuteur.
+
+CONFIDENTIALITÉ :
+Le stagiaire est tenu au secret professionnel absolu pour toutes les informations internes dont il pourrait avoir connaissance.
+
+SIGNATURE :
+En validant cette convention via l'application StageLink, les parties reconnaissent avoir pris connaissance de l'ensemble des articles ci-dessus et s'engagent à les respecter.
+""";
+  }
+
+  Widget _readOnlyTile(String label, String? value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 10, color: ColorConstants.textSecondary, fontWeight: FontWeight.bold)),
+          Text(value ?? '—', style: const TextStyle(fontSize: 14, color: ColorConstants.textPrimary)),
+        ],
+      ),
+    );
+  }
+
+  Widget _editableField(String label, TextEditingController ctrl, IconData icon, {TextInputType? keyboardType}) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 18),
+        filled: true,
+        fillColor: ColorConstants.paper,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      ),
+    );
+  }
+
+  Widget _datePickerField(String label, TextEditingController ctrl, BuildContext context, Function(String) onPicked) {
+    return TextField(
+      controller: ctrl,
+      readOnly: true,
+      onTap: () async {
+        final d = await showDatePicker(context: context, initialDate: DateTime(2000), firstDate: DateTime(1950), lastDate: DateTime.now());
+        if (d != null) onPicked(DateFormat('yyyy-MM-dd').format(d));
+      },
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: const Icon(Icons.cake_outlined, size: 18),
+        filled: true,
+        fillColor: ColorConstants.paper,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       ),
     );
   }
@@ -359,16 +537,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(text.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: ColorConstants.primary, letterSpacing: 1)),
-    );
-  }
-
-  Widget _infoTile(String label, String? value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: ColorConstants.textSecondary)),
-        Text(value ?? '—', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-      ],
     );
   }
 

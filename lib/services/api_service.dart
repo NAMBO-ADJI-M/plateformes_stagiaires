@@ -1101,13 +1101,21 @@ class ApiService {
     return body;
   }
 
-  Future<Map<String, dynamic>> validerLiaisonDefinitive(String code, String entrepriseId) async {
+  Future<Map<String, dynamic>> validerLiaisonDefinitive(String code, Map<String, dynamic> data) async {
     final body = await _post('/pointage/valider-liaison', jsonEncode({
+      'code': code,
+      ...data
+    }));
+    await _cache.delete('profile');
+    return body;
+  }
+
+  Future<void> declinerLiaison(String code, String entrepriseId) async {
+    await _post('/pointage/decliner-liaison', jsonEncode({
       'code': code,
       'entreprise_id': entrepriseId
     }));
     await _cache.delete('profile');
-    return body;
   }
 
   Future<Map<String, dynamic>> repondreDemandeSuivi(String autorisationId, bool accepter) async {

@@ -44,23 +44,23 @@ class _StudentShellState extends State<StudentShell> {
     _NavItem(
         icon: Icons.home_rounded,
         label: 'Accueil',
-        color: ColorConstants.primaryLight),
+        color: ColorConstants.primary),
     _NavItem(
         icon: Icons.access_time_rounded,
         label: 'Pointage',
-        color: ColorConstants.primaryLight),
+        color: ColorConstants.primary),
     _NavItem(
         icon: Icons.menu_book_rounded,
         label: 'Carnet',
-        color: ColorConstants.primaryLight),
+        color: ColorConstants.primary),
     _NavItem(
         icon: Icons.directions_car_rounded,
         label: 'Trajet',
-        color: ColorConstants.amber),
+        color: ColorConstants.primary),
     _NavItem(
         icon: Icons.person_rounded,
         label: 'Profil',
-        color: ColorConstants.primaryLight),
+        color: ColorConstants.primary),
   ];
 
   Future<void> _initGeofencing() async {

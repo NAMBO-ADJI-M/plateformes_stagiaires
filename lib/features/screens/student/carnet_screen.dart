@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
 import '../../../services/api_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'add_logbook_entry_screen.dart';
 import 'package:intl/intl.dart';
 
@@ -217,28 +218,34 @@ class _CarnetScreenState extends State<CarnetScreen> {
                 ))
             .toList();
       case _CarnetTab.documents:
-        if (_attestations.isEmpty) {
-          return [
-            const _DocumentRow(name: 'Convention de stage.pdf'),
+        return [
+          _DocumentRow(
+            name: 'Convention de stage signée.pdf',
+            onTap: () async {
+              if (_carnetActif == null) return;
+              final url = _api.urlTelechargementConvention(_carnetActif!['id'].toString());
+              if (!await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication)) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Impossible d\'ouvrir le document.')));
+              }
+            },
+          ),
+          if (_attestations.isEmpty)
             const Center(child: Padding(
               padding: EdgeInsets.only(top: 20),
-              child: Text("Aucune attestation disponible pour le moment.",
+              child: Text("Aucune attestation de fin de stage disponible.",
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: ColorConstants.textSecondary)),
             ))
-          ];
-        }
-        return [
-          const _DocumentRow(name: 'Convention de stage.pdf'),
-          ..._attestations.map((a) => _DocumentRow(
-            name: a['nom'] ?? 'Attestation sans titre',
-            onTap: () {
-              final url = _api.urlTelechargementAttestation(a['id'].toString());
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Téléchargement : $url'))
-              );
-            },
-          )),
+          else
+            ..._attestations.map((a) => _DocumentRow(
+              name: a['nom'] ?? 'Attestation de stage.pdf',
+              onTap: () async {
+                final url = _api.urlTelechargementAttestation(a['id'].toString());
+                if (!await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication)) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Échec du téléchargement.')));
+                }
+              },
+            )),
         ];
     }
   }
