@@ -808,6 +808,84 @@ class _Panel extends StatelessWidget {
 }
 
 
+class _PointageCard extends StatelessWidget {
+  final AnimationController pulseController;
+  final bool enStage;
+  final String duree;
+  final String arrivee;
+
+  const _PointageCard({
+    required this.pulseController,
+    required this.enStage,
+    required this.duree,
+    required this.arrivee,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _Panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _eyebrow('POINTAGE AUTOMATIQUE'),
+              Row(
+                children: [
+                  if (enStage) _PulseDot(controller: pulseController),
+                  const SizedBox(width: 6),
+                  Text(
+                    enStage ? 'EN STAGE' : 'HORS ZONE',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: enStage ? ColorConstants.success : ColorConstants.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _RadarWidget(controller: pulseController, active: enStage),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Présence aujourd\'hui',
+                    style: TextStyle(fontSize: 13, color: ColorConstants.textSecondary),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    duree,
+                    style: GoogleFonts.sora(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      color: ColorConstants.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: _MiniStat(label: 'ARRIVÉE', value: arrivee)),
+              const SizedBox(width: 10),
+              const Expanded(child: _MiniStat(label: 'ZONE', value: 'Détectée')),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PulseDot extends StatelessWidget {
   final AnimationController controller;
   const _PulseDot({required this.controller});
