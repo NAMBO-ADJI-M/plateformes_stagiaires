@@ -1,15 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/constants/constants_colors.dart';
+import '../../../services/api_service.dart';
 import '../../../services/stagiaire_event_bus.dart';
 import 'dashboard_tuteur_screen.dart';
 import 'liste_stagiaires_screen.dart';
 import 'attestations_screen.dart';
+import 'recommander_screen.dart';
 import 'profile_tuteur_screen.dart';
 
 /// Coquille de navigation de l'espace tuteur.
-/// Onglets : Dashboard / Stagiaires / Suivi / Attestations / Profil
-/// (cf. mockups dashboard-tuteur, liste-stagiaires, attestation-screen).
 class TuteurShell extends StatefulWidget {
   const TuteurShell({super.key});
 
@@ -22,11 +22,12 @@ class _TuteurShellState extends State<TuteurShell> {
   int _availableCount = 0;
   StreamSubscription? _stagiaireSub;
 
-  final _pages = const [
-    DashboardTuteurScreen(),
-    ListeStagiairesScreen(),
-    AttestationsScreen(),
-    ProfileTuteurScreen(),
+  final List<Widget> _pages = [
+    const DashboardTuteurScreen(),
+    const ListeStagiairesScreen(),
+    const AttestationsScreen(),
+    const RecommanderScreen(),
+    const ProfileTuteurScreen(),
   ];
 
   @override
@@ -36,7 +37,6 @@ class _TuteurShellState extends State<TuteurShell> {
       if (mounted) setState(() => _availableCount = count);
     });
     
-    // Premier chargement silencieux du nombre de stagiaires disponibles
     _fetchInitialCount();
   }
 
@@ -69,8 +69,8 @@ class _TuteurShellState extends State<TuteurShell> {
         selectedItemColor: ColorConstants.primary,
         unselectedItemColor: ColorConstants.textSecondary,
         showUnselectedLabels: true,
-        items: const [
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(
               icon: Icon(Icons.dashboard_outlined),
               activeIcon: Icon(Icons.dashboard_rounded),
               label: 'Dashboard'),
@@ -86,11 +86,15 @@ class _TuteurShellState extends State<TuteurShell> {
                 child: const Icon(Icons.groups_rounded),
               ),
               label: 'Stagiaires'),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
               icon: Icon(Icons.workspace_premium_outlined),
               activeIcon: Icon(Icons.workspace_premium_rounded),
               label: 'Attestations'),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
+              icon: Icon(Icons.thumb_up_alt_outlined),
+              activeIcon: Icon(Icons.thumb_up_alt_rounded),
+              label: 'Recommander'),
+          const BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),
               activeIcon: Icon(Icons.person_rounded),
               label: 'Profil'),
