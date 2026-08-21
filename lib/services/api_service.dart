@@ -982,15 +982,25 @@ class ApiService {
   // ENTREPRISE / TUTEUR
   // ============================================
 
-  Future<List<dynamic>> getEntrepriseStagiaires() async {
-    return _readCachedOrRefresh<List<dynamic>>(
-      'entreprise_stagiaires',
+  Future<Map<String, dynamic>> getEntrepriseStagiaires() async {
+    // Changement de la clé de cache (v2) pour éviter le conflit de type avec l'ancienne List
+    return _readCachedOrRefresh<Map<String, dynamic>>(
+      'entreprise_stagiaires_v2',
       () async {
         final response = await _httpClient.get(
           Uri.parse('$baseUrl/stagiaires'),
           headers: _authHeaders,
         );
-        return _decodeList(response);
+        
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          final decoded = jsonDecode(response.body);
+          if (decoded is Map<String, dynamic>) {
+            return decoded;
+          }
+          // Si pour une raison ou une autre on reçoit une liste, on la wrap
+          return {'rattaches': decoded, 'disponibles': []};
+        }
+        throw ApiException('Erreur lors de la récupération des stagiaires', statusCode: response.statusCode);
       },
       ttl: const Duration(minutes: 5),
     );
@@ -998,14 +1008,18 @@ class ApiService {
 
   Future<Map<String, dynamic>> getEntrepriseDashboardStats() async {
     return _readCachedOrRefresh<Map<String, dynamic>>(
-      'entreprise_dashboard_stats',
+      'entreprise_dashboard_stats_v2',
       () async {
         final response = await _httpClient.get(
           Uri.parse('$baseUrl/dashboard-stats'),
           headers: _authHeaders,
         );
-        final data = jsonDecode(response.body);
-        return data['data'] ?? {};
+        
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          final data = jsonDecode(response.body);
+          return (data['data'] as Map<String, dynamic>?) ?? {};
+        }
+        throw ApiException('Erreur stats', statusCode: response.statusCode);
       },
       ttl: const Duration(minutes: 5),
     );

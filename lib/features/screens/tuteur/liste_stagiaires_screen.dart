@@ -44,7 +44,7 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
       final res = await _apiService.getEntrepriseStagiaires();
       if (!mounted) return;
       
-      final Map<String, dynamic> data = res as Map<String, dynamic>;
+      final Map<String, dynamic> data = res;
       
       setState(() {
         _allStagiaires = data['rattaches'] ?? [];

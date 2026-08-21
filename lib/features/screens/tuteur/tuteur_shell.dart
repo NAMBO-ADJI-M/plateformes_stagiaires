@@ -43,7 +43,7 @@ class _TuteurShellState extends State<TuteurShell> {
   Future<void> _fetchInitialCount() async {
     try {
       final res = await ApiService().getEntrepriseStagiaires();
-      final Map<String, dynamic> data = res as Map<String, dynamic>;
+      final Map<String, dynamic> data = res;
       final disponibles = data['disponibles'] as List<dynamic>?;
       if (mounted) {
         setState(() => _availableCount = disponibles?.length ?? 0);

@@ -25,7 +25,7 @@ class _AttestationsScreenState extends State<AttestationsScreen> {
   Future<void> _loadStagiaires() async {
     try {
       final res = await _api.getEntrepriseStagiaires();
-      final Map<String, dynamic> data = res as Map<String, dynamic>;
+      final Map<String, dynamic> data = res;
       setState(() {
         _stagiaires = data['rattaches'] ?? [];
         _isLoading = false;
