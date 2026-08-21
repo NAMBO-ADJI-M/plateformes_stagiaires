@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../../../core/constants/constants_colors.dart';
 import '../../../services/api_service.dart';
 import '../../../services/pointage_event_bus.dart';
+import '../../widgets/common_widgets.dart';
 import 'trajet_details_screen.dart';
 
 /// Écran d'accueil — direction "poste de contrôle" (maquette v2 dynamisée).
@@ -35,6 +37,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   String _heureArrivee = "--:--";
   bool _enStage = false;
   StreamSubscription? _pointageSub;
+  Map<String, dynamic>? _prochaineReservation;
 
   @override
   void initState() {
@@ -98,8 +101,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
-  Map<String, dynamic>? _prochaineReservation;
-
   void _computePresence(List<dynamic> historique) {
     final today = DateTime.now();
     final entriesToday = historique.where((e) {
@@ -129,86 +130,115 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Scaffold(backgroundColor: ColorConstants.paper, body: Center(child: CircularProgressIndicator(color: ColorConstants.primary)));
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: ColorConstants.paper,
+        body: Center(child: CircularProgressIndicator(color: ColorConstants.primary)),
+      );
+    }
 
-    return Scaffold(
-      backgroundColor: ColorConstants.paper,
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _loadDashboardData,
-          color: ColorConstants.primary,
-          backgroundColor: ColorConstants.cardBackground,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
-            children: [
-              _buildHeader(),
-              const SizedBox(height: 22),
-              GestureDetector(
-                onTap: widget.onNavigateToPointage,
-                child: _PointageCard(
-                  pulseController: _pulseController,
-                  enStage: _enStage,
-                  duree: _presenceDuree,
-                  arrivee: _heureArrivee
-                ),
-              ),
-              const SizedBox(height: 14),
-              _CarnetCard(
-                stats: _stats,
-                onAdd: widget.onNavigateToCarnet
-              ),
-              const SizedBox(height: 14),
-              _CovoiturageCard(
-                reservation: _prochaineReservation,
-                onTap: () {
-                  if (_prochaineReservation != null) {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => TrajetDetailsScreen(trajet: _prochaineReservation!['trajet'])));
-                  } else {
-                    widget.onNavigateToTrajet();
-                  }
-                }
-              ),
-              const SizedBox(height: 10),
-              _sectionLabel('Activité récente'),
-              const SizedBox(height: 4),
-              if (_activites.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Center(child: Text("Aucune activité récente", style: TextStyle(color: ColorConstants.textSecondary, fontSize: 12))),
-                )
-              else
-                ..._activites.take(3).map((a) => _ActivityItem(
-                  icon: _getActivityIcon(a['type']),
-                  iconBg: _getActivityColor(a['type']).withValues(alpha: 0.14),
-                  iconColor: _getActivityColor(a['type']),
-                  title: a['title'] ?? '',
-                  time: _formatActivityDate(a['date']),
-                  showDivider: _activites.indexOf(a) != 2,
-                )),
-            ],
+    return Container(
+      color: ColorConstants.paper,
+      child: Column(
+        children: [
+          ScreenTopBar(
+            eyebrow: 'SESSION ACTIVE · ${_enStage ? "EN STAGE" : "PAUSE"}',
+            title: 'Bonjour, $_prenom',
+            showProfile: false,
           ),
-        ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadDashboardData,
+              color: ColorConstants.primary,
+              backgroundColor: ColorConstants.cardBackground,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                children: [
+                  GestureDetector(
+                    onTap: widget.onNavigateToPointage,
+                    child: _PointageCard(
+                      pulseController: _pulseController,
+                      enStage: _enStage,
+                      duree: _presenceDuree,
+                      arrivee: _heureArrivee,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _CarnetCard(
+                    stats: _stats,
+                    onAdd: widget.onNavigateToCarnet,
+                  ),
+                  const SizedBox(height: 14),
+                  _CovoiturageCard(
+                    reservation: _prochaineReservation,
+                    onTap: () {
+                      if (_prochaineReservation != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => TrajetDetailsScreen(trajet: _prochaineReservation!['trajet']),
+                          ),
+                        );
+                      } else {
+                        widget.onNavigateToTrajet();
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  _sectionLabel('Activité récente'),
+                  const SizedBox(height: 4),
+                  if (_activites.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Center(
+                        child: Text(
+                          "Aucune activité récente",
+                          style: TextStyle(color: ColorConstants.textSecondary, fontSize: 12),
+                        ),
+                      ),
+                    )
+                  else
+                    ..._activites.take(3).map((a) => _ActivityItem(
+                          icon: _getActivityIcon(a['type']),
+                          iconBg: _getActivityColor(a['type']).withValues(alpha: 0.14),
+                          iconColor: _getActivityColor(a['type']),
+                          title: a['title'] ?? '',
+                          time: _formatActivityDate(a['date']),
+                          showDivider: _activites.indexOf(a) != _activites.take(3).length - 1,
+                        )),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   IconData _getActivityIcon(String? type) {
-    switch(type) {
-      case 'presence': return Icons.check_circle;
-      case 'mission': return Icons.menu_book_rounded;
-      case 'trajet': return Icons.directions_car_filled_rounded;
-      default: return Icons.notifications;
+    switch (type) {
+      case 'presence':
+        return Icons.check_circle;
+      case 'mission':
+        return Icons.menu_book_rounded;
+      case 'trajet':
+        return Icons.directions_car_filled_rounded;
+      default:
+        return Icons.notifications;
     }
   }
 
   Color _getActivityColor(String? type) {
-    switch(type) {
-      case 'presence': return ColorConstants.teal;
-      case 'mission': return ColorConstants.clay;
-      case 'trajet': return ColorConstants.amber;
-      default: return ColorConstants.primary;
+    switch (type) {
+      case 'presence':
+        return ColorConstants.teal;
+      case 'mission':
+        return ColorConstants.clay;
+      case 'trajet':
+        return ColorConstants.amber;
+      default:
+        return ColorConstants.primary;
     }
-  }
   }
 
   String _formatActivityDate(String? iso) {
@@ -216,55 +246,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final d = DateTime.tryParse(iso);
     if (d == null) return '';
     return DateFormat('dd/MM, HH:mm').format(d);
-  }
-
-  Widget _buildHeader() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'SESSION ACTIVE · ${_enStage ? "EN STAGE" : "PAUSE"}',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 11,
-                letterSpacing: 1.1,
-                fontWeight: FontWeight.w500,
-                color: ColorConstants.teal,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              'Bonjour, $_prenom',
-              style: GoogleFonts.sora(
-                fontSize: 23,
-                fontWeight: FontWeight.w700,
-                color: ColorConstants.textPrimary,
-              ),
-            ),
-          ],
-        ),
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: ColorConstants.cardBackground,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: ColorConstants.line),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            _prenom.isNotEmpty ? _prenom[0].toUpperCase() : 'S',
-            style: GoogleFonts.sora(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: ColorConstants.teal,
-            ),
-          ),
-        ),
-      ],
-    );
   }
 
   Widget _sectionLabel(String text) {
@@ -453,7 +434,11 @@ class _RadarWidget extends StatelessWidget {
               },
             )
           else
-            Container(width: 12, height: 12, decoration: BoxDecoration(color: color.withValues(alpha: 0.5), shape: BoxShape.circle)),
+            Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.5), shape: BoxShape.circle),
+            ),
         ],
       ),
     );
@@ -488,9 +473,22 @@ class _MiniStat extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: GoogleFonts.jetBrainsMono(fontSize: 10, letterSpacing: 0.5, color: ColorConstants.textSecondary)),
+          Text(
+            label,
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 10,
+              letterSpacing: 0.5,
+              color: ColorConstants.textSecondary,
+            ),
+          ),
           const SizedBox(height: 3),
-          Text(value, style: GoogleFonts.jetBrainsMono(fontSize: 16, color: ColorConstants.textPrimary)),
+          Text(
+            value,
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 16,
+              color: ColorConstants.textPrimary,
+            ),
+          ),
         ],
       ),
     );
@@ -523,7 +521,7 @@ class _CarnetCard extends StatelessWidget {
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    const CircularProgressIndicator(value: 1, strokeWidth: 6, color: Color(0x2494B2C7)),
+                    const CircularProgressIndicator(value: 1, strokeWidth: 6, color: ColorConstants.line),
                     CircularProgressIndicator(
                       value: progress / 100,
                       strokeWidth: 6,
@@ -537,9 +535,9 @@ class _CarnetCard extends StatelessWidget {
               Expanded(
                 child: Column(
                   children: [
-                    _miniStat('Progression globale', '${progress.round()}%'),
-                    _miniStat('Jours de présence', '$jours'),
-                    _miniStat('Missions complétées', '${stats?['missions_completees'] ?? 0}', showDivider: false),
+                    _infoRow('Progression globale', '${progress.round()}%'),
+                    _infoRow('Jours de présence', '$jours'),
+                    _infoRow('Missions complétées', '${stats?['missions_completees'] ?? 0}', showDivider: false),
                   ],
                 ),
               ),
@@ -557,7 +555,10 @@ class _CarnetCard extends StatelessWidget {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 0,
               ),
-              child: Text('+ Ouvrir le carnet', style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w700)),
+              child: Text(
+                '+ Ouvrir le carnet',
+                style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
             ),
           ),
         ],
@@ -565,7 +566,7 @@ class _CarnetCard extends StatelessWidget {
     );
   }
 
-  Widget _miniStat(String label, String value, {bool showDivider = true}) {
+  Widget _infoRow(String label, String value, {bool showDivider = true}) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
@@ -604,8 +605,7 @@ class _CovoiturageCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _eyebrow('COVOITURAGE'),
-              if (reservation != null)
-                const Icon(Icons.verified_rounded, color: Color(0xFFFDBA74), size: 16),
+              if (reservation != null) const Icon(Icons.verified_rounded, color: Color(0xFFFDBA74), size: 16),
             ],
           ),
           const SizedBox(height: 14),
@@ -620,7 +620,14 @@ class _CovoiturageCard extends StatelessWidget {
               children: [
                 Column(
                   children: [
-                    Text(heure, style: GoogleFonts.jetBrainsMono(fontSize: 17, fontWeight: FontWeight.w600, color: ColorConstants.amber)),
+                    Text(
+                      heure,
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: ColorConstants.amber,
+                      ),
+                    ),
                     const Text('DÉPART', style: TextStyle(fontSize: 10, color: ColorConstants.textSecondary)),
                   ],
                 ),
@@ -632,9 +639,17 @@ class _CovoiturageCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(destination, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: ColorConstants.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(
+                        destination,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: ColorConstants.textPrimary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       const SizedBox(height: 2),
-                      Text(reservation != null ? 'Trajet réservé' : 'Aucun trajet prévu', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: ColorConstants.textSecondary)),
+                      Text(
+                        reservation != null ? 'Trajet réservé' : 'Aucun trajet prévu',
+                        style: GoogleFonts.jetBrainsMono(fontSize: 11, color: ColorConstants.textSecondary),
+                      ),
                     ],
                   ),
                 ),
@@ -652,7 +667,10 @@ class _CovoiturageCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: Text(reservation != null ? 'Voir le trajet' : 'Trouver un trajet', style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w700)),
+              child: Text(
+                reservation != null ? 'Voir le trajet' : 'Trouver un trajet',
+                style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
             ),
           ),
         ],
@@ -699,7 +717,10 @@ class _ActivityItem extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: ColorConstants.textPrimary)),
+                Text(
+                  title,
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: ColorConstants.textPrimary),
+                ),
                 const SizedBox(height: 1),
                 Text(time, style: GoogleFonts.jetBrainsMono(fontSize: 10.5, color: ColorConstants.textSecondary)),
               ],
@@ -717,7 +738,7 @@ Widget _eyebrow(String text) {
     style: GoogleFonts.jetBrainsMono(
       fontSize: 10,
       letterSpacing: 1.1,
-      color: const Color(0xFF7E93A3),
+      color: ColorConstants.textSecondary,
     ),
   );
 }
