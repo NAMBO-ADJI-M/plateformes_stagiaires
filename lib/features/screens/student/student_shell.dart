@@ -48,11 +48,11 @@ class _StudentShellState extends State<StudentShell> {
     _NavItem(
         icon: Icons.access_time_rounded,
         label: 'Pointage',
-        color: ColorConstants.teal),
+        color: ColorConstants.primaryLight),
     _NavItem(
         icon: Icons.menu_book_rounded,
         label: 'Carnet',
-        color: ColorConstants.clay),
+        color: ColorConstants.primaryLight),
     _NavItem(
         icon: Icons.directions_car_rounded,
         label: 'Trajet',
@@ -60,7 +60,7 @@ class _StudentShellState extends State<StudentShell> {
     _NavItem(
         icon: Icons.person_rounded,
         label: 'Profil',
-        color: ColorConstants.primary),
+        color: ColorConstants.primaryLight),
   ];
 
   Future<void> _initGeofencing() async {

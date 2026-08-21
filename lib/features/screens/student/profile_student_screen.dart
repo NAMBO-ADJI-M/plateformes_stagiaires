@@ -100,30 +100,6 @@ class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
     }
   }
 
-  Future<void> _toggleAutorisationPointage(bool val) async {
-    if (_activeCarnet == null || _activeCarnet!['entreprise_id'] == null) return;
-
-    setState(() {
-      _autorisationPointage = val;
-    });
-
-    try {
-      await _api.updateAutorisationPointage(_activeCarnet!['entreprise_id'], val);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(val ? 'Suivi de présence activé' : 'Suivi de présence désactivé'))
-        );
-      }
-    } catch (e) {
-      setState(() {
-        _autorisationPointage = !val; // rollback
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
-      }
-    }
-  }
-
   Future<void> _pickAndUploadPhoto() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
     if (image == null) return;
@@ -323,10 +299,14 @@ class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
                     children: [
                       _buildSwitchRow(
                         title: 'Partager ma présence',
-                        subtitle: 'Autoriser votre tuteur à voir vos heures d\'arrivée et de départ.',
+                        subtitle: _autorisationPointage 
+                          ? 'Liaison active pour la durée du stage.' 
+                          : 'Autorisez votre tuteur à voir vos pointages GPS.',
                         value: _autorisationPointage,
-                        onChanged: _toggleAutorisationPointage,
-                        enabled: _activeCarnet?['entreprise_id'] != null,
+                        onChanged: _autorisationPointage ? (v) {} : (v) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Activez la liaison depuis l\'onglet Accueil avec votre code.')));
+                        },
+                        enabled: true,
                       ),
                       const Divider(height: 26),
                       _buildSwitchRow(

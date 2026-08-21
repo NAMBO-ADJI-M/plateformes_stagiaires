@@ -46,7 +46,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   // Liaison Entreprise
   String _autorisationStatut = 'INACTIVE';
-  String? _entrepriseId;
   String? _entrepriseNom;
   LatLng? _currentPos;
   bool _isValidatingCode = false;
@@ -84,7 +83,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           final auto = profile['autorisation_pointage'];
           if (auto != null) {
             _autorisationStatut = auto['statut'];
-            _entrepriseId = auto['entreprise_id'];
             _entrepriseNom = auto['entreprise_nom'];
           }
         });
@@ -183,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'Saisissez le code à 6 chiffres envoyé par votre tuteur pour activer le suivi permanent.',
+                'Saisissez le code à 6 chiffres envoyé par votre tuteur.',
                 style: TextStyle(fontSize: 13, color: ColorConstants.textSecondary),
               ),
               const SizedBox(height: 20),
@@ -209,27 +207,168 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 if (codeCtrl.text.length != 6) return;
                 setPopupState(() => _isValidatingCode = true);
                 try {
-                  await _api.validerCodeSuivi(_entrepriseId!, codeCtrl.text);
+                  // Étape 1 : Vérifier le code et récupérer les conditions
+                  final info = await _api.verifierCodeSuivi(codeCtrl.text);
                   if (mounted) {
                     Navigator.pop(ctx);
-                    _loadDashboardData(silent: true);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('✅ Liaison établie !'), backgroundColor: ColorConstants.success)
-                    );
+                    _showReviewConditionsPopup(codeCtrl.text, info);
                   }
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code invalide.')));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code incorrect ou expiré.')));
                 } finally {
                   setPopupState(() => _isValidatingCode = false);
                 }
               },
               child: _isValidatingCode 
                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Text('Valider'),
+                : const Text('Continuer'),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  void _showReviewConditionsPopup(String code, Map<String, dynamic> info) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: ColorConstants.cardBackground,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Conditions de stage', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            Text('Proposées par ${info['entreprise_nom']}', style: const TextStyle(fontSize: 13, color: ColorConstants.textSecondary)),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionTitle('1. Cadre administratif'),
+                _infoTile('Poste', info['poste']),
+                const SizedBox(height: 8),
+                _infoTile('Établissement', info['etablissement_nom']),
+                const SizedBox(height: 8),
+                _infoTile('Tuteur désigné', info['tuteur_designe']),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(child: _infoTile('Du', info['date_debut'])),
+                    const SizedBox(width: 10),
+                    Expanded(child: _infoTile('Au', info['date_fin'])),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _infoTile('Objet du stage', info['objet_stage']),
+                const SizedBox(height: 8),
+                _infoTile('Cursus', info['cursus_rattachement']),
+
+                const SizedBox(height: 20),
+                _sectionTitle('2. Conditions matérielles'),
+                _infoTile('Lieu d\'exécution', info['lieu_execution']),
+                const SizedBox(height: 8),
+                if (info['lieu_execution_lat'] != null)
+                  Container(
+                    height: 120,
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: ColorConstants.line)),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(15),
+                      child: FlutterMap(
+                        options: MapOptions(
+                          initialCenter: LatLng((info['lieu_execution_lat'] as num).toDouble(), (info['lieu_execution_lng'] as num).toDouble()),
+                          initialZoom: 15,
+                        ),
+                        children: [
+                          TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
+                          MarkerLayer(
+                            markers: [
+                              Marker(
+                                point: LatLng((info['lieu_execution_lat'] as num).toDouble(), (info['lieu_execution_lng'] as num).toDouble()),
+                                child: const Icon(Icons.location_on, color: Colors.red, size: 30),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(child: _infoTile('Durée hebdo', info['duree_hebdomadaire'])),
+                    const SizedBox(width: 10),
+                    Expanded(child: _infoTile('Jours présence', info['jours_presence'])),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _infoTile('Télétravail', info['teletravail_modalites']),
+
+                const SizedBox(height: 20),
+                _sectionTitle('3. Encadrement'),
+                _infoTile('Référent pédagogique', info['referent_pedagogique_nom']),
+                const SizedBox(height: 8),
+                _infoTile('Contact référent', info['referent_pedagogique_contact']),
+                const SizedBox(height: 12),
+                if (info['modalites_suivi_detail'] != null && info['modalites_suivi_detail'].toString().isNotEmpty) ...[
+                  const Text('Modalités de suivi :', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: ColorConstants.paper, borderRadius: BorderRadius.circular(12)),
+                    child: Text(info['modalites_suivi_detail'], style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Refuser')),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                await _api.validerLiaisonDefinitive(code, info['entreprise_id']);
+                if (mounted) {
+                  Navigator.pop(ctx);
+                  _loadDashboardData(silent: true);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('✅ Liaison établie pour la durée du stage !'), backgroundColor: ColorConstants.success)
+                  );
+                }
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
+              }
+            },
+            child: const Text('Accepter & Lier'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(text.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: ColorConstants.primary, letterSpacing: 1)),
+    );
+  }
+
+  Widget _infoTile(String label, String? value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 11, color: ColorConstants.textSecondary)),
+        Text(value ?? '—', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+      ],
     );
   }
 
@@ -427,7 +566,7 @@ class _LiaisonPanel extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  active ? (entrepriseNom ?? 'Entreprise') : 'Activez le partage de présence',
+                  active ? (entrepriseNom ?? 'Entreprise') : 'Confirmez votre présence',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
               ],

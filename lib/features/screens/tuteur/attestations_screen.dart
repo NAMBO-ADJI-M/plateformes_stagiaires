@@ -92,6 +92,7 @@ class _AttestationsScreenState extends State<AttestationsScreen> {
           const ScreenTopBar(
             eyebrow: 'Documents',
             title: 'Attestations',
+            showProfile: false,
           ),
           Expanded(
             child: ListView(

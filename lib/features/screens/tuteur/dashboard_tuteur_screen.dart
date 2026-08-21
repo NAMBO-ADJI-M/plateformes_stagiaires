@@ -5,6 +5,7 @@ import '../../widgets/common_widgets.dart';
 import '../../../services/api_service.dart';
 import '../../../services/profile_event_bus.dart';
 import 'widgets/add_stagiaire_dialog.dart';
+import 'widgets/liaison_stagiaire_dialog.dart';
 import 'suivi_stagiaire_screen.dart';
 
 /// Version dynamisée du Dashboard Tuteur.
@@ -66,20 +67,19 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
     }
   }
 
-  Future<void> _demanderSuivi(String stagiaireId) async {
-    try {
-      await _apiService.demanderSuiviPointage(stagiaireId);
-      if (mounted) {
-        _loadData();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Demande de suivi envoyée au stagiaire.'))
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
-      }
-    }
+  Future<void> _demanderSuivi(Map<String, dynamic> stagiaireData) async {
+    final stagiaire = stagiaireData['stagiaire'] ?? {};
+    final String name = '${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}';
+    
+    showDialog(
+      context: context,
+      builder: (_) => LiaisonStagiaireDialog(
+        stagiaireId: stagiaire['id'],
+        stagiaireNom: name,
+      ),
+    ).then((success) {
+      if (success == true) _loadData();
+    });
   }
 
   void _showEncouragerDialog(Map<String, dynamic> carnet) {
@@ -170,6 +170,7 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
           ScreenTopBar(
             eyebrow: entrepriseName,
             title: userName.isEmpty ? 'Espace Tuteur' : 'Bonjour, $userName',
+            showProfile: false,
           ),
           Expanded(
             child: RefreshIndicator(
@@ -238,7 +239,7 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
                               : ColorConstants.accentOrange,
                           avatarUrl: 'https://i.pravatar.cc/150?u=${stagiaire['id']}',
                           autoStatut: autoStatut,
-                          onDemanderSuivi: () => _demanderSuivi(stagiaire['id']),
+                          onDemanderSuivi: () => _demanderSuivi(s),
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(

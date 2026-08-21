@@ -105,7 +105,8 @@ class _CarnetScreenState extends State<CarnetScreen> {
         children: [
           ScreenTopBar(
               eyebrow: 'Carnet · ${_carnetActif?['entreprise_nom'] ?? 'Stage'}',
-              title: 'Mon stage'
+              title: 'Mon stage',
+              showProfile: false,
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),

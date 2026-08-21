@@ -111,7 +111,11 @@ class _PointageScreenState extends State<PointageScreen> {
       color: ColorConstants.paper,
       child: Column(
         children: [
-          const ScreenTopBar(eyebrow: "Aujourd'hui · Lieu de stage", title: 'Pointage'),
+          const ScreenTopBar(
+            eyebrow: "Aujourd'hui · Lieu de stage",
+            title: 'Pointage',
+            showProfile: false,
+          ),
           Expanded(
             child: RefreshIndicator(
               onRefresh: () => _loadData(),

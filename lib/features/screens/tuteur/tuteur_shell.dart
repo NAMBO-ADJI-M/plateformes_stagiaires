@@ -3,6 +3,7 @@ import '../../../core/constants/constants_colors.dart';
 import 'dashboard_tuteur_screen.dart';
 import 'liste_stagiaires_screen.dart';
 import 'attestations_screen.dart';
+import 'profile_tuteur_screen.dart';
 
 /// Coquille de navigation de l'espace tuteur.
 /// Onglets : Dashboard / Stagiaires / Suivi / Attestations / Profil
@@ -21,6 +22,7 @@ class _TuteurShellState extends State<TuteurShell> {
     DashboardTuteurScreen(),
     ListeStagiairesScreen(),
     AttestationsScreen(),
+    ProfileTuteurScreen(),
   ];
 
   @override
@@ -48,6 +50,10 @@ class _TuteurShellState extends State<TuteurShell> {
               icon: Icon(Icons.workspace_premium_outlined),
               activeIcon: Icon(Icons.workspace_premium_rounded),
               label: 'Attestations'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline),
+              activeIcon: Icon(Icons.person_rounded),
+              label: 'Profil'),
         ],
       ),
     );

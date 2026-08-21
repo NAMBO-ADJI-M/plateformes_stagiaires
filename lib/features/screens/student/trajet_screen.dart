@@ -54,6 +54,7 @@ class _TrajetScreenState extends State<TrajetScreen> {
             eyebrow: "Mobilité · Communauté StageLink",
             title: 'Covoiturage',
             showMessages: true,
+            showProfile: false,
           ),
           Expanded(
             child: RefreshIndicator(
@@ -138,7 +139,7 @@ class _QuickSearchCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: ColorConstants.amber,
+          color: ColorConstants.primaryLight,
           borderRadius: BorderRadius.circular(24),
         ),
         child: Column(
@@ -158,7 +159,7 @@ class _QuickSearchCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.search_rounded, color: ColorConstants.amber.withValues(alpha: 0.7), size: 20),
+                  Icon(Icons.search_rounded, color: ColorConstants.primaryLight.withValues(alpha: 0.7), size: 20),
                   const SizedBox(width: 12),
                   const Text('Rechercher une destination...',
                     style: TextStyle(color: ColorConstants.textSecondary, fontSize: 13)),

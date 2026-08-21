@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
 import '../../../services/api_service.dart';
-import 'package:intl/intl.dart';
 
 class SuiviStagiaireScreen extends StatefulWidget {
   final Map<String, dynamic> carnet;
@@ -25,7 +26,7 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _loadData();
   }
 
@@ -47,9 +48,7 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
         });
       }
     } catch (e) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erreur de chargement : $e')),
@@ -67,8 +66,6 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
 
       if (!mounted) return;
       setState(() => _isFinalEvalSaving = false);
-
-      // Succès : proposer la carte d'appui
       _showRecommandationDialog(response['id'].toString());
     } catch (e) {
       if (mounted) {
@@ -105,7 +102,6 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
             onPressed: () async {
               if (entrepriseCtrl.text.isEmpty || emailCtrl.text.isEmpty) return;
               try {
-                // Appel API avec les bonnes données
                 await _apiService.genererCarteAppui(evaluationId, {
                   'entreprise_destinataire_nom': entrepriseCtrl.text.trim(),
                   'entreprise_destinataire_email': emailCtrl.text.trim(),
@@ -118,8 +114,7 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
                     backgroundColor: ColorConstants.success));
               } catch (e) {
                 if (!mounted) return;
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(SnackBar(content: Text('Erreur : $e')));
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
               }
             },
             child: const Text('Générer et envoyer'),
@@ -166,21 +161,15 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
             ElevatedButton(
               onPressed: () async {
-                if (contenuCtrl.text.isEmpty) {
-                  return;
-                }
+                if (contenuCtrl.text.isEmpty) return;
                 Navigator.pop(ctx);
                 try {
                   await _apiService.envoyerEncouragement(widget.carnet['id'], type, contenuCtrl.text);
-                  if (!mounted) {
-                    return;
-                  }
+                  if (!mounted) return;
                   _loadData();
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Message envoyé !')));
                 } catch (e) {
-                  if (!mounted) {
-                    return;
-                  }
+                  if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
                 }
               },
@@ -210,6 +199,7 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
             Tab(text: 'Journal'),
             Tab(text: 'Évaluation'),
             Tab(text: 'Encouragements'),
+            Tab(text: 'Documents'),
           ],
         ),
       ),
@@ -221,6 +211,7 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
                 _buildJournalTab(),
                 _buildEvaluationTab(),
                 _buildEncouragementsTab(),
+                _buildDocumentsTab(),
               ],
             ),
       floatingActionButton: FloatingActionButton.extended(
@@ -232,24 +223,92 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
     );
   }
 
+  Widget _buildJournalTab() {
+    if (_journal.isEmpty) return const Center(child: Text('Aucune entrée dans le journal.'));
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _journal.length,
+      itemBuilder: (context, index) {
+        final entry = _journal[index];
+        final bool isMission = entry['type'] == 'MISSION';
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      isMission ? Icons.assignment_outlined : Icons.warning_amber_rounded,
+                      color: isMission ? ColorConstants.primary : ColorConstants.error,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      isMission ? 'Mission' : 'Difficulté',
+                      style: TextStyle(fontWeight: FontWeight.bold, color: isMission ? ColorConstants.primary : ColorConstants.error),
+                    ),
+                    const Spacer(),
+                    Text(
+                      entry['date_debut'] != null ? DateFormat('dd/MM/yyyy').format(DateTime.parse(entry['date_debut'])) : '',
+                      style: const TextStyle(fontSize: 12, color: ColorConstants.textSecondary),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(entry['titre'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                const SizedBox(height: 4),
+                Text(entry['commentaire_stagiaire'] ?? 'Pas de commentaire.', style: const TextStyle(fontSize: 14, color: ColorConstants.textPrimary)),
+                if (entry['commentaire_tuteur'] != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: ColorConstants.primary.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: ColorConstants.primary.withValues(alpha: 0.1)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Votre commentaire :', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: ColorConstants.primary)),
+                        const SizedBox(height: 4),
+                        Text(entry['commentaire_tuteur'], style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic)),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 10),
+                TextButton.icon(
+                  onPressed: () => _showCommentaireDialog(entry['id']),
+                  icon: const Icon(Icons.comment_outlined, size: 16),
+                  label: Text(entry['commentaire_tuteur'] == null ? 'Commenter' : 'Modifier le commentaire'),
+                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact, foregroundColor: ColorConstants.primary),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildEvaluationTab() {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text(
-          'Évaluer les compétences techniques',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
+        const Text('Évaluer les compétences techniques', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: 12),
         if (_competences.isEmpty)
           const Text('Aucune compétence définie dans le référentiel.')
         else
           ..._competences.map((c) => _CompetenceEvalCard(competence: c, carnetId: widget.carnet['id'])),
         const SizedBox(height: 24),
-        const Text(
-          'Appréciation globale',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
+        const Text('Appréciation globale', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: 12),
         AppCard(
           child: Column(
@@ -283,11 +342,7 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
                 ],
               ),
               const SizedBox(height: 16),
-              PrimaryButton(
-                label: 'Enregistrer l\'évaluation finale',
-                isLoading: _isFinalEvalSaving,
-                onPressed: _saveFinalEvaluation,
-              ),
+              PrimaryButton(label: 'Enregistrer l\'évaluation finale', isLoading: _isFinalEvalSaving, onPressed: _saveFinalEvaluation),
             ],
           ),
         ),
@@ -295,143 +350,8 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
     );
   }
 
-  Widget _buildJournalTab() {
-    if (_journal.isEmpty) {
-      return const Center(child: Text('Aucune entrée dans le journal.'));
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _journal.length,
-      itemBuilder: (context, index) {
-        final entry = _journal[index];
-        final bool isMission = entry['type'] == 'MISSION';
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      isMission ? Icons.assignment_outlined : Icons.warning_amber_rounded,
-                      color: isMission ? ColorConstants.primary : ColorConstants.error,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      isMission ? 'Mission' : 'Difficulté',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isMission ? ColorConstants.primary : ColorConstants.error,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      entry['date_debut'] != null ? DateFormat('dd/MM/yyyy').format(DateTime.parse(entry['date_debut'])) : '',
-                      style: const TextStyle(fontSize: 12, color: ColorConstants.textSecondary),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  entry['titre'] ?? '',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  entry['commentaire_stagiaire'] ?? 'Pas de commentaire.',
-                  style: const TextStyle(fontSize: 14, color: ColorConstants.textPrimary),
-                ),
-                if (entry['commentaire_tuteur'] != null) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: ColorConstants.primary.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: ColorConstants.primary.withValues(alpha: 0.1)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Votre commentaire :',
-                            style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: ColorConstants.primary)),
-                        const SizedBox(height: 4),
-                        Text(entry['commentaire_tuteur'],
-                            style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic)),
-                      ],
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 10),
-                TextButton.icon(
-                  onPressed: () => _showCommentaireDialog(entry['id']),
-                  icon: const Icon(Icons.comment_outlined, size: 16),
-                  label: Text(entry['commentaire_tuteur'] == null ? 'Commenter' : 'Modifier le commentaire'),
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    foregroundColor: ColorConstants.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showCommentaireDialog(String entreeId) {
-    final commentCtrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Commenter cette mission'),
-        content: TextField(
-          controller: commentCtrl,
-          decoration: const InputDecoration(
-            labelText: 'Votre retour pédagogique',
-            border: OutlineInputBorder(),
-          ),
-          maxLines: 4,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-          ElevatedButton(
-            onPressed: () async {
-              if (commentCtrl.text.isEmpty) return;
-              try {
-                await _apiService.commenterEntree(entreeId, commentCtrl.text);
-                if (!mounted) {
-                  return;
-                }
-                Navigator.pop(ctx);
-                _loadData();
-              } catch (e) {
-                if (!mounted) {
-                  return;
-                }
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
-              }
-            },
-            child: const Text('Enregistrer'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildEncouragementsTab() {
-    if (_encouragements.isEmpty) {
-      return const Center(child: Text('Aucun encouragement envoyé.'));
-    }
+    if (_encouragements.isEmpty) return const Center(child: Text('Aucun encouragement envoyé.'));
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: _encouragements.length,
@@ -443,29 +363,106 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
           color: isFeli ? ColorConstants.success.withValues(alpha: 0.05) : null,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: ListTile(
-            leading: Icon(
-              isFeli ? Icons.workspace_premium : Icons.favorite,
-              color: isFeli ? ColorConstants.success : ColorConstants.error,
-            ),
-            title: Text(
-              enc['type'] == 'FELICITATION' ? 'Félicitation' : 'Encouragement',
-              style: TextStyle(fontWeight: FontWeight.bold, color: isFeli ? ColorConstants.success : ColorConstants.error),
-            ),
+            leading: Icon(isFeli ? Icons.workspace_premium : Icons.favorite, color: isFeli ? ColorConstants.success : ColorConstants.error),
+            title: Text(enc['type'] == 'FELICITATION' ? 'Félicitation' : 'Encouragement', style: TextStyle(fontWeight: FontWeight.bold, color: isFeli ? ColorConstants.success : ColorConstants.error)),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 4),
                 Text(enc['contenu'] ?? ''),
                 const SizedBox(height: 4),
-                Text(
-                  enc['date_envoi'] != null ? DateFormat('dd/MM HH:mm').format(DateTime.parse(enc['date_envoi'])) : '',
-                  style: const TextStyle(fontSize: 11, color: ColorConstants.textSecondary),
-                ),
+                Text(enc['date_envoi'] != null ? DateFormat('dd/MM HH:mm').format(DateTime.parse(enc['date_envoi'])) : '', style: const TextStyle(fontSize: 11, color: ColorConstants.textSecondary)),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildDocumentsTab() {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        const Text('Documents Administratifs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const SizedBox(height: 12),
+        AppCard(
+          child: Column(
+            children: [
+              _documentRow(
+                icon: Icons.picture_as_pdf_outlined,
+                title: 'Convention de stage',
+                subtitle: 'Générée à partir du cadre de liaison',
+                onTap: () async {
+                  final id = widget.carnet['id']; 
+                  final url = _apiService.urlTelechargementConvention(id.toString());
+                  if (!await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication)) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Impossible d\'ouvrir le document.')));
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _documentRow({required IconData icon, required String title, required String subtitle, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: ColorConstants.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon, color: ColorConstants.primary, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(subtitle, style: const TextStyle(fontSize: 12, color: ColorConstants.textSecondary)),
+                ],
+              ),
+            ),
+            const Icon(Icons.download_rounded, color: ColorConstants.textSecondary, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCommentaireDialog(String entreeId) {
+    final commentCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Commenter cette mission'),
+        content: TextField(controller: commentCtrl, decoration: const InputDecoration(labelText: 'Votre retour pédagogique', border: OutlineInputBorder()), maxLines: 4),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () async {
+              if (commentCtrl.text.isEmpty) return;
+              try {
+                await _apiService.commenterEntree(entreeId, commentCtrl.text);
+                if (!mounted) return;
+                Navigator.pop(ctx);
+                _loadData();
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
+              }
+            },
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -500,24 +497,17 @@ class _CompetenceEvalCardState extends State<_CompetenceEvalCard> {
     try {
       await _api.evaluerCompetence({
         'carnet_id': widget.carnetId,
-        'jugee_utile': true, // Par défaut à true ici
+        'jugee_utile': true,
         'competences': [
-          {
-            'competence_id': widget.competence['id'],
-            'niveau_tuteur': level,
-          }
+          {'competence_id': widget.competence['id'], 'niveau_tuteur': level}
         ]
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Évaluation mise à jour')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Évaluation mise à jour')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur : $e')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -534,10 +524,7 @@ class _CompetenceEvalCardState extends State<_CompetenceEvalCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              widget.competence['nom'] ?? '',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            ),
+            Text(widget.competence['nom'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             const SizedBox(height: 12),
             if (_isSaving)
               const LinearProgressIndicator()

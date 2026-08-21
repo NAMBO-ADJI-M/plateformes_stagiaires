@@ -1094,10 +1094,17 @@ class ApiService {
     return body;
   }
 
-  Future<Map<String, dynamic>> validerCodeSuivi(String entrepriseId, String code) async {
-    final body = await _post('/pointage/valider-code', jsonEncode({
-      'entreprise_id': entrepriseId,
+  Future<Map<String, dynamic>> verifierCodeSuivi(String code) async {
+    final body = await _post('/pointage/verifier-code', jsonEncode({
       'code': code
+    }));
+    return body;
+  }
+
+  Future<Map<String, dynamic>> validerLiaisonDefinitive(String code, String entrepriseId) async {
+    final body = await _post('/pointage/valider-liaison', jsonEncode({
+      'code': code,
+      'entreprise_id': entrepriseId
     }));
     await _cache.delete('profile');
     return body;
@@ -1113,12 +1120,52 @@ class ApiService {
     return body;
   }
 
-  Future<Map<String, dynamic>> demanderSuiviPointage(String stagiaireId) async {
+  Future<Map<String, dynamic>> demanderSuiviPointage({
+    required String stagiaireId,
+    required String poste,
+    required String dateDebut,
+    required String dateFin,
+    String? conditions,
+    String? etablissementNom,
+    required String tuteurDesigne,
+    String? objetStage,
+    String? cursusRattachement,
+    String? lieuExecution,
+    String? dureeHebdomadaire,
+    String? joursPresence,
+    String? teletravailModalites,
+    String? referentPedagogiqueNom,
+    String? referentPedagogiqueContact,
+    String? modalitesSuiviDetail,
+    double? lieuExecutionLat,
+    double? lieuExecutionLng,
+  }) async {
     final body = await _post('/entreprise/demander-suivi', jsonEncode({
-      'stagiaire_id': stagiaireId
+      'stagiaire_id': stagiaireId,
+      'poste': poste,
+      'date_debut': dateDebut,
+      'date_fin': dateFin,
+      'conditions_stage': conditions,
+      'etablissement_nom': etablissementNom,
+      'tuteur_designe': tuteurDesigne,
+      'objet_stage': objetStage,
+      'cursus_rattachement': cursusRattachement,
+      'lieu_execution': lieuExecution,
+      'lieu_execution_lat': lieuExecutionLat,
+      'lieu_execution_lng': lieuExecutionLng,
+      'duree_hebdomadaire': dureeHebdomadaire,
+      'jours_presence': joursPresence,
+      'teletravail_modalites': teletravailModalites,
+      'referent_pedagogique_nom': referentPedagogiqueNom,
+      'referent_pedagogique_contact': referentPedagogiqueContact,
+      'modalites_suivi_detail': modalitesSuiviDetail,
     }));
     await _cache.delete('entreprise_stagiaires');
     return body;
+  }
+
+  String urlTelechargementConvention(String autorisationId) {
+    return '$baseUrl/documents/liaison/$autorisationId/convention-pdf';
   }
 
   // ============================================

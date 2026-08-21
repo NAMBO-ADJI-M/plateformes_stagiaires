@@ -3,6 +3,7 @@ import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
 import 'dashboard_tuteur_screen.dart';
 import '../../../services/api_service.dart';
+import 'widgets/liaison_stagiaire_dialog.dart';
 import 'suivi_stagiaire_screen.dart';
 
 /// Version dynamisée de la liste des stagiaires pour l'entreprise.
@@ -54,20 +55,19 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
     }
   }
 
-  Future<void> _demanderSuivi(String stagiaireId) async {
-    try {
-      await _apiService.demanderSuiviPointage(stagiaireId);
-      if (mounted) {
-        _loadData();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Demande de suivi envoyée au stagiaire.'))
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
-      }
-    }
+  Future<void> _demanderSuivi(Map<String, dynamic> item) async {
+    final stagiaire = item['stagiaire'] ?? {};
+    final String name = '${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}';
+    
+    showDialog(
+      context: context,
+      builder: (_) => LiaisonStagiaireDialog(
+        stagiaireId: stagiaire['id'],
+        stagiaireNom: name,
+      ),
+    ).then((success) {
+      if (success == true) _loadData();
+    });
   }
 
   void _applyFilters() {
@@ -97,6 +97,7 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
           ScreenTopBar(
             eyebrow: 'Gestion',
             title: 'Stagiaires',
+            showProfile: false,
           ),
           Expanded(
             child: RefreshIndicator(
@@ -140,7 +141,7 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
                                 avatarUrl:
                                     'https://i.pravatar.cc/150?u=${stagiaire['id']}',
                                 autoStatut: autoStatut,
-                                onDemanderSuivi: () => _demanderSuivi(stagiaire['id']),
+                                onDemanderSuivi: () => _demanderSuivi(item),
                                 onTap: () => Navigator.push(
                                   context,
                                   MaterialPageRoute(
