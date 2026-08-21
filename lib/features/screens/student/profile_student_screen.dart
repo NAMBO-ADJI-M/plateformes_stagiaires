@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
 import '../../../services/api_service.dart';
@@ -30,11 +31,38 @@ class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
   Map<String, dynamic>? _activeCarnet;
   bool _autorisationPointage = false;
   String? _autorisationStatut;
+  LocationPermission _locationPermission = LocationPermission.denied;
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _checkPermission();
+  }
+
+  Future<void> _checkPermission() async {
+    final p = await Geolocator.checkPermission();
+    if (mounted) setState(() => _locationPermission = p);
+  }
+
+  Future<void> _requestAlwaysPermission() async {
+    LocationPermission p = await Geolocator.checkPermission();
+    
+    if (p == LocationPermission.denied) {
+      p = await Geolocator.requestPermission();
+    }
+
+    if (p == LocationPermission.deniedForever) {
+      await Geolocator.openAppSettings();
+    } else if (p == LocationPermission.whileInUse) {
+      // Sur Android 11+, il faut demander "Always" séparément ou via les réglages
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pour le pointage automatique, veuillez choisir "Toujours autoriser" dans les réglages.'))
+      );
+      await Geolocator.openAppSettings();
+    }
+
+    _checkPermission();
   }
 
   Future<void> _loadData() async {
@@ -264,6 +292,26 @@ class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
                   ),
                 ),
                 const SizedBox(height: 18),
+                const Text('Services Système',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: ColorConstants.textPrimary)),
+                const SizedBox(height: 10),
+                AppCard(
+                  child: Column(
+                    children: [
+                      _buildPermissionRow(
+                        title: 'Géolocalisation',
+                        subtitle: _getPermissionText(),
+                        icon: Icons.location_on_outlined,
+                        onTap: _requestAlwaysPermission,
+                        isActive: _locationPermission == LocationPermission.always,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
                 const Text('Confidentialité & Suivi',
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
@@ -385,6 +433,56 @@ class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
     } catch (_) {
       return '?';
     }
+  }
+
+  String _getPermissionText() {
+    switch (_locationPermission) {
+      case LocationPermission.always:
+        return 'Activée (Toujours)';
+      case LocationPermission.whileInUse:
+        return 'Activée (Uniquement si l\'app est ouverte)';
+      case LocationPermission.denied:
+        return 'Refusée';
+      case LocationPermission.deniedForever:
+        return 'Bloquée définitivement';
+      default:
+        return 'Inconnu';
+    }
+  }
+
+  Widget _buildPermissionRow({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required VoidCallback onTap,
+    required bool isActive,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: (isActive ? ColorConstants.success : ColorConstants.warning).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: isActive ? ColorConstants.success : ColorConstants.warning, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+                Text(subtitle, style: TextStyle(fontSize: 11, color: ColorConstants.textSecondary)),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, color: ColorConstants.textMuted),
+        ],
+      ),
+    );
   }
 
   Widget _buildSwitchRow({

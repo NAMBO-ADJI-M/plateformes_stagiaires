@@ -30,6 +30,7 @@ class _StudentShellState extends State<StudentShell> {
         onNavigateToPointage: () => setState(() => _index = 1),
         onNavigateToCarnet: () => setState(() => _index = 2),
         onNavigateToTrajet: () => setState(() => _index = 3),
+        onNavigateToProfil: () => setState(() => _index = 4),
       ),
       const PointageScreen(),
       const CarnetScreen(),

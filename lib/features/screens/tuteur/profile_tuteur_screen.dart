@@ -96,38 +96,79 @@ class _ProfileTuteurScreenState extends State<ProfileTuteurScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Modifier l\'entreprise'),
+        backgroundColor: ColorConstants.cardBackground,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Row(
+          children: [
+            Icon(Icons.business_rounded, color: ColorConstants.primary),
+            SizedBox(width: 10),
+            Text('Informations Entreprise', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(controller: raisonCtrl, decoration: const InputDecoration(labelText: 'Raison sociale')),
-              TextField(controller: adresseCtrl, decoration: const InputDecoration(labelText: 'Adresse')),
+              _buildFieldLabel('Raison sociale'),
+              TextField(controller: raisonCtrl, decoration: _inputDeco('Nom de la société')),
+              const SizedBox(height: 16),
+              
+              _buildFieldLabel('Adresse & Localisation GPS'),
+              TextField(controller: adresseCtrl, decoration: _inputDeco('Adresse complète')),
               const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  try {
-                    final pos = await Geolocator.getCurrentPosition();
-                    latCtrl.text = pos.latitude.toString();
-                    lngCtrl.text = pos.longitude.toString();
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Impossible d\'obtenir la position GPS.')));
-                  }
-                },
-                icon: const Icon(Icons.my_location, size: 16),
-                label: const Text('Ma position actuelle'),
-              ),
-              const SizedBox(height: 10),
+              
               Row(
                 children: [
-                  Expanded(child: TextField(controller: latCtrl, decoration: const InputDecoration(labelText: 'Latitude'), keyboardType: TextInputType.number)),
-                  const SizedBox(width: 10),
-                  Expanded(child: TextField(controller: lngCtrl, decoration: const InputDecoration(labelText: 'Longitude'), keyboardType: TextInputType.number)),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        try {
+                          final pos = await Geolocator.getCurrentPosition();
+                          latCtrl.text = pos.latitude.toString();
+                          lngCtrl.text = pos.longitude.toString();
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('📍 Position GPS récupérée !')));
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Impossible d\'obtenir la position.')));
+                        }
+                      },
+                      icon: const Icon(Icons.my_location, size: 16),
+                      label: const Text('Ma position', style: TextStyle(fontSize: 12)),
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
                 ],
               ),
-              TextField(controller: rayonCtrl, decoration: const InputDecoration(labelText: 'Rayon de détection (mètres)', hintText: 'Par défaut 100'), keyboardType: TextInputType.number),
-              TextField(controller: telCtrl, decoration: const InputDecoration(labelText: 'Téléphone'), keyboardType: TextInputType.phone),
-              TextField(controller: siteCtrl, decoration: const InputDecoration(labelText: 'Site Web'), keyboardType: TextInputType.url),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: TextField(controller: latCtrl, decoration: _inputDeco('Lat.'), keyboardType: TextInputType.number)),
+                  const SizedBox(width: 10),
+                  Expanded(child: TextField(controller: lngCtrl, decoration: _inputDeco('Long.'), keyboardType: TextInputType.number)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              
+              _buildFieldLabel('Rayon de détection (mètres)'),
+              TextField(
+                controller: rayonCtrl, 
+                decoration: _inputDeco('Ex: 100'), 
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 4),
+              const Padding(
+                padding: EdgeInsets.only(left: 4),
+                child: Text('Rayon pris en compte pour le pointage automatique.', style: TextStyle(fontSize: 11, color: ColorConstants.textSecondary)),
+              ),
+              const SizedBox(height: 16),
+
+              _buildFieldLabel('Contact'),
+              TextField(controller: telCtrl, decoration: _inputDeco('Téléphone'), keyboardType: TextInputType.phone),
+              const SizedBox(height: 12),
+              TextField(controller: siteCtrl, decoration: _inputDeco('Site Web (URL)'), keyboardType: TextInputType.url),
             ],
           ),
         ),
@@ -147,6 +188,7 @@ class _ProfileTuteurScreenState extends State<ProfileTuteurScreen> {
                 });
                 Navigator.pop(ctx);
                 _loadData();
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Entreprise mise à jour !'), backgroundColor: ColorConstants.success));
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
               }
@@ -155,6 +197,23 @@ class _ProfileTuteurScreenState extends State<ProfileTuteurScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFieldLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6, left: 4),
+      child: Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: ColorConstants.textSecondary)),
+    );
+  }
+
+  InputDecoration _inputDeco(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      filled: true,
+      fillColor: ColorConstants.paper,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
     );
   }
 

@@ -1094,6 +1094,15 @@ class ApiService {
     return body;
   }
 
+  Future<Map<String, dynamic>> validerCodeSuivi(String entrepriseId, String code) async {
+    final body = await _post('/pointage/valider-code', jsonEncode({
+      'entreprise_id': entrepriseId,
+      'code': code
+    }));
+    await _cache.delete('profile');
+    return body;
+  }
+
   Future<Map<String, dynamic>> repondreDemandeSuivi(String autorisationId, bool accepter) async {
     final body = await _post('/pointage/repondre', jsonEncode({
       'autorisation_id': autorisationId,

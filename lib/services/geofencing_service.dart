@@ -30,7 +30,7 @@ class GeofencingService {
       statusChangeDelayMs: 5000,
       useActivityRecognition: false,
       allowMockLocations: false,
-      printDevLog: false, // Désactivé pour la production
+      printDevLog: false,
     );
 
     // Ajout d'une notification pour que le service soit considéré comme prioritaire par Android

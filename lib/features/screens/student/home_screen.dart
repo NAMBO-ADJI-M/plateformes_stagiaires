@@ -2,23 +2,27 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../../services/api_service.dart';
 import '../../../services/pointage_event_bus.dart';
 import '../../widgets/common_widgets.dart';
 import 'trajet_details_screen.dart';
 
-/// Écran d'accueil — direction "poste de contrôle" (maquette v2 dynamisée).
 class HomeScreen extends StatefulWidget {
   final VoidCallback onNavigateToPointage;
   final VoidCallback onNavigateToCarnet;
   final VoidCallback onNavigateToTrajet;
+  final VoidCallback onNavigateToProfil;
 
   const HomeScreen({
     super.key,
     required this.onNavigateToPointage,
     required this.onNavigateToCarnet,
     required this.onNavigateToTrajet,
+    required this.onNavigateToProfil,
   });
 
   @override
@@ -31,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   bool _isLoading = true;
   String _prenom = 'Stagiaire';
+  String? _photoUrl;
   Map<String, dynamic>? _stats;
   List<dynamic> _activites = [];
   String _presenceDuree = "0h00";
@@ -38,6 +43,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   bool _enStage = false;
   StreamSubscription? _pointageSub;
   Map<String, dynamic>? _prochaineReservation;
+
+  // Liaison Entreprise
+  String _autorisationStatut = 'INACTIVE';
+  String? _entrepriseId;
+  String? _entrepriseNom;
+  LatLng? _currentPos;
+  bool _isValidatingCode = false;
 
   @override
   void initState() {
@@ -67,6 +79,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       if (mounted) {
         setState(() {
           _prenom = profile['profile_data']?['prenom'] ?? 'Stagiaire';
+          _photoUrl = profile['profile_data']?['photo_profil_url'];
+
+          final auto = profile['autorisation_pointage'];
+          if (auto != null) {
+            _autorisationStatut = auto['statut'];
+            _entrepriseId = auto['entreprise_id'];
+            _entrepriseNom = auto['entreprise_nom'];
+          }
         });
       }
 
@@ -119,6 +139,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _enStage = latest['date_fin'] == null;
     _heureArrivee = DateFormat('HH:mm').format(DateTime.parse(latest['date_debut']));
 
+    if (_autorisationStatut == 'ACTIVE') {
+      _updateCurrentPosition();
+    }
+
     Duration total = Duration.zero;
     for (var entry in entriesToday) {
       final start = DateTime.parse(entry['date_debut']);
@@ -126,6 +150,87 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       total += end.difference(start);
     }
     _presenceDuree = "${total.inHours}h${(total.inMinutes % 60).toString().padLeft(2, '0')}";
+  }
+
+  Future<void> _updateCurrentPosition() async {
+    try {
+      final pos = await Geolocator.getCurrentPosition();
+      if (mounted) {
+        setState(() {
+          _currentPos = LatLng(pos.latitude, pos.longitude);
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _showCodePopup() {
+    final TextEditingController codeCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setPopupState) => AlertDialog(
+          backgroundColor: ColorConstants.cardBackground,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: Row(
+            children: [
+              const Icon(Icons.lock_outline_rounded, color: ColorConstants.primary),
+              const SizedBox(width: 10),
+              const Text('Code de liaison', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Saisissez le code à 6 chiffres envoyé par votre tuteur pour activer le suivi permanent.',
+                style: TextStyle(fontSize: 13, color: ColorConstants.textSecondary),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: codeCtrl,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.jetBrainsMono(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 8),
+                decoration: InputDecoration(
+                  counterText: '',
+                  filled: true,
+                  fillColor: ColorConstants.paper,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+            ElevatedButton(
+              onPressed: _isValidatingCode ? null : () async {
+                if (codeCtrl.text.length != 6) return;
+                setPopupState(() => _isValidatingCode = true);
+                try {
+                  await _api.validerCodeSuivi(_entrepriseId!, codeCtrl.text);
+                  if (mounted) {
+                    Navigator.pop(ctx);
+                    _loadDashboardData(silent: true);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('✅ Liaison établie !'), backgroundColor: ColorConstants.success)
+                    );
+                  }
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code invalide.')));
+                } finally {
+                  setPopupState(() => _isValidatingCode = false);
+                }
+              },
+              child: _isValidatingCode 
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text('Valider'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -139,78 +244,90 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     return Container(
       color: ColorConstants.paper,
-      child: Column(
-        children: [
-          ScreenTopBar(
-            eyebrow: 'SESSION ACTIVE · ${_enStage ? "EN STAGE" : "PAUSE"}',
-            title: 'Bonjour, $_prenom',
-            showProfile: false,
-          ),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _loadDashboardData,
-              color: ColorConstants.primary,
-              backgroundColor: ColorConstants.cardBackground,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-                children: [
-                  GestureDetector(
-                    onTap: widget.onNavigateToPointage,
-                    child: _PointageCard(
-                      pulseController: _pulseController,
-                      enStage: _enStage,
-                      duree: _presenceDuree,
-                      arrivee: _heureArrivee,
+      child: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _loadDashboardData,
+          color: ColorConstants.primary,
+          backgroundColor: ColorConstants.cardBackground,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+            children: [
+              GreetingHeader(
+                title: 'Bonjour, $_prenom',
+                subtitle: 'SESSION ACTIVE · ${_enStage ? "EN STAGE" : "PAUSE"}',
+                avatarUrl: _photoUrl ?? 'https://i.pravatar.cc/150?u=$_prenom',
+                onAvatarTap: widget.onNavigateToProfil,
+              ),
+              const SizedBox(height: 22),
+              
+              // Widget de liaison Entreprise
+              _LiaisonPanel(
+                statut: _autorisationStatut,
+                entrepriseNom: _entrepriseNom,
+                pos: _currentPos,
+                onToggle: (val) {
+                  if (val && _autorisationStatut != 'ACTIVE') {
+                    _showCodePopup();
+                  }
+                },
+              ),
+
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: widget.onNavigateToPointage,
+                child: _PointageCard(
+                  pulseController: _pulseController,
+                  enStage: _enStage,
+                  duree: _presenceDuree,
+                  arrivee: _heureArrivee,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _CarnetCard(
+                stats: _stats,
+                onAdd: widget.onNavigateToCarnet,
+              ),
+              const SizedBox(height: 14),
+              _CovoiturageCard(
+                reservation: _prochaineReservation,
+                onTap: () {
+                  if (_prochaineReservation != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TrajetDetailsScreen(trajet: _prochaineReservation!['trajet']),
+                      ),
+                    );
+                  } else {
+                    widget.onNavigateToTrajet();
+                  }
+                },
+              ),
+              const SizedBox(height: 22),
+              _sectionLabel('Activité récente'),
+              const SizedBox(height: 10),
+              if (_activites.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Center(
+                    child: Text(
+                      "Aucune activité récente",
+                      style: TextStyle(color: ColorConstants.textSecondary, fontSize: 12),
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  _CarnetCard(
-                    stats: _stats,
-                    onAdd: widget.onNavigateToCarnet,
-                  ),
-                  const SizedBox(height: 14),
-                  _CovoiturageCard(
-                    reservation: _prochaineReservation,
-                    onTap: () {
-                      if (_prochaineReservation != null) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => TrajetDetailsScreen(trajet: _prochaineReservation!['trajet']),
-                          ),
-                        );
-                      } else {
-                        widget.onNavigateToTrajet();
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  _sectionLabel('Activité récente'),
-                  const SizedBox(height: 4),
-                  if (_activites.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Center(
-                        child: Text(
-                          "Aucune activité récente",
-                          style: TextStyle(color: ColorConstants.textSecondary, fontSize: 12),
-                        ),
-                      ),
-                    )
-                  else
-                    ..._activites.take(3).map((a) => _ActivityItem(
-                          icon: _getActivityIcon(a['type']),
-                          iconBg: _getActivityColor(a['type']).withValues(alpha: 0.14),
-                          iconColor: _getActivityColor(a['type']),
-                          title: a['title'] ?? '',
-                          time: _formatActivityDate(a['date']),
-                          showDivider: _activites.indexOf(a) != _activites.take(3).length - 1,
-                        )),
-                ],
-              ),
-            ),
+                )
+              else
+                ..._activites.take(3).map((a) => _ActivityItem(
+                      icon: _getActivityIcon(a['type']),
+                      iconBg: _getActivityColor(a['type']).withValues(alpha: 0.14),
+                      iconColor: _getActivityColor(a['type']),
+                      title: a['title'] ?? '',
+                      time: _formatActivityDate(a['date']),
+                      showDivider: _activites.indexOf(a) != _activites.take(3).length - 1,
+                    )),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -249,15 +366,114 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _sectionLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Text(
-        text.toUpperCase(),
-        style: GoogleFonts.jetBrainsMono(
-          fontSize: 10,
-          letterSpacing: 1.2,
-          color: ColorConstants.textSecondary,
-        ),
+    return Text(
+      text.toUpperCase(),
+      style: GoogleFonts.jetBrainsMono(
+        fontSize: 10,
+        letterSpacing: 1.2,
+        fontWeight: FontWeight.bold,
+        color: ColorConstants.textSecondary,
+      ),
+    );
+  }
+}
+
+class _LiaisonPanel extends StatelessWidget {
+  final String statut;
+  final String? entrepriseNom;
+  final LatLng? pos;
+  final Function(bool) onToggle;
+
+  const _LiaisonPanel({
+    required this.statut,
+    this.entrepriseNom,
+    this.pos,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool active = statut == 'ACTIVE';
+    final bool pending = statut == 'EN_ATTENTE';
+
+    return AppCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: active ? ColorConstants.success : (pending ? ColorConstants.warning : Colors.grey),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      active ? 'LIAISON ÉTABLIE' : (pending ? 'LIAISON EN ATTENTE' : 'LIAISON ENTREPRISE'),
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: active ? ColorConstants.success : ColorConstants.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  active ? (entrepriseNom ?? 'Entreprise') : 'Activez le partage de présence',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          if (active && pos != null)
+            Container(
+              width: 80,
+              height: 45,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: ColorConstants.line),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(11),
+                child: FlutterMap(
+                  options: MapOptions(
+                    initialCenter: pos!,
+                    initialZoom: 15,
+                    interactionOptions: const InteractionOptions(flags: MultiFingerGesture.none),
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: pos!,
+                          width: 10,
+                          height: 10,
+                          child: const Icon(Icons.circle, color: Colors.blue, size: 10),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          Switch(
+            value: active || pending,
+            activeThumbColor: ColorConstants.success,
+            onChanged: active ? null : onToggle,
+          ),
+        ],
       ),
     );
   }
@@ -313,7 +529,7 @@ class _PointageCard extends StatelessWidget {
                     style: GoogleFonts.jetBrainsMono(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
-                      color: enStage ? const Color(0xFF5EEAD4) : const Color(0xFF7E93A3),
+                      color: enStage ? ColorConstants.success : ColorConstants.textSecondary,
                     ),
                   ),
                 ],
@@ -379,14 +595,14 @@ class _PulseDot extends StatelessWidget {
                 child: Container(
                   width: 7,
                   height: 7,
-                  decoration: const BoxDecoration(color: Color(0xFF5EEAD4), shape: BoxShape.circle),
+                  decoration: const BoxDecoration(color: ColorConstants.success, shape: BoxShape.circle),
                 ),
               ),
             ),
             Container(
               width: 7,
               height: 7,
-              decoration: const BoxDecoration(color: Color(0xFF5EEAD4), shape: BoxShape.circle),
+              decoration: const BoxDecoration(color: ColorConstants.success, shape: BoxShape.circle),
             ),
           ],
         );
@@ -402,7 +618,7 @@ class _RadarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? const Color(0xFF5EEAD4) : const Color(0xFF7E93A3);
+    final color = active ? ColorConstants.success : ColorConstants.textSecondary;
     return SizedBox(
       width: 78,
       height: 78,
@@ -525,7 +741,7 @@ class _CarnetCard extends StatelessWidget {
                     CircularProgressIndicator(
                       value: progress / 100,
                       strokeWidth: 6,
-                      color: const Color(0xFFFDBA74),
+                      color: ColorConstants.warning,
                       backgroundColor: Colors.transparent,
                     ),
                   ],
@@ -549,8 +765,8 @@ class _CarnetCard extends StatelessWidget {
             child: ElevatedButton(
               onPressed: onAdd,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF5EEAD4),
-                foregroundColor: const Color(0xFF08151A),
+                backgroundColor: ColorConstants.primary,
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 0,
@@ -605,7 +821,7 @@ class _CovoiturageCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _eyebrow('COVOITURAGE'),
-              if (reservation != null) const Icon(Icons.verified_rounded, color: Color(0xFFFDBA74), size: 16),
+              if (reservation != null) const Icon(Icons.verified_rounded, color: ColorConstants.warning, size: 16),
             ],
           ),
           const SizedBox(height: 14),
@@ -625,7 +841,7 @@ class _CovoiturageCard extends StatelessWidget {
                       style: GoogleFonts.jetBrainsMono(
                         fontSize: 17,
                         fontWeight: FontWeight.w600,
-                        color: ColorConstants.amber,
+                        color: ColorConstants.warning,
                       ),
                     ),
                     const Text('DÉPART', style: TextStyle(fontSize: 10, color: ColorConstants.textSecondary)),
