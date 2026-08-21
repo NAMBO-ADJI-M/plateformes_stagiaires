@@ -17,7 +17,7 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
   late TabController _tabController;
   final ApiService _apiService = ApiService();
   bool _isLoading = true;
-  List<dynamic> _journal = [];
+  List<dynamic> _presence = [];
   List<dynamic> _encouragements = [];
   List<dynamic> _competences = [];
   bool _isFinalEvalSaving = false;
@@ -35,13 +35,13 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
     setState(() => _isLoading = true);
     try {
       final results = await Future.wait([
-        _apiService.getEntreesJournal(carnetId),
+        _apiService.getHistoriquePointage(carnetId),
         _apiService.getEncouragements(carnetId),
         _apiService.getCompetences(),
       ]);
       if (mounted) {
         setState(() {
-          _journal = results[0];
+          _presence = results[0];
           _encouragements = results[1];
           _competences = results[2];
           _isLoading = false;
@@ -196,7 +196,7 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
           unselectedLabelColor: ColorConstants.textSecondary,
           indicatorColor: ColorConstants.primary,
           tabs: const [
-            Tab(text: 'Journal'),
+            Tab(text: 'Présence'),
             Tab(text: 'Évaluation'),
             Tab(text: 'Encouragements'),
             Tab(text: 'Documents'),
@@ -208,7 +208,7 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
           : TabBarView(
               controller: _tabController,
               children: [
-                _buildJournalTab(),
+                _buildPresenceTab(),
                 _buildEvaluationTab(),
                 _buildEncouragementsTab(),
                 _buildDocumentsTab(),
@@ -223,72 +223,57 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
     );
   }
 
-  Widget _buildJournalTab() {
-    if (_journal.isEmpty) return const Center(child: Text('Aucune entrée dans le journal.'));
+  Widget _buildPresenceTab() {
+    if (_presence.isEmpty) return const Center(child: Text('Aucun pointage enregistré.'));
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _journal.length,
+      itemCount: _presence.length,
       itemBuilder: (context, index) {
-        final entry = _journal[index];
-        final bool isMission = entry['type'] == 'MISSION';
+        final entry = _presence[index];
+        final debut = DateTime.tryParse(entry['date_debut'] ?? '');
+        final fin = entry['date_fin'] != null ? DateTime.tryParse(entry['date_fin']) : null;
+        
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      isMission ? Icons.assignment_outlined : Icons.warning_amber_rounded,
-                      color: isMission ? ColorConstants.primary : ColorConstants.error,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      isMission ? 'Mission' : 'Difficulté',
-                      style: TextStyle(fontWeight: FontWeight.bold, color: isMission ? ColorConstants.primary : ColorConstants.error),
-                    ),
-                    const Spacer(),
-                    Text(
-                      entry['date_debut'] != null ? DateFormat('dd/MM/yyyy').format(DateTime.parse(entry['date_debut'])) : '',
-                      style: const TextStyle(fontSize: 12, color: ColorConstants.textSecondary),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(entry['titre'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                const SizedBox(height: 4),
-                Text(entry['commentaire_stagiaire'] ?? 'Pas de commentaire.', style: const TextStyle(fontSize: 14, color: ColorConstants.textPrimary)),
-                if (entry['commentaire_tuteur'] != null) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: ColorConstants.primary.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: ColorConstants.primary.withValues(alpha: 0.1)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Votre commentaire :', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: ColorConstants.primary)),
-                        const SizedBox(height: 4),
-                        Text(entry['commentaire_tuteur'], style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic)),
-                      ],
-                    ),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: ColorConstants.teal.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
                   ),
-                ],
-                const SizedBox(height: 10),
-                TextButton.icon(
-                  onPressed: () => _showCommentaireDialog(entry['id']),
-                  icon: const Icon(Icons.comment_outlined, size: 16),
-                  label: Text(entry['commentaire_tuteur'] == null ? 'Commenter' : 'Modifier le commentaire'),
-                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact, foregroundColor: ColorConstants.primary),
+                  child: const Icon(Icons.access_time_rounded, color: ColorConstants.teal, size: 20),
                 ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        debut != null ? DateFormat('dd MMMM yyyy').format(debut) : 'Date inconnue',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Arrivée : ${debut != null ? DateFormat('HH:mm').format(debut) : '--:--'}',
+                        style: const TextStyle(fontSize: 13, color: ColorConstants.textSecondary),
+                      ),
+                      if (fin != null)
+                        Text(
+                          'Départ : ${DateFormat('HH:mm').format(fin)}',
+                          style: const TextStyle(fontSize: 13, color: ColorConstants.textSecondary),
+                        ),
+                    ],
+                  ),
+                ),
+                if (fin == null)
+                  const StatusPill(label: 'En cours', color: ColorConstants.teal)
+                else
+                  const Icon(Icons.check_circle_rounded, color: ColorConstants.success, size: 20),
               ],
             ),
           ),
@@ -433,35 +418,6 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
             const Icon(Icons.download_rounded, color: ColorConstants.textSecondary, size: 20),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showCommentaireDialog(String entreeId) {
-    final commentCtrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Commenter cette mission'),
-        content: TextField(controller: commentCtrl, decoration: const InputDecoration(labelText: 'Votre retour pédagogique', border: OutlineInputBorder()), maxLines: 4),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-          ElevatedButton(
-            onPressed: () async {
-              if (commentCtrl.text.isEmpty) return;
-              try {
-                await _apiService.commenterEntree(entreeId, commentCtrl.text);
-                if (!mounted) return;
-                Navigator.pop(ctx);
-                _loadData();
-              } catch (e) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
-              }
-            },
-            child: const Text('Enregistrer'),
-          ),
-        ],
       ),
     );
   }

@@ -157,12 +157,45 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
                       child: OutlinedButton.icon(
                         onPressed: () async {
                           try {
-                            final pos = await Geolocator.getCurrentPosition();
-                            _latExecutionCtrl.text = pos.latitude.toString();
-                            _lngExecutionCtrl.text = pos.longitude.toString();
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('📍 Lieu d\'exécution localisé !')));
+                            // 1. Vérifier si le service est activé
+                            bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+                            if (!serviceEnabled) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Merci d\'activer le GPS sur votre téléphone.')));
+                              return;
+                            }
+
+                            // 2. Vérifier les permissions
+                            LocationPermission permission = await Geolocator.checkPermission();
+                            if (permission == LocationPermission.denied) {
+                              permission = await Geolocator.requestPermission();
+                              if (permission == LocationPermission.denied) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('La permission GPS est requise.')));
+                                return;
+                              }
+                            }
+                            
+                            if (permission == LocationPermission.deniedForever) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veuillez autoriser le GPS dans les réglages.')));
+                              return;
+                            }
+
+                            // 3. Récupérer la position
+                            final pos = await Geolocator.getCurrentPosition(
+                              locationSettings: const LocationSettings(accuracy: LocationAccuracy.high)
+                            );
+                            
+                            setState(() {
+                              _latExecutionCtrl.text = pos.latitude.toString();
+                              _lngExecutionCtrl.text = pos.longitude.toString();
+                            });
+                            
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('📍 Lieu d\'exécution localisé !'), backgroundColor: ColorConstants.success));
+                            }
                           } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Impossible d\'obtenir la position.')));
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur GPS : $e')));
+                            }
                           }
                         },
                         icon: const Icon(Icons.my_location, size: 16),

@@ -194,16 +194,10 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
                           label: 'Stagiaires actifs'),
                       const SizedBox(width: 10),
                       StatMiniCard(
-                          icon: Icons.bolt_outlined,
-                          iconColor: ColorConstants.accent,
-                          value: _stats?['missions_assignees']?.toString() ?? '0',
-                          label: 'Missions'),
-                      const SizedBox(width: 10),
-                      StatMiniCard(
                           icon: Icons.trending_up_rounded,
                           iconColor: ColorConstants.success,
                           value: '${_stats?['progression_moyenne'] ?? 0}%',
-                          label: 'Complétion'),
+                          label: 'Assiduité moyenne'),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -232,7 +226,7 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
                         child: StagiaireTile(
                           name: '${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}',
                           role: s['poste'] ?? 'Stagiaire',
-                          progress: 0.5, // À dynamiser via une nouvelle route si besoin
+                          progress: ((s['presence_progress'] ?? 0) as num).toDouble(),
                           status: s['statut'] == 'TERMINE' ? 'Terminé' : 'En cours',
                           statusColor: s['statut'] == 'TERMINE'
                               ? ColorConstants.success

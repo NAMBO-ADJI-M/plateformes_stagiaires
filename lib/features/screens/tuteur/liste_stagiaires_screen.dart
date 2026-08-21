@@ -131,7 +131,7 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
                                 name:
                                     '${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}',
                                 role: '${item['poste'] ?? 'Stagiaire'}',
-                                progress: 0.5,
+                                progress: ((item['presence_progress'] ?? 0) as num).toDouble(),
                                 status: item['statut'] == 'TERMINE'
                                     ? 'Terminé'
                                     : 'En cours',

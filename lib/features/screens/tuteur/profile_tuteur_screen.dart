@@ -124,12 +124,40 @@ class _ProfileTuteurScreenState extends State<ProfileTuteurScreen> {
                     child: OutlinedButton.icon(
                       onPressed: () async {
                         try {
-                          final pos = await Geolocator.getCurrentPosition();
-                          latCtrl.text = pos.latitude.toString();
-                          lngCtrl.text = pos.longitude.toString();
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('📍 Position GPS récupérée !')));
+                          // 1. Vérifier si le service est activé
+                          bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+                          if (!serviceEnabled) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Merci d\'activer le GPS.')));
+                            return;
+                          }
+
+                          // 2. Vérifier les permissions
+                          LocationPermission permission = await Geolocator.checkPermission();
+                          if (permission == LocationPermission.denied) {
+                            permission = await Geolocator.requestPermission();
+                            if (permission == LocationPermission.denied) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('La permission GPS est requise.')));
+                              return;
+                            }
+                          }
+
+                          // 3. Récupérer la position
+                          final pos = await Geolocator.getCurrentPosition(
+                            locationSettings: const LocationSettings(accuracy: LocationAccuracy.high)
+                          );
+                          
+                          setState(() {
+                            latCtrl.text = pos.latitude.toString();
+                            lngCtrl.text = pos.longitude.toString();
+                          });
+                          
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('📍 Position GPS récupérée !'), backgroundColor: ColorConstants.success));
+                          }
                         } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Impossible d\'obtenir la position.')));
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur GPS : $e')));
+                          }
                         }
                       },
                       icon: const Icon(Icons.my_location, size: 16),
