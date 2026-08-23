@@ -222,8 +222,12 @@ class _CarnetScreenState extends State<CarnetScreen> {
           _DocumentRow(
             name: 'Convention de stage signée.pdf',
             onTap: () async {
-              if (_carnetActif == null) return;
-              final url = _api.urlTelechargementConvention(_carnetActif!['id'].toString());
+              if (_carnetActif == null || _carnetActif!['autorisation'] == null) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('La convention n\'est pas encore disponible.')));
+                return;
+              }
+              final autoId = _carnetActif!['autorisation']['id'];
+              final url = _api.urlTelechargementConvention(autoId.toString());
               if (!await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication)) {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Impossible d\'ouvrir le document.')));
               }
