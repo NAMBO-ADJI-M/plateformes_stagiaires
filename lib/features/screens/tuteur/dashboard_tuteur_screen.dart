@@ -6,6 +6,7 @@ import '../../../services/api_service.dart';
 import '../../../services/profile_event_bus.dart';
 import 'widgets/liaison_stagiaire_dialog.dart';
 import 'suivi_stagiaire_screen.dart';
+import 'carnet_de_stage_tuteur_screen.dart';
 
 /// Version dynamisée du Dashboard Tuteur.
 class DashboardTuteurScreen extends StatefulWidget {
@@ -235,12 +236,16 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
                           avatarUrl: 'https://i.pravatar.cc/150?u=${stagiaire['id']}',
                           autoStatut: autoStatut,
                           onDemanderSuivi: () => _demanderSuivi(s),
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => SuiviStagiaireScreen(carnet: s),
-                            ),
-                          ),
+                          onTap: (autoStatut == 'ACTIVE' || autoStatut == 'CONVENTION_SIGNEE')
+                              ? () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => autoStatut == 'CONVENTION_SIGNEE'
+                                          ? SuiviStagiaireScreen(carnet: s)
+                                          : CarnetDeStageTuteurScreen(carnet: s),
+                                    ),
+                                  )
+                              : null,
                         ),
                       );
                     }),
@@ -384,17 +389,17 @@ class StagiaireTile extends StatelessWidget {
                     Row(
                       children: [
                         Icon(
-                          autoStatut == 'ACTIVE' ? Icons.visibility : Icons.visibility_off,
+                          (autoStatut == 'ACTIVE' || autoStatut == 'CONVENTION_SIGNEE') ? Icons.visibility : Icons.visibility_off,
                           size: 12,
-                          color: autoStatut == 'ACTIVE' ? ColorConstants.success : ColorConstants.textMuted,
+                          color: (autoStatut == 'ACTIVE' || autoStatut == 'CONVENTION_SIGNEE') ? ColorConstants.success : ColorConstants.textMuted,
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          autoStatut == 'ACTIVE' ? 'Suivi actif' : 'Suivi privé',
+                          (autoStatut == 'ACTIVE' || autoStatut == 'CONVENTION_SIGNEE') ? 'Suivi actif' : 'Suivi privé',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: autoStatut == 'ACTIVE' ? ColorConstants.success : ColorConstants.textMuted,
+                            color: (autoStatut == 'ACTIVE' || autoStatut == 'CONVENTION_SIGNEE') ? ColorConstants.success : ColorConstants.textMuted,
                           ),
                         ),
                       ],
@@ -419,6 +424,23 @@ class StagiaireTile extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
                   child: const Text('En attente...', style: TextStyle(fontSize: 10, fontStyle: FontStyle.italic)),
+                )
+              else if (autoStatut == 'CONVENTION_SIGNEE')
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: ColorConstants.success.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: ColorConstants.success.withValues(alpha: 0.2)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.verified, size: 14, color: ColorConstants.success),
+                      SizedBox(width: 4),
+                      Text('Convention signée', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: ColorConstants.success)),
+                    ],
+                  ),
                 )
               else
                 Text('${(progress * 100).round()}%',
