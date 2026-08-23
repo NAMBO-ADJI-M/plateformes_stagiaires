@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/constants/constants_colors.dart';
 import '../../../../services/api_service.dart';
 import '../../../widgets/common_widgets.dart';
@@ -280,10 +281,19 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: ColorConstants.success.withValues(alpha: 0.3)),
               ),
-              child: Text(
+              child: SelectableText(
                 _generatedCode!,
                 style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 4, color: ColorConstants.success),
               ),
+            ),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: _generatedCode!.trim()));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Code copié !')));
+              },
+              icon: const Icon(Icons.copy_rounded, size: 18),
+              label: const Text('Copier le code'),
             ),
           ],
         ),

@@ -214,7 +214,8 @@ class _NotifCard extends StatelessWidget {
                   const SizedBox(height: 10),
                   OutlinedButton.icon(
                     onPressed: () {
-                      Clipboard.setData(ClipboardData(text: data['code']));
+                      final code = data['code'].toString().trim();
+                      Clipboard.setData(ClipboardData(text: code));
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('✅ Code copié !')),
                       );

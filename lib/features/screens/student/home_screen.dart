@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:geolocator/geolocator.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../../services/api_service.dart';
-import '../../../services/pointage_event_bus.dart';
+import '../../../services/api_exception.dart';
 import '../../widgets/common_widgets.dart';
 import 'trajet_details_screen.dart';
 
@@ -29,8 +29,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
-  late final AnimationController _pulseController;
+class _HomeScreenState extends State<HomeScreen> {
   final ApiService _api = ApiService();
 
   bool _isLoading = true;
@@ -38,11 +37,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   String? _photoUrl;
   Map<String, dynamic>? _stats;
   List<dynamic> _activites = [];
-  String _presenceDuree = "0h00";
-  String _heureArrivee = "--:--";
-  bool _enStage = false;
-  StreamSubscription? _pointageSub;
   Map<String, dynamic>? _prochaineReservation;
+  String? _activeCarnetId;
 
   // Liaison Entreprise
   String _autorisationStatut = 'INACTIVE';
@@ -53,20 +49,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    )..repeat();
-
     _loadDashboardData();
-    _pointageSub = PointageEventBus().onPointageUpdate.listen((_) => _loadDashboardData(silent: true));
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    _pointageSub?.cancel();
-    super.dispose();
   }
 
   Future<void> _loadDashboardData({bool silent = false}) async {
@@ -90,20 +73,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
       if (carnets.isNotEmpty) {
         final carnet = carnets.firstWhere((c) => c['statut'] == 'EN_COURS', orElse: () => carnets.first);
-        final carnetId = carnet['id'];
+        _activeCarnetId = carnet['id'];
 
         final results = await Future.wait([
-          _api.getCarnetStats(carnetId),
-          _api.getHistoriquePointage(carnetId),
+          _api.getCarnetStats(_activeCarnetId!),
           _api.getMesReservations(),
         ]);
 
         if (mounted) {
           setState(() {
             _stats = results[0] as Map<String, dynamic>;
-            _computePresence(results[1] as List<dynamic>);
 
-            final reservations = results[2] as List<dynamic>;
+            final reservations = results[1] as List<dynamic>;
             final aVenir = reservations.where((r) => r['statut'] != 'ANNULEE' && r['statut'] != 'TERMINEE').toList();
             _prochaineReservation = aVenir.isNotEmpty ? aVenir.first : null;
 
@@ -117,48 +98,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  void _computePresence(List<dynamic> historique) {
-    final today = DateTime.now();
-    final entriesToday = historique.where((e) {
-      final d = DateTime.tryParse(e['date_debut'] ?? '');
-      return d != null && d.year == today.year && d.month == today.month && d.day == today.day;
-    }).toList();
-
-    if (entriesToday.isEmpty) {
-      _enStage = false;
-      _presenceDuree = "0h00";
-      _heureArrivee = "--:--";
-      return;
-    }
-
-    final latest = entriesToday.first;
-    _enStage = latest['date_fin'] == null;
-    _heureArrivee = DateFormat('HH:mm').format(DateTime.parse(latest['date_debut']));
-
-    if (_autorisationStatut == 'ACTIVE') {
-      _updateCurrentPosition();
-    }
-
-    Duration total = Duration.zero;
-    for (var entry in entriesToday) {
-      final start = DateTime.parse(entry['date_debut']);
-      final end = entry['date_fin'] != null ? DateTime.parse(entry['date_fin']) : DateTime.now();
-      total += end.difference(start);
-    }
-    _presenceDuree = "${total.inHours}h${(total.inMinutes % 60).toString().padLeft(2, '0')}";
-  }
-
-  Future<void> _updateCurrentPosition() async {
-    try {
-      final pos = await Geolocator.getCurrentPosition();
-      if (mounted) {
-        setState(() {
-          _currentPos = LatLng(pos.latitude, pos.longitude);
-        });
-      }
-    } catch (_) {}
   }
 
   void _showCodePopup() {
@@ -188,7 +127,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               TextField(
                 controller: codeCtrl,
                 keyboardType: TextInputType.text,
-                textCapitalization: TextCapitalization.characters,
+                inputFormatters: [
+                  FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                ],
                 maxLength: 8,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.jetBrainsMono(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 4),
@@ -207,17 +148,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
             ElevatedButton(
               onPressed: _isValidatingCode ? null : () async {
-                if (codeCtrl.text.isEmpty) return;
+                final code = codeCtrl.text.trim();
+                if (code.isEmpty) return;
                 setPopupState(() => _isValidatingCode = true);
                 try {
                   // Étape 1 : Vérifier le code et récupérer les conditions
-                  final info = await _api.verifierCodeSuivi(codeCtrl.text.trim().toUpperCase());
+                  final info = await _api.verifierCodeSuivi(code, carnetId: _activeCarnetId);
                   if (mounted) {
                     Navigator.pop(ctx);
-                    _showReviewConditionsPopup(codeCtrl.text, info);
+                    _showReviewConditionsPopup(code, info);
                   }
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code incorrect ou expiré.')));
+                  String msg = 'Code incorrect ou expiré.';
+                  if (e is ApiException) msg = e.message;
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
                 } finally {
                   setPopupState(() => _isValidatingCode = false);
                 }
@@ -325,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         'cursus_rattachement': cursusCtrl.text,
                         'referent_pedagogique_nom': refNomCtrl.text,
                         'referent_pedagogique_contact': refContactCtrl.text,
-                      });
+                      }, carnetId: _activeCarnetId);
                       if (mounted) {
                         Navigator.pop(ctx);
                         _loadDashboardData(silent: true);
@@ -564,7 +508,7 @@ En validant cette convention via l'application StageLink, les parties reconnaiss
             children: [
               GreetingHeader(
                 title: 'Bonjour, $_prenom',
-                subtitle: 'SESSION ACTIVE · ${_enStage ? "EN STAGE" : "PAUSE"}',
+                subtitle: 'SESSION ACTIVE',
                 avatarUrl: _photoUrl ?? 'https://i.pravatar.cc/150?u=$_prenom',
                 onAvatarTap: widget.onNavigateToProfil,
               ),
@@ -583,16 +527,6 @@ En validant cette convention via l'application StageLink, les parties reconnaiss
               ),
 
               const SizedBox(height: 16),
-              GestureDetector(
-                onTap: widget.onNavigateToPointage,
-                child: _PointageCard(
-                  pulseController: _pulseController,
-                  enStage: _enStage,
-                  duree: _presenceDuree,
-                  arrivee: _heureArrivee,
-                ),
-              ),
-              const SizedBox(height: 14),
               _CarnetCard(
                 stats: _stats,
                 onAdd: widget.onNavigateToCarnet,
@@ -803,143 +737,6 @@ class _Panel extends StatelessWidget {
         border: Border.all(color: ColorConstants.line),
       ),
       child: child,
-    );
-  }
-}
-
-
-class _PulseDot extends StatelessWidget {
-  final AnimationController controller;
-  const _PulseDot({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, _) {
-        final t = controller.value;
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            Opacity(
-              opacity: (1 - t).clamp(0.0, 1.0) * 0.5,
-              child: Transform.scale(
-                scale: 1 + t * 1.8,
-                child: Container(
-                  width: 7,
-                  height: 7,
-                  decoration: const BoxDecoration(color: ColorConstants.success, shape: BoxShape.circle),
-                ),
-              ),
-            ),
-            Container(
-              width: 7,
-              height: 7,
-              decoration: const BoxDecoration(color: ColorConstants.success, shape: BoxShape.circle),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _RadarWidget extends StatelessWidget {
-  final AnimationController controller;
-  final bool active;
-  const _RadarWidget({required this.controller, required this.active});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = active ? ColorConstants.success : ColorConstants.textSecondary;
-    return SizedBox(
-      width: 78,
-      height: 78,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          _ring(78, 0.15, color),
-          _ring(54, 0.25, color),
-          _ring(30, 0.4, color),
-          if (active)
-            AnimatedBuilder(
-              animation: controller,
-              builder: (context, _) {
-                return Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withValues(alpha: 0.35 + 0.25 * controller.value),
-                        blurRadius: 16,
-                        spreadRadius: 1,
-                      ),
-                    ],
-                  ),
-                );
-              },
-            )
-          else
-            Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.5), shape: BoxShape.circle),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _ring(double size, double opacity, Color color) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: color.withValues(alpha: opacity)),
-      ),
-    );
-  }
-}
-
-class _MiniStat extends StatelessWidget {
-  final String label;
-  final String value;
-  const _MiniStat({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: ColorConstants.paper,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ColorConstants.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10,
-              letterSpacing: 0.5,
-              color: ColorConstants.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            value,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 16,
-              color: ColorConstants.textPrimary,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

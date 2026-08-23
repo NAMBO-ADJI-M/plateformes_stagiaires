@@ -226,7 +226,7 @@ class ApiService {
     final cachedIsEmptyList = cached is List && cached.isEmpty;
 
     if (cached != null && !forceRefresh && !cachedIsEmptyList) {
-      () async {
+      (() async {
         try {
           final fresh = await loader();
           // Ne met à jour le cache que si la réponse fraîche est non-vide
@@ -237,7 +237,7 @@ class ApiService {
           // on garde la donnée mise en cache en cas d'échec réseau ;
           // l'écran reste fluide pendant le rechargement en arrière-plan.
         }
-      }();
+      })();
       return cached;
     }
 
@@ -1108,16 +1108,18 @@ class ApiService {
     return body;
   }
 
-  Future<Map<String, dynamic>> verifierCodeSuivi(String code) async {
+  Future<Map<String, dynamic>> verifierCodeSuivi(String code, {String? carnetId}) async {
     final body = await _post('/pointage/verifier-code', jsonEncode({
-      'code': code
+      'code': code,
+      if (carnetId != null) 'carnet_id': carnetId,
     }));
     return body;
   }
 
-  Future<Map<String, dynamic>> validerLiaisonDefinitive(String code, Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> validerLiaisonDefinitive(String code, Map<String, dynamic> data, {String? carnetId}) async {
     final body = await _post('/pointage/valider-liaison', jsonEncode({
       'code': code,
+      if (carnetId != null) 'carnet_id': carnetId,
       ...data
     }));
     await _cache.delete('profile');
