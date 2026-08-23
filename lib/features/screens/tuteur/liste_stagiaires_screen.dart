@@ -133,15 +133,18 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
                           ..._disponibles.map((item) {
                             final stagiaire = item['stagiaire'] ?? {};
                             final String email = stagiaire['email'] ?? 'Sans email';
-                            final String displayName = (stagiaire['prenom'] != null && stagiaire['nom'] != null)
-                                ? '${stagiaire['prenom']} ${stagiaire['nom']}'
-                                : email;
+                            final String displayName = '${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}';
+                            final String school = stagiaire['ecole'] ?? '';
+                            final String field = stagiaire['filiere'] ?? '';
+                            final String roleText = (school.isNotEmpty && field.isNotEmpty)
+                                ? '$school - $field'
+                                : 'Inscrit sur StageLink';
 
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 12),
                               child: StagiaireTile(
                                 name: displayName,
-                                role: 'Inscrit sur StageLink',
+                                role: roleText,
                                 progress: 0.0,
                                 status: 'Disponible',
                                 statusColor: ColorConstants.primary,
