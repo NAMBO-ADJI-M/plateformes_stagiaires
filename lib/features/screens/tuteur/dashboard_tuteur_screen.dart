@@ -36,8 +36,8 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
 
       if (mounted) {
         setState(() {
-          _stats = results[0];
-          _demandes = results[1];
+          _stats = results[0] as Map<String, dynamic>;
+          _demandes = results[1] as List<dynamic>;
           final stagiairesData = results[2] as Map<String, dynamic>;
           _stagiaires = stagiairesData['rattaches'] ?? [];
           _isLoading = false;
