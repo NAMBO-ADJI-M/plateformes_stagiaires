@@ -55,14 +55,14 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
       ]);
       if (!mounted) return;
       setState(() {
-        _stats = results[0];
+        _stats = results[0] as Map<String, dynamic>?;
         
         // On récupère uniquement les stagiaires déjà rattachés pour le dashboard
-        final stagiairesRes = results[1];
+        final Map<String, dynamic> stagiairesRes = results[1] as Map<String, dynamic>;
         _stagiaires = (stagiairesRes['rattaches'] as List<dynamic>);
         
-        _profile = results[2];
-        _demandesRattachement = results[3];
+        _profile = results[2] as Map<String, dynamic>?;
+        _demandesRattachement = results[3] as List<dynamic>?;
         _isLoading = false;
       });
     } catch (e) {
