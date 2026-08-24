@@ -1212,6 +1212,45 @@ class ApiService {
   }
 
   // ============================================
+  // DEMANDES DE RATTACHEMENT
+  // ============================================
+
+  Future<List<dynamic>> rechercherEntreprises(String query) async {
+    final response = await _httpClient.get(
+      Uri.parse('$baseUrl/entreprises/recherche?q=$query'),
+      headers: _authHeaders,
+    );
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return jsonDecode(response.body);
+    }
+    throw ApiException('Erreur recherche entreprise', statusCode: response.statusCode);
+  }
+
+  Future<Map<String, dynamic>> demanderRattachement(String entrepriseId) async {
+    final body = await _post('/rattachement/demander', jsonEncode({
+      'entreprise_id': entrepriseId
+    }));
+    return body;
+  }
+
+  Future<List<dynamic>> getDemandesRattachement() async {
+    return _readCachedOrRefresh<List<dynamic>>(
+      'entreprise_demandes_rattachement',
+      () async {
+        final response = await _httpClient.get(
+          Uri.parse('$baseUrl/entreprise/demandes-rattachement'),
+          headers: _authHeaders,
+        );
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return jsonDecode(response.body);
+        }
+        throw ApiException('Erreur récupération demandes', statusCode: response.statusCode);
+      },
+      ttl: const Duration(minutes: 2),
+    );
+  }
+
+  // ============================================
   // UTILS
   // ============================================
 
