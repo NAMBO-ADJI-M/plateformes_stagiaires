@@ -20,6 +20,7 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
   final ApiService _apiService = ApiService();
   Map<String, dynamic>? _stats;
   List<dynamic>? _stagiaires;
+  List<dynamic>? _demandesRattachement;
   Map<String, dynamic>? _profile;
   bool _isLoading = true;
 
@@ -50,6 +51,7 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
         _apiService.getEntrepriseDashboardStats(),
         _apiService.getEntrepriseStagiaires(),
         _apiService.getProfile(),
+        _apiService.getDemandesRattachementEntreprise(),
       ]);
       if (!mounted) return;
       setState(() {
@@ -60,6 +62,7 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
         _stagiaires = (stagiairesRes['rattaches'] as List<dynamic>);
         
         _profile = results[2];
+        _demandesRattachement = results[3];
         _isLoading = false;
       });
     } catch (e) {
@@ -204,6 +207,57 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
                           label: 'Assiduité moyenne'),
                     ],
                   ),
+                  if (_demandesRattachement != null && _demandesRattachement!.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    const Text('Demandes de rattachement',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: ColorConstants.textPrimary)),
+                    const SizedBox(height: 12),
+                    ..._demandesRattachement!.map((d) {
+                      final stagiaire = d['stagiaire'] ?? {};
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: AppCard(
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 22,
+                                backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=${stagiaire['id']}'),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}',
+                                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                                    ),
+                                    Text(
+                                      '${stagiaire['ecole'] ?? ''} - ${stagiaire['filiere'] ?? ''}',
+                                      style: const TextStyle(fontSize: 12, color: ColorConstants.textSecondary),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              ElevatedButton(
+                                onPressed: () => _demanderSuivi({'stagiaire': stagiaire}),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: ColorConstants.primary,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                                child: const Text('Demander l\'accès', style: TextStyle(fontSize: 11)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
                   const SizedBox(height: 24),
                   const Text('Vos Stagiaires',
                       style: TextStyle(

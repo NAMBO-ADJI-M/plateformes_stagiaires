@@ -8,11 +8,13 @@ import 'package:plateforme_stagiaires/services/auth_service.dart';
 class CodeVerifyPage extends StatefulWidget {
   final String email;
   final UserType userType;
+  final bool isNewAccount;
 
   const CodeVerifyPage({
     super.key,
     required this.email,
     required this.userType,
+    this.isNewAccount = false,
   });
 
   @override
@@ -76,7 +78,11 @@ class _CodeVerifyPageState extends State<CodeVerifyPage> {
 
       if (result.containsKey('token') && result['token'] != null) {
         // ✅ Connexion réussie
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        if (widget.isNewAccount && widget.userType == UserType.stagiaire) {
+          Navigator.pushNamedAndRemoveUntil(context, '/recherche-entreprise', (route) => false);
+        } else {
+          Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        }
         return; // on quitte avant le finally : la page n'existe plus dans la pile
       } else {
         // ❌ Réponse OK mais pas de token exploitable

@@ -563,6 +563,25 @@ class ApiService {
   }
 
   // ============================================
+  // DEMANDES DE RATTACHEMENT (STAGIAIRE -> ENTREPRISE)
+  // ============================================
+
+  Future<List<dynamic>> rechercherEntreprises(String query) async {
+    final response = await _get('/entreprises/recherche?q=$query');
+    return _decodeListResponse(response);
+  }
+
+  Future<Map<String, dynamic>> demanderRattachement(String entrepriseId) async {
+    final body = await _post('/rattachement/demander', {'entreprise_id': entrepriseId});
+    return body;
+  }
+
+  Future<List<dynamic>> getDemandesRattachementEntreprise() async {
+    final response = await _get('/entreprise/demandes-rattachement');
+    return _decodeListResponse(response);
+  }
+
+  // ============================================
   // RÃ‰FÃ‰RENTIEL
   // ============================================
 

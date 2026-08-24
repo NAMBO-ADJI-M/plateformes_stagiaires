@@ -58,7 +58,8 @@ class _CodeRegisterPageState extends State<CodeRegisterPage> {
     try {
       // Le backend crée le compte automatiquement s'il n'existe pas
       // et envoie un code de vérification par email dans tous les cas.
-      await _authService.requestCode(email, widget.userType);
+      final result = await _authService.requestCode(email, widget.userType);
+      final bool isNewAccount = result['is_new_account'] ?? false;
 
       if (!mounted) return;
 
@@ -68,6 +69,7 @@ class _CodeRegisterPageState extends State<CodeRegisterPage> {
         arguments: {
           'email': email,
           'userType': widget.userType,
+          'isNewAccount': isNewAccount,
         },
       );
     } on ApiException catch (e) {
