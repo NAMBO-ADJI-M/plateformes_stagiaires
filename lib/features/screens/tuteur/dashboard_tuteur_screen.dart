@@ -4,6 +4,7 @@ import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
 import '../../../services/api_service.dart';
 import 'liste_stagiaires_screen.dart';
+import 'widgets/add_stagiaire_dialog.dart';
 
 class DashboardTuteurScreen extends StatefulWidget {
   const DashboardTuteurScreen({super.key});
@@ -119,7 +120,7 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
-      childAspectRatio: 1.5,
+      childAspectRatio: 1.3,
       children: [
         StatCard(
           label: "Stagiaires",
@@ -191,41 +192,104 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
         final demande = _demandes[index];
         final stagiaire = demande['stagiaire'] ?? {};
         final name = "${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}";
+        final email = stagiaire['email'] ?? 'Email non renseigné';
 
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: ListTile(
-            contentPadding: const EdgeInsets.all(12),
-            leading: CircleAvatar(
-              backgroundColor: ColorConstants.primary.withValues(alpha: 0.1),
-              backgroundImage: stagiaire['photo_profil'] != null 
-                  ? NetworkImage(stagiaire['photo_profil']) 
-                  : null,
-              child: stagiaire['photo_profil'] == null 
-                  ? const Icon(Icons.person, color: ColorConstants.primary) 
-                  : null,
-            ),
-            title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text(stagiaire['ecole'] ?? stagiaire['filiere'] ?? 'Stagiaire en attente'),
-            trailing: ElevatedButton(
-              onPressed: () {
-                // Naviguer vers le formulaire de convention (existant)
-                // Note: La logique exacte d'ouverture dépend du flux existant
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Ouverture du formulaire de convention...')),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: ColorConstants.warning,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              child: const Text("Demander l'accès"),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: ColorConstants.primary.withValues(alpha: 0.1),
+                  backgroundImage: stagiaire['photo_profil'] != null
+                      ? NetworkImage(stagiaire['photo_profil'])
+                      : null,
+                  child: stagiaire['photo_profil'] == null
+                      ? const Icon(Icons.person, color: ColorConstants.primary)
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      const SizedBox(height: 2),
+                      Text(
+                        email,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11, color: ColorConstants.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.info_outline, size: 18, color: ColorConstants.textSecondary),
+                  tooltip: 'Infos du compte',
+                  onPressed: () => _showCompteInfoDialog(stagiaire),
+                ),
+                ElevatedButton(
+                  onPressed: () => _ouvrirFormulaireConvention(stagiaire),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ColorConstants.warning,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text("Demander l'accès", style: TextStyle(fontSize: 12)),
+                ),
+              ],
             ),
           ),
         );
       },
+    );
+  }
+
+  void _ouvrirFormulaireConvention(Map<String, dynamic> stagiaire) {
+    showDialog(
+      context: context,
+      builder: (_) => AddStagiaireDialog(
+        initialNom: stagiaire['nom'],
+        initialPrenom: stagiaire['prenom'],
+        initialEmail: stagiaire['email'],
+      ),
+    ).then((success) {
+      if (success == true) _loadData();
+    });
+  }
+
+  void _showCompteInfoDialog(Map<String, dynamic> stagiaire) {
+    final createdAt = stagiaire['created_at'] as String?;
+    String dateStr = 'Non disponible';
+    String heureStr = '';
+    if (createdAt != null) {
+      final dt = DateTime.tryParse(createdAt);
+      if (dt != null) {
+        dateStr = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+        heureStr = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      }
+    }
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Informations du compte'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Email : ${stagiaire['email'] ?? 'Non renseigné'}'),
+            const SizedBox(height: 8),
+            Text('Créé le : $dateStr${heureStr.isNotEmpty ? ' à $heureStr' : ''}'),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
+        ],
+      ),
     );
   }
 
@@ -304,7 +368,7 @@ class StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -318,28 +382,28 @@ class StatCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisSize: MainAxisSize.min, // <- plus de spaceBetween sur hauteur non garantie
         children: [
-          Icon(icon, color: color, size: 28),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: ColorConstants.textPrimary,
-                ),
+          Icon(icon, color: color, size: 24), // <- 28 -> 24
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: ColorConstants.textPrimary,
               ),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: ColorConstants.textSecondary,
-                ),
-              ),
-            ],
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, color: ColorConstants.textSecondary),
           ),
         ],
       ),
@@ -355,6 +419,7 @@ class StagiaireTile extends StatelessWidget {
   final Color statusColor;
   final String avatarUrl;
   final String autoStatut;
+  final double roleFontSize; // <- nouveau
   final VoidCallback? onDemanderSuivi;
   final VoidCallback? onTap;
 
@@ -367,6 +432,7 @@ class StagiaireTile extends StatelessWidget {
     required this.statusColor,
     required this.avatarUrl,
     required this.autoStatut,
+    this.roleFontSize = 12, // <- valeur par défaut inchangée pour les autres usages
     this.onDemanderSuivi,
     this.onTap,
   });
@@ -389,13 +455,12 @@ class StagiaireTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                ),
+                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 Text(
                   role,
-                  style: const TextStyle(fontSize: 12, color: ColorConstants.textSecondary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis, // <- évite l'overflow avec un email long
+                  style: TextStyle(fontSize: roleFontSize, color: ColorConstants.textSecondary),
                 ),
                 const SizedBox(height: 8),
                 ClipRRect(

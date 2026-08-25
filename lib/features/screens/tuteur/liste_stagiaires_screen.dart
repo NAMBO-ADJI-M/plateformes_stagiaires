@@ -138,19 +138,42 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
                             final String field = stagiaire['filiere'] ?? '';
                             final String roleText = (school.isNotEmpty && field.isNotEmpty)
                                 ? '$school - $field'
-                                : 'Inscrit sur StageLink';
+                                : email; // <- remplace 'Inscrit sur StageLink'
 
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 12),
-                              child: StagiaireTile(
-                                name: displayName,
-                                role: roleText,
-                                progress: 0.0,
-                                status: 'Disponible',
-                                statusColor: ColorConstants.primary,
-                                avatarUrl: stagiaire['photo_profil_url'] ?? 'https://i.pravatar.cc/150?u=$email',
-                                autoStatut: 'DISPONIBLE',
-                                onDemanderSuivi: () => _demanderAcces(item),
+                              child: Stack(
+                                children: [
+                                  StagiaireTile(
+                                    name: displayName,
+                                    role: roleText,
+                                    roleFontSize: 11, // <- police réduite pour cette carte
+                                    progress: 0.0,
+                                    status: 'Disponible',
+                                    statusColor: ColorConstants.primary,
+                                    avatarUrl: stagiaire['photo_profil_url'] ?? 'https://i.pravatar.cc/150?u=$email',
+                                    autoStatut: 'DISPONIBLE',
+                                    onDemanderSuivi: () => _demanderAcces(item),
+                                  ),
+                                  Positioned(
+                                    top: 6,
+                                    right: 6,
+                                    child: GestureDetector(
+                                      onTap: () => _showCompteInfoDialog(stagiaire),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4),
+                                          ],
+                                        ),
+                                        child: const Icon(Icons.info_outline, size: 14, color: ColorConstants.textSecondary),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             );
                           }),
@@ -335,6 +358,37 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
           ),
           const Icon(Icons.chevron_right,
               color: ColorConstants.textSecondary, size: 18),
+        ],
+      ),
+    );
+  }
+
+  void _showCompteInfoDialog(Map<String, dynamic> stagiaire) {
+    final createdAt = stagiaire['created_at'] as String?;
+    String dateStr = 'Non disponible';
+    String heureStr = '';
+    if (createdAt != null) {
+      final dt = DateTime.tryParse(createdAt);
+      if (dt != null) {
+        dateStr = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+        heureStr = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      }
+    }
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Informations du compte'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Email : ${stagiaire['email'] ?? 'Non renseigné'}'),
+            const SizedBox(height: 8),
+            Text('Créé le : $dateStr${heureStr.isNotEmpty ? ' à $heureStr' : ''}'),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
         ],
       ),
     );
