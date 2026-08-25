@@ -191,7 +191,13 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
       itemBuilder: (context, index) {
         final demande = _demandes[index];
         final stagiaire = demande['stagiaire'] ?? {};
-        final name = "${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}";
+        
+        final prenom = stagiaire['prenom'] ?? '';
+        final nom = stagiaire['nom'] ?? '';
+        final String displayName = (prenom.isEmpty && nom.isEmpty) 
+            ? 'Profil incomplet' 
+            : '$prenom $nom';
+            
         final email = stagiaire['email'] ?? 'Email non renseigné';
 
         return Card(
@@ -215,7 +221,15 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      Text(
+                        displayName, 
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold, 
+                          fontSize: 14,
+                          fontStyle: (prenom.isEmpty && nom.isEmpty) ? FontStyle.italic : FontStyle.normal,
+                          color: (prenom.isEmpty && nom.isEmpty) ? ColorConstants.textSecondary : ColorConstants.textPrimary,
+                        )
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         email,
@@ -323,7 +337,12 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
       itemBuilder: (context, index) {
         final carnet = _stagiaires[index];
         final stagiaire = carnet['stagiaire'] ?? {};
-        final name = "${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}";
+        
+        final prenom = stagiaire['prenom'] ?? '';
+        final nom = stagiaire['nom'] ?? '';
+        final String displayName = (prenom.isEmpty && nom.isEmpty) 
+            ? 'Profil incomplet' 
+            : '$prenom $nom';
 
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
@@ -338,7 +357,13 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
                   ? const Icon(Icons.person, color: ColorConstants.secondary) 
                   : null,
             ),
-            title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(
+              displayName, 
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontStyle: (prenom.isEmpty && nom.isEmpty) ? FontStyle.italic : FontStyle.normal,
+              )
+            ),
             subtitle: Text(stagiaire['filiere'] ?? 'Stage en cours'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {

@@ -37,9 +37,31 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
   // 2. Cadre administratif
   final _posteCtrl = TextEditingController();
   final _etablissementCtrl = TextEditingController();
+  
+  // Tuteur / Maître de stage
   final _tuteurDesigneCtrl = TextEditingController();
+  final _tuteurNomCtrl = TextEditingController();
+  final _tuteurPrenomCtrl = TextEditingController();
+  final _tuteurFonctionCtrl = TextEditingController();
+  final _tuteurEmailCtrl = TextEditingController();
+  final _tuteurTelCtrl = TextEditingController();
+  
+  // Entreprise (infos spécifiques document)
+  final _raisonSocialeCtrl = TextEditingController();
+  final _adresseCustomCtrl = TextEditingController();
+  final _situationGeoCtrl = TextEditingController();
+  final _secteurActiviteCtrl = TextEditingController();
+  final _entrepriseEmailDocCtrl = TextEditingController();
+  final _entrepriseTelDocCtrl = TextEditingController();
+  
+  // Représentant Légal
+  final _repLegalNomCtrl = TextEditingController();
+  final _repLegalFonctionCtrl = TextEditingController();
+  final _repLegalContactCtrl = TextEditingController();
+  
   final _objetStageCtrl = TextEditingController();
   final _cursusCtrl = TextEditingController();
+  final _anneeAcademiqueCtrl = TextEditingController();
   DateTime? _dateDebut;
   DateTime? _dateFin;
 
@@ -51,11 +73,16 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
   final _joursPresenceCtrl = TextEditingController();
   final _teletravailCtrl = TextEditingController();
 
-  // 4. Encadrement
+  // 4. Encadrement & Gratification
   final _referentNomCtrl = TextEditingController();
   final _referentContactCtrl = TextEditingController();
   final _modalitesSuiviCtrl = TextEditingController();
+  final _congesAbsencesCtrl = TextEditingController();
   final _conditionsLibresCtrl = TextEditingController();
+  
+  bool _gratificationPrevue = false;
+  final _gratificationMontantCtrl = TextEditingController();
+  final _gratificationPeriodiciteCtrl = TextEditingController();
 
   final ApiService _apiService = ApiService();
   bool _isLoading = false;
@@ -95,18 +122,44 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
         'date_debut': DateFormat('yyyy-MM-dd').format(_dateDebut!),
         'date_fin': DateFormat('yyyy-MM-dd').format(_dateFin!),
         'etablissement_nom': _etablissementCtrl.text.trim(),
+        
         'tuteur_designe': _tuteurDesigneCtrl.text.trim(),
+        'tuteur_nom': _tuteurNomCtrl.text.trim(),
+        'tuteur_prenom': _tuteurPrenomCtrl.text.trim(),
+        'tuteur_fonction': _tuteurFonctionCtrl.text.trim(),
+        'tuteur_email': _tuteurEmailCtrl.text.trim(),
+        'tuteur_telephone': _tuteurTelCtrl.text.trim(),
+
+        'raison_sociale_custom': _raisonSocialeCtrl.text.trim(),
+        'adresse_custom': _adresseCustomCtrl.text.trim(),
+        'situation_geographique': _situationGeoCtrl.text.trim(),
+        'secteur_activite_custom': _secteurActiviteCtrl.text.trim(),
+        'entreprise_email_document': _entrepriseEmailDocCtrl.text.trim(),
+        'entreprise_telephone_document': _entrepriseTelDocCtrl.text.trim(),
+
+        'representant_legal_nom': _repLegalNomCtrl.text.trim(),
+        'representant_legal_fonction': _repLegalFonctionCtrl.text.trim(),
+        'representant_legal_contact': _repLegalContactCtrl.text.trim(),
+
         'objet_stage': _objetStageCtrl.text.trim(),
         'cursus_rattachement': _cursusCtrl.text.trim(),
+        'stagiaire_annee_academique': _anneeAcademiqueCtrl.text.trim(),
+        
         'lieu_execution': _lieuExecutionCtrl.text.trim(),
         'lieu_execution_lat': double.tryParse(_latExecutionCtrl.text),
         'lieu_execution_lng': double.tryParse(_lngExecutionCtrl.text),
         'duree_hebdomadaire': _dureeHebdoCtrl.text.trim(),
         'jours_presence': _joursPresenceCtrl.text.trim(),
         'teletravail_modalites': _teletravailCtrl.text.trim(),
+        
         'referent_pedagogique_nom': _referentNomCtrl.text.trim(),
         'referent_pedagogique_contact': _referentContactCtrl.text.trim(),
         'modalites_suivi_detail': _modalitesSuiviCtrl.text.trim(),
+        
+        'gratification_prevue': _gratificationPrevue,
+        'gratification_montant': double.tryParse(_gratificationMontantCtrl.text),
+        'gratification_periodicite': _gratificationPeriodiciteCtrl.text.trim(),
+        'conges_absences': _congesAbsencesCtrl.text.trim(),
         'conditions_stage': _conditionsLibresCtrl.text.trim(),
       };
 
@@ -195,12 +248,56 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
                         _buildField('Email du stagiaire', _emailCtrl, Icons.email_outlined, keyboardType: TextInputType.emailAddress),
                         
                         const SizedBox(height: 24),
-                        _sectionTitle('2. Cadre Administratif'),
-                        _buildField('Poste occupé', _posteCtrl, Icons.work_outline),
+                        _sectionTitle('2. Identité de l\'Entreprise'),
+                        _buildField('Raison sociale (pour document)', _raisonSocialeCtrl, Icons.business_outlined),
                         const SizedBox(height: 12),
-                        _buildField('Établissement', _etablissementCtrl, Icons.school_outlined),
+                        _buildField('Adresse du siège', _adresseCustomCtrl, Icons.home_work_outlined),
                         const SizedBox(height: 12),
-                        _buildField('Tuteur désigné', _tuteurDesigneCtrl, Icons.person_search_outlined),
+                        _buildField('Situation géographique', _situationGeoCtrl, Icons.explore_outlined),
+                        const SizedBox(height: 12),
+                        _buildField('Secteur d\'activité', _secteurActiviteCtrl, Icons.category_outlined),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(child: _buildField('Email contact', _entrepriseEmailDocCtrl, Icons.alternate_email_outlined, keyboardType: TextInputType.emailAddress)),
+                            const SizedBox(width: 10),
+                            Expanded(child: _buildField('Tel contact', _entrepriseTelDocCtrl, Icons.phone_outlined, keyboardType: TextInputType.phone)),
+                          ],
+                        ),
+
+                        const SizedBox(height: 24),
+                        _sectionTitle('3. Représentant Légal'),
+                        _buildField('Nom complet du représentant', _repLegalNomCtrl, Icons.person_outline),
+                        const SizedBox(height: 12),
+                        _buildField('Fonction', _repLegalFonctionCtrl, Icons.assignment_ind_outlined),
+                        const SizedBox(height: 12),
+                        _buildField('Contact (Email/Tel)', _repLegalContactCtrl, Icons.contact_phone_outlined),
+
+                        const SizedBox(height: 24),
+                        _sectionTitle('4. Cadre Administratif du Stage'),
+                        _buildField('Poste occupé par le stagiaire', _posteCtrl, Icons.work_outline),
+                        const SizedBox(height: 12),
+                        _buildField('Établissement d\'enseignement', _etablissementCtrl, Icons.school_outlined),
+                        const SizedBox(height: 12),
+                        _buildField('Maître de stage (Nom Complet)', _tuteurDesigneCtrl, Icons.person_search_outlined),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(child: _buildField('Nom tuteur', _tuteurNomCtrl, Icons.person_outline)),
+                            const SizedBox(width: 10),
+                            Expanded(child: _buildField('Prénom tuteur', _tuteurPrenomCtrl, Icons.person_outline)),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _buildField('Fonction du tuteur', _tuteurFonctionCtrl, Icons.assignment_ind_outlined),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(child: _buildField('Email tuteur', _tuteurEmailCtrl, Icons.alternate_email_outlined, keyboardType: TextInputType.emailAddress)),
+                            const SizedBox(width: 10),
+                            Expanded(child: _buildField('Tel tuteur', _tuteurTelCtrl, Icons.phone_outlined, keyboardType: TextInputType.phone)),
+                          ],
+                        ),
                         const SizedBox(height: 12),
                         Row(
                           children: [
@@ -210,13 +307,19 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        _buildField('Objet du stage', _objetStageCtrl, Icons.flag_outlined),
+                        _buildField('Objet du stage (missions)', _objetStageCtrl, Icons.flag_outlined),
                         const SizedBox(height: 12),
-                        _buildField('Cursus de rattachement', _cursusCtrl, Icons.account_tree_outlined),
+                        Row(
+                          children: [
+                            Expanded(child: _buildField('Cursus / Filière', _cursusCtrl, Icons.account_tree_outlined)),
+                            const SizedBox(width: 10),
+                            Expanded(child: _buildField('Année académique', _anneeAcademiqueCtrl, Icons.calendar_today_outlined)),
+                          ],
+                        ),
 
                         const SizedBox(height: 24),
-                        _sectionTitle('3. Conditions Matérielles'),
-                        _buildField('Lieu d\'exécution', _lieuExecutionCtrl, Icons.location_on_outlined),
+                        _sectionTitle('5. Conditions Matérielles'),
+                        _buildField('Lieu exact d\'exécution', _lieuExecutionCtrl, Icons.location_on_outlined),
                         const SizedBox(height: 12),
                         _buildLocationPicker(),
                         const SizedBox(height: 12),
@@ -231,14 +334,36 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
                         _buildField('Modalités télétravail', _teletravailCtrl, Icons.laptop_mac_outlined),
 
                         const SizedBox(height: 24),
-                        _sectionTitle('4. Encadrement & Suivi'),
-                        _buildField('Référent pédagogique', _referentNomCtrl, Icons.school_outlined),
+                        _sectionTitle('6. Encadrement & Suivi'),
+                        _buildField('Référent pédagogique (École)', _referentNomCtrl, Icons.school_outlined),
                         const SizedBox(height: 12),
                         _buildField('Contact référent', _referentContactCtrl, Icons.alternate_email_outlined),
                         const SizedBox(height: 12),
                         _buildField('Modalités de suivi', _modalitesSuiviCtrl, Icons.fact_check_outlined, maxLines: 3),
                         const SizedBox(height: 12),
-                        _buildField('Gratification / Avantages', _conditionsLibresCtrl, Icons.euro_symbol_rounded, maxLines: 2),
+                        _buildField('Congés & Absences', _congesAbsencesCtrl, Icons.event_busy_outlined, maxLines: 2),
+
+                        const SizedBox(height: 24),
+                        _sectionTitle('7. Gratification'),
+                        SwitchListTile(
+                          title: const Text('Gratification prévue ?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                          value: _gratificationPrevue,
+                          onChanged: (v) => setState(() => _gratificationPrevue = v),
+                          activeColor: ColorConstants.primary,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        if (_gratificationPrevue) ...[
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(child: _buildField('Montant', _gratificationMontantCtrl, Icons.euro_symbol_rounded, keyboardType: TextInputType.number)),
+                              const SizedBox(width: 10),
+                              Expanded(child: _buildField('Périodicité', _gratificationPeriodiciteCtrl, Icons.update_rounded)),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        _buildField('Autres avantages / conditions', _conditionsLibresCtrl, Icons.more_horiz_rounded, maxLines: 2),
                         
                         const SizedBox(height: 32),
                       ],

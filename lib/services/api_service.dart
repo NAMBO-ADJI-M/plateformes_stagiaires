@@ -1177,8 +1177,27 @@ class ApiService {
     String? conditions,
     String? etablissementNom,
     required String tuteurDesigne,
+    String? tuteurNom,
+    String? tuteurPrenom,
+    String? tuteurFonction,
+    String? tuteurEmail,
+    String? tuteurTelephone,
+    
+    String? raisonSociale,
+    String? adresse,
+    String? situationGeo,
+    String? secteurActivite,
+    String? entrepriseEmail,
+    String? entrepriseTelephone,
+    
+    String? repLegalNom,
+    String? repLegalFonction,
+    String? repLegalContact,
+    
     String? objetStage,
     String? cursusRattachement,
+    String? anneeAcademique,
+    
     String? lieuExecution,
     String? dureeHebdomadaire,
     String? joursPresence,
@@ -1186,6 +1205,12 @@ class ApiService {
     String? referentPedagogiqueNom,
     String? referentPedagogiqueContact,
     String? modalitesSuiviDetail,
+    
+    bool? gratificationPrevue,
+    double? gratificationMontant,
+    String? gratificationPeriodicite,
+    String? congesAbsences,
+    
     double? lieuExecutionLat,
     double? lieuExecutionLng,
   }) async {
@@ -1197,8 +1222,27 @@ class ApiService {
       'conditions_stage': conditions,
       'etablissement_nom': etablissementNom,
       'tuteur_designe': tuteurDesigne,
+      'tuteur_nom': tuteurNom,
+      'tuteur_prenom': tuteurPrenom,
+      'tuteur_fonction': tuteurFonction,
+      'tuteur_email': tuteurEmail,
+      'tuteur_telephone': tuteurTelephone,
+      
+      'raison_sociale_custom': raisonSociale,
+      'adresse_custom': adresse,
+      'situation_geographique': situationGeo,
+      'secteur_activite_custom': secteurActivite,
+      'entreprise_email_document': entrepriseEmail,
+      'entreprise_telephone_document': entrepriseTelephone,
+      
+      'representant_legal_nom': repLegalNom,
+      'representant_legal_fonction': repLegalFonction,
+      'representant_legal_contact': repLegalContact,
+      
       'objet_stage': objetStage,
       'cursus_rattachement': cursusRattachement,
+      'stagiaire_annee_academique': anneeAcademique,
+      
       'lieu_execution': lieuExecution,
       'lieu_execution_lat': lieuExecutionLat,
       'lieu_execution_lng': lieuExecutionLng,
@@ -1208,6 +1252,11 @@ class ApiService {
       'referent_pedagogique_nom': referentPedagogiqueNom,
       'referent_pedagogique_contact': referentPedagogiqueContact,
       'modalites_suivi_detail': modalitesSuiviDetail,
+      
+      'gratification_prevue': gratificationPrevue,
+      'gratification_montant': gratificationMontant,
+      'gratification_periodicite': gratificationPeriodicite,
+      'conges_absences': congesAbsences,
     }));
     await _cache.delete('entreprise_stagiaires');
     return body;

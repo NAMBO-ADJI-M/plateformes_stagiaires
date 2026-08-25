@@ -133,7 +133,13 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
                           ..._disponibles.map((item) {
                             final stagiaire = item['stagiaire'] ?? {};
                             final String email = stagiaire['email'] ?? 'Sans email';
-                            final String displayName = '${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}';
+                            
+                            final prenom = stagiaire['prenom'] ?? '';
+                            final nom = stagiaire['nom'] ?? '';
+                            final String displayName = (prenom.isEmpty && nom.isEmpty) 
+                                ? 'Profil incomplet' 
+                                : '$prenom $nom';
+
                             final String school = stagiaire['ecole'] ?? '';
                             final String field = stagiaire['filiere'] ?? '';
                             final String roleText = (school.isNotEmpty && field.isNotEmpty)
@@ -202,12 +208,17 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
                           ..._filteredStagiaires.map((item) {
                             final stagiaire = item['stagiaire'] ?? {};
                             final autoStatut = item['autorisation_pointage_statut'] ?? 'INACTIVE';
+                            
+                            final prenom = stagiaire['prenom'] ?? '';
+                            final nom = stagiaire['nom'] ?? '';
+                            final String displayName = (prenom.isEmpty && nom.isEmpty) 
+                                ? 'Profil incomplet' 
+                                : '$prenom $nom';
 
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 12),
                               child: StagiaireTile(
-                                name:
-                                    '${stagiaire['prenom'] ?? ''} ${stagiaire['nom'] ?? ''}',
+                                name: displayName,
                                 role: '${item['poste'] ?? 'Stagiaire'}',
                                 progress: ((item['presence_progress'] ?? 0) as num).toDouble(),
                                 status: item['statut'] == 'TERMINE'

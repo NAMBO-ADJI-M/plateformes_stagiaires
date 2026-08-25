@@ -177,11 +177,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showReviewConditionsPopup(String code, Map<String, dynamic> info) {
+    final TextEditingController nomCtrl = TextEditingController(text: info['stagiaire_nom'] ?? '');
+    final TextEditingController prenomCtrl = TextEditingController(text: info['stagiaire_prenom'] ?? '');
     final TextEditingController naissanceCtrl = TextEditingController();
     final TextEditingController adresseCtrl = TextEditingController();
     final TextEditingController telCtrl = TextEditingController(text: info['stagiaire_telephone'] ?? '');
     final TextEditingController ecoleCtrl = TextEditingController(text: info['etablissement_nom'] ?? '');
     final TextEditingController cursusCtrl = TextEditingController(text: info['cursus_rattachement'] ?? '');
+    final TextEditingController anneeAcadCtrl = TextEditingController(text: info['stagiaire_annee_academique'] ?? '');
     final TextEditingController refNomCtrl = TextEditingController(text: info['referent_pedagogique_nom'] ?? '');
     final TextEditingController refContactCtrl = TextEditingController(text: info['referent_pedagogique_contact'] ?? '');
 
@@ -206,23 +209,33 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _sectionTitle('1. Informations du Stagiaire'),
-                  _editableField('Votre adresse personnelle', adresseCtrl, Icons.home_outlined),
+                  _sectionTitle('1. Informations Personnelles'),
+                  _editableField('Nom', nomCtrl, Icons.person_outline),
                   const SizedBox(height: 12),
-                  _editableField('Téléphone', telCtrl, Icons.phone_android_outlined, keyboardType: TextInputType.phone),
+                  _editableField('Prénom', prenomCtrl, Icons.person_outline),
+                  const SizedBox(height: 12),
+                  _editableField('Téléphone personnel', telCtrl, Icons.phone_android_outlined, keyboardType: TextInputType.phone),
                   const SizedBox(height: 12),
                   _datePickerField('Date de naissance', naissanceCtrl, context, (date) => setPopupState(() => naissanceCtrl.text = date)),
                   const SizedBox(height: 12),
-                  _editableField('Établissement scolaire', ecoleCtrl, Icons.school_outlined),
+                  _editableField('Adresse personnelle', adresseCtrl, Icons.home_outlined),
+                  
+                  const SizedBox(height: 20),
+                  _sectionTitle('2. Parcours Scolaire'),
+                  _editableField('Établissement actuel', ecoleCtrl, Icons.school_outlined),
                   const SizedBox(height: 12),
                   _editableField('Cursus / Filière', cursusCtrl, Icons.layers_outlined),
                   const SizedBox(height: 12),
+                  _editableField('Année académique (ex: 2024-2025)', anneeAcadCtrl, Icons.calendar_today_outlined),
+                  
+                  const SizedBox(height: 20),
+                  _sectionTitle('3. Encadrement École'),
                   _editableField('Référent pédagogique (Nom)', refNomCtrl, Icons.person_search_outlined),
                   const SizedBox(height: 12),
-                  _editableField('Contact référent', refContactCtrl, Icons.contact_mail_outlined),
+                  _editableField('Contact référent (Email/Tel)', refContactCtrl, Icons.contact_mail_outlined),
 
                   const SizedBox(height: 20),
-                  _sectionTitle('2. Détails du Poste'),
+                  _sectionTitle('4. Détails du Poste (Lecture seule)'),
                   _readOnlyTile('Poste', info['poste']),
                   _readOnlyTile('Tuteur entreprise', info['tuteur_designe']),
                   Row(
@@ -255,18 +268,21 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 ElevatedButton(
                   onPressed: () async {
-                    if (adresseCtrl.text.isEmpty || naissanceCtrl.text.isEmpty || ecoleCtrl.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veuillez remplir vos informations.')));
+                    if (nomCtrl.text.isEmpty || prenomCtrl.text.isEmpty || telCtrl.text.isEmpty || naissanceCtrl.text.isEmpty || ecoleCtrl.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veuillez remplir toutes les informations obligatoires.')));
                       return;
                     }
                     try {
                       await _api.validerLiaisonDefinitive(code, {
                         'entreprise_id': info['entreprise_id'],
+                        'nom': nomCtrl.text.trim(),
+                        'prenom': prenomCtrl.text.trim(),
                         'stagiaire_date_naissance': naissanceCtrl.text,
                         'stagiaire_adresse': adresseCtrl.text,
                         'stagiaire_telephone': telCtrl.text,
                         'etablissement_nom': ecoleCtrl.text,
                         'cursus_rattachement': cursusCtrl.text,
+                        'stagiaire_annee_academique': anneeAcadCtrl.text.trim(),
                         'referent_pedagogique_nom': refNomCtrl.text,
                         'referent_pedagogique_contact': refContactCtrl.text,
                       }, carnetId: _activeCarnetId);
