@@ -237,8 +237,9 @@ class _ProfileTuteurScreenState extends State<ProfileTuteurScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildFieldLabel(String text) {
     return Padding(
