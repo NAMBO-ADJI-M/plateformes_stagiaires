@@ -11,6 +11,8 @@ import '../../widgets/common_widgets.dart';
 import 'recherche_trajet_screen.dart';
 import 'create_trajet_screen.dart';
 import 'trajet_details_screen.dart';
+import 'conversations_screen.dart';
+import 'trajet_screen.dart';
 import '../../../services/live_tracking_service.dart';
 
 /// Reproduit covoiturage-home.png : toggle géolocalisation, mini-carte,
@@ -145,6 +147,7 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
   void _showTrajetPopup(Map<String, dynamic> trajet) {
     final chauffeur = trajet['chauffeur'] as Map<String, dynamic>?;
     final name = chauffeur?['nom'] as String? ?? 'Conducteur';
+    final photo = chauffeur?['photo_profil_url'] as String? ?? chauffeur?['photo_profil'] as String?;
     final priceVal = (trajet['tarif'] as dynamic)?.toDouble() ?? 0.0;
     final price = priceVal == 0 ? 'Gratuit' : '${priceVal.toStringAsFixed(2)} €';
 
@@ -167,7 +170,11 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
               children: [
                 CircleAvatar(
                   radius: 25,
-                  backgroundImage: NetworkImage(chauffeur?['photo_profil_url'] ?? chauffeur?['photo_profil'] ?? 'https://i.pravatar.cc/150?u=$name'),
+                  backgroundImage: (photo != null && photo.isNotEmpty) ? NetworkImage(photo) : null,
+                  child: (photo == null || photo.isEmpty)
+                      ? Text(name.isNotEmpty ? name[0].toUpperCase() : 'C',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))
+                      : null,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -259,12 +266,20 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
     }
   }
 
-  void _openReservations() {
-    // Rediriger vers l'onglet Trajet (index 3) du StudentShell
-    // Ou simplement afficher un message si on ne veut pas gérer la navigation complexe ici
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Consultez vos réservations dans l\'onglet "Trajet"')),
+  void _openMessages() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ConversationsScreen()),
     );
+  }
+
+  void _openReservations() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const Scaffold(
+        body: SafeArea(child: TrajetScreen()),
+      )),
+    ).then((_) => _chargerTrajets(silent: true));
   }
 
   Widget _buildSkeletonList() {
@@ -316,8 +331,8 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.chat_bubble_outline_rounded),
-            tooltip: 'Messages & Réservations',
-            onPressed: _openReservations,
+            tooltip: 'Mes messages',
+            onPressed: _openMessages,
           ),
           IconButton(
             icon: const Icon(Icons.bookmark_outline),
@@ -705,8 +720,8 @@ class _TrajetCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final chauffeur = trajet['chauffeur'] as Map<String, dynamic>?;
     final name = chauffeur?['nom'] as String? ?? 'Conducteur';
-    final avatarUrl = chauffeur?['photo_profil'] as String? ??
-        'https://i.pravatar.cc/150?u=$name';
+    final avatarUrl = chauffeur?['photo_profil_url'] as String? ??
+        chauffeur?['photo_profil'] as String?;
 
     final dateDepartStr = trajet['date_depart'] as String?;
     DateTime? dateDepart;
@@ -730,7 +745,14 @@ class _TrajetCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              CircleAvatar(radius: 18, backgroundImage: NetworkImage(avatarUrl)),
+              CircleAvatar(
+                radius: 18,
+                backgroundImage: (avatarUrl != null && avatarUrl.isNotEmpty) ? NetworkImage(avatarUrl) : null,
+                child: (avatarUrl == null || avatarUrl.isEmpty)
+                    ? Text(name.isNotEmpty ? name[0].toUpperCase() : 'C',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12))
+                    : null,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(

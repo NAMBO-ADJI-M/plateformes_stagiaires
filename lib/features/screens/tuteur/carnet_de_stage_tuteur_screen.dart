@@ -20,6 +20,8 @@ class _CarnetDeStageTuteurScreenState extends State<CarnetDeStageTuteurScreen> w
   bool _isFinalEvalSaving = false;
   bool _stageUtile = true;
 
+  Map<String, String> _evalMap = {};
+
   @override
   void initState() {
     super.initState();
@@ -30,10 +32,51 @@ class _CarnetDeStageTuteurScreenState extends State<CarnetDeStageTuteurScreen> w
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final results = await _apiService.getCompetences();
+      final carnetId = widget.carnet['id'].toString();
+      final results = await Future.wait([
+        _apiService.getCompetences(),
+        _apiService.getEvaluations(carnetId),
+      ]);
+
       if (mounted) {
+        final comps = results[0] as List<dynamic>;
+        final evals = results[1] as List<dynamic>;
+
+        final Map<String, String> evalMapping = {};
+        bool? stageUtileVal;
+
+        for (final eval in evals) {
+          if (eval is Map<String, dynamic>) {
+            if (eval.containsKey('jugee_utile') && eval['jugee_utile'] != null) {
+              stageUtileVal = eval['jugee_utile'] == true || eval['jugee_utile'] == 1;
+            }
+            final details = eval['details'] ?? eval['competences'] ?? [];
+            if (details is List) {
+              for (final d in details) {
+                if (d is Map<String, dynamic>) {
+                  final compId = d['competence_id']?.toString() ?? d['id']?.toString();
+                  final level = d['niveau_tuteur']?.toString() ?? d['niveau']?.toString();
+                  if (compId != null && level != null) {
+                    evalMapping[compId] = level;
+                  }
+                }
+              }
+            } else if (eval.containsKey('competence_id')) {
+              final compId = eval['competence_id']?.toString();
+              final level = eval['niveau_tuteur']?.toString() ?? eval['niveau']?.toString();
+              if (compId != null && level != null) {
+                evalMapping[compId] = level;
+              }
+            }
+          }
+        }
+
         setState(() {
-          _competences = results;
+          _competences = comps;
+          _evalMap = evalMapping;
+          if (stageUtileVal != null) {
+            _stageUtile = stageUtileVal;
+          }
           _isLoading = false;
         });
       }
@@ -155,7 +198,15 @@ class _CarnetDeStageTuteurScreenState extends State<CarnetDeStageTuteurScreen> w
         if (_competences.isEmpty)
           const Text('Aucune compétence définie dans le référentiel.')
         else
-          ..._competences.map((c) => _CompetenceEvalCard(competence: c, carnetId: widget.carnet['id'])),
+          ..._competences.map((c) {
+            final compId = c['id']?.toString() ?? '';
+            final initialLevel = _evalMap[compId];
+            return _CompetenceEvalCard(
+              competence: c,
+              carnetId: widget.carnet['id'].toString(),
+              initialLevel: initialLevel,
+            );
+          }),
         const SizedBox(height: 24),
         const Text('Appréciation globale', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: 12),
@@ -260,7 +311,12 @@ class _CarnetDeStageTuteurScreenState extends State<CarnetDeStageTuteurScreen> w
 class _CompetenceEvalCard extends StatefulWidget {
   final Map<String, dynamic> competence;
   final String carnetId;
-  const _CompetenceEvalCard({required this.competence, required this.carnetId});
+  final String? initialLevel;
+  const _CompetenceEvalCard({
+    required this.competence,
+    required this.carnetId,
+    this.initialLevel,
+  });
 
   @override
   State<_CompetenceEvalCard> createState() => _CompetenceEvalCardState();
@@ -277,6 +333,20 @@ class _CompetenceEvalCardState extends State<_CompetenceEvalCard> {
     'EN_COURS': 'En cours',
     'MAITRISEE': 'Maîtrisée',
   };
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedLevel = widget.initialLevel;
+  }
+
+  @override
+  void didUpdateWidget(covariant _CompetenceEvalCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialLevel != widget.initialLevel && widget.initialLevel != null) {
+      _selectedLevel = widget.initialLevel;
+    }
+  }
 
   Future<void> _saveEval(String level) async {
     setState(() {

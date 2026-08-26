@@ -5,6 +5,7 @@ import '../../widgets/common_widgets.dart';
 import '../../../services/api_service.dart';
 import 'liste_stagiaires_screen.dart';
 import 'widgets/add_stagiaire_dialog.dart';
+import 'suivi_stagiaire_screen.dart';
 
 class DashboardTuteurScreen extends StatefulWidget {
   const DashboardTuteurScreen({super.key});
@@ -79,8 +80,27 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
                       _buildDemandesList(),
                       const SizedBox(height: 32),
                     ],
-                    _buildSectionTitle("Mes Stagiaires", 
-                        count: _stagiaires.length, color: ColorConstants.primary),
+                    _buildSectionTitle(
+                      "Mes Stagiaires",
+                      count: _stagiaires.length,
+                      color: ColorConstants.primary,
+                      trailing: _stagiaires.length > 3
+                          ? TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const ListeStagiairesScreen()),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: const Text("Voir tout", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                            )
+                          : null,
+                    ),
                     const SizedBox(height: 16),
                     _buildStagiairesList(),
                   ],
@@ -150,7 +170,7 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title, {int? count, Color? color}) {
+  Widget _buildSectionTitle(String title, {int? count, Color? color, Widget? trailing}) {
     return Row(
       children: [
         Text(
@@ -178,6 +198,10 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
               ),
             ),
           ),
+        ],
+        if (trailing != null) ...[
+          const Spacer(),
+          trailing,
         ],
       ],
     );
@@ -243,7 +267,7 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
                 IconButton(
                   icon: const Icon(Icons.info_outline, size: 18, color: ColorConstants.textSecondary),
                   tooltip: 'Infos du compte',
-                  onPressed: () => _showCompteInfoDialog(stagiaire),
+                  onPressed: () => showCompteInfoDialog(context, stagiaire),
                 ),
                 ElevatedButton(
                   onPressed: () => _ouvrirFormulaireConvention(stagiaire),
@@ -274,37 +298,6 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
     ).then((success) {
       if (success == true) _loadData();
     });
-  }
-
-  void _showCompteInfoDialog(Map<String, dynamic> stagiaire) {
-    final createdAt = stagiaire['created_at'] as String?;
-    String dateStr = 'Non disponible';
-    String heureStr = '';
-    if (createdAt != null) {
-      final dt = DateTime.tryParse(createdAt);
-      if (dt != null) {
-        dateStr = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
-        heureStr = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-      }
-    }
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Informations du compte'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Email : ${stagiaire['email'] ?? 'Non renseigné'}'),
-            const SizedBox(height: 8),
-            Text('Créé le : $dateStr${heureStr.isNotEmpty ? ' à $heureStr' : ''}'),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
-        ],
-      ),
-    );
   }
 
   Widget _buildStagiairesList() {
@@ -367,161 +360,16 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
             subtitle: Text(stagiaire['filiere'] ?? 'Stage en cours'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-               // Navigation vers ListeStagiairesScreen ou détail
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SuiviStagiaireScreen(carnet: carnet),
+                ),
+              );
             },
           ),
         );
       },
-    );
-  }
-}
-
-class StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const StatCard({
-    super.key,
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min, // <- plus de spaceBetween sur hauteur non garantie
-        children: [
-          Icon(icon, color: color, size: 24), // <- 28 -> 24
-          const SizedBox(height: 8),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: GoogleFonts.poppins(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: ColorConstants.textPrimary,
-              ),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12, color: ColorConstants.textSecondary),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class StagiaireTile extends StatelessWidget {
-  final String name;
-  final String role;
-  final double progress;
-  final String status;
-  final Color statusColor;
-  final String avatarUrl;
-  final String autoStatut;
-  final double roleFontSize; // <- nouveau
-  final VoidCallback? onDemanderSuivi;
-  final VoidCallback? onTap;
-
-  const StagiaireTile({
-    super.key,
-    required this.name,
-    required this.role,
-    required this.progress,
-    required this.status,
-    required this.statusColor,
-    required this.avatarUrl,
-    required this.autoStatut,
-    this.roleFontSize = 12, // <- valeur par défaut inchangée pour les autres usages
-    this.onDemanderSuivi,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      onTap: onTap,
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 26,
-            backgroundColor: statusColor.withValues(alpha: 0.1),
-            backgroundImage: NetworkImage(avatarUrl),
-            child: avatarUrl.isEmpty ? Icon(Icons.person, color: statusColor) : null,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                Text(
-                  role,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis, // <- évite l'overflow avec un email long
-                  style: TextStyle(fontSize: roleFontSize, color: ColorConstants.textSecondary),
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 6,
-                    backgroundColor: ColorConstants.border,
-                    valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              StatusPill(label: status, color: statusColor),
-              if (autoStatut == 'DISPONIBLE' && onDemanderSuivi != null) ...[
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: onDemanderSuivi,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    foregroundColor: ColorConstants.primary,
-                  ),
-                  child: const Text('Suivre', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
     );
   }
 }

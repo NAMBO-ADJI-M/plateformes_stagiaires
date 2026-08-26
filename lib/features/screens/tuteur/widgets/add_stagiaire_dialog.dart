@@ -325,23 +325,23 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
                         const SizedBox(height: 12),
                         Row(
                           children: [
-                            Expanded(child: _buildField('Durée hebdo', _dureeHebdoCtrl, Icons.timer_outlined)),
+                            Expanded(child: _buildField('Durée hebdo', _dureeHebdoCtrl, Icons.timer_outlined, required: false)),
                             const SizedBox(width: 10),
-                            Expanded(child: _buildField('Jours présence', _joursPresenceCtrl, Icons.calendar_month_outlined)),
+                            Expanded(child: _buildField('Jours présence', _joursPresenceCtrl, Icons.calendar_month_outlined, required: false)),
                           ],
                         ),
                         const SizedBox(height: 12),
-                        _buildField('Modalités télétravail', _teletravailCtrl, Icons.laptop_mac_outlined),
+                        _buildField('Modalités télétravail', _teletravailCtrl, Icons.laptop_mac_outlined, required: false),
 
                         const SizedBox(height: 24),
                         _sectionTitle('6. Encadrement & Suivi'),
-                        _buildField('Référent pédagogique (École)', _referentNomCtrl, Icons.school_outlined),
+                        _buildField('Référent pédagogique (École)', _referentNomCtrl, Icons.school_outlined, required: false),
                         const SizedBox(height: 12),
-                        _buildField('Contact référent', _referentContactCtrl, Icons.alternate_email_outlined),
+                        _buildField('Contact référent', _referentContactCtrl, Icons.alternate_email_outlined, required: false),
                         const SizedBox(height: 12),
-                        _buildField('Modalités de suivi', _modalitesSuiviCtrl, Icons.fact_check_outlined, maxLines: 3),
+                        _buildField('Modalités de suivi', _modalitesSuiviCtrl, Icons.fact_check_outlined, maxLines: 3, required: false),
                         const SizedBox(height: 12),
-                        _buildField('Congés & Absences', _congesAbsencesCtrl, Icons.event_busy_outlined, maxLines: 2),
+                        _buildField('Congés & Absences', _congesAbsencesCtrl, Icons.event_busy_outlined, maxLines: 2, required: false),
 
                         const SizedBox(height: 24),
                         _sectionTitle('7. Gratification'),
@@ -363,7 +363,7 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
                           ),
                         ],
                         const SizedBox(height: 12),
-                        _buildField('Autres avantages / conditions', _conditionsLibresCtrl, Icons.more_horiz_rounded, maxLines: 2),
+                        _buildField('Autres avantages / conditions', _conditionsLibresCtrl, Icons.more_horiz_rounded, maxLines: 2, required: false),
                         
                         const SizedBox(height: 32),
                       ],
@@ -423,7 +423,7 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
     );
   }
 
-  Widget _buildField(String label, TextEditingController ctrl, IconData icon, {int maxLines = 1, TextInputType? keyboardType}) {
+  Widget _buildField(String label, TextEditingController ctrl, IconData icon, {int maxLines = 1, TextInputType? keyboardType, bool required = true}) {
     return TextFormField(
       controller: ctrl,
       maxLines: maxLines,
@@ -435,7 +435,7 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
         fillColor: ColorConstants.paper,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
       ),
-      validator: (v) => v == null || v.isEmpty ? 'Requis' : null,
+      validator: required ? (v) => v == null || v.isEmpty ? 'Requis' : null : null,
     );
   }
 

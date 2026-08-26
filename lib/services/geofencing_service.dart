@@ -82,11 +82,12 @@ class GeofencingService {
         );
         PointageEventBus().notifyPointageUpdate();
 
-        // ✅ Notification de succès
-        await NotificationService().showNotification(
+        // ✅ Notification interactive avec choix Pause ou Fin de journée
+        await NotificationService().showExitChoiceNotification(
           id: 2,
-          title: '👋 Départ validé',
-          body: 'Votre fin de session a été enregistrée. Bonne fin de journée !',
+          title: '🚪 Sortie de zone détectée',
+          body: 'Êtes-vous en pause ou avez-vous terminé votre journée ?',
+          carnetId: _carnetId!,
         );
       }
     } catch (_) {

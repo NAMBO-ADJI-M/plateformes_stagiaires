@@ -10,7 +10,8 @@ import 'package:intl/intl.dart';
 enum _CarnetTab { journal, progression, encouragements, documents }
 
 class CarnetScreen extends StatefulWidget {
-  const CarnetScreen({super.key});
+  final String? carnetId;
+  const CarnetScreen({super.key, this.carnetId});
 
   @override
   State<CarnetScreen> createState() => _CarnetScreenState();
@@ -50,10 +51,15 @@ class _CarnetScreenState extends State<CarnetScreen> {
         return;
       }
 
-      final carnet = carnets.firstWhere(
-        (c) => c['statut'] == 'EN_COURS',
-        orElse: () => carnets.first,
-      );
+      final carnet = widget.carnetId != null
+          ? carnets.firstWhere(
+              (c) => c['id'].toString() == widget.carnetId.toString(),
+              orElse: () => carnets.first,
+            )
+          : carnets.firstWhere(
+              (c) => c['statut'] == 'EN_COURS',
+              orElse: () => carnets.first,
+            );
       final carnetId = carnet['id'];
 
       // Chargement séquentiel pour Render
@@ -100,15 +106,27 @@ class _CarnetScreenState extends State<CarnetScreen> {
       return const Scaffold(body: Center(child: Text("Aucun carnet de stage trouvé.")));
     }
 
+    final canPop = Navigator.canPop(context);
+
     return Scaffold(
       backgroundColor: ColorConstants.paper,
+      appBar: canPop
+          ? AppBar(
+              backgroundColor: ColorConstants.paper,
+              foregroundColor: ColorConstants.textPrimary,
+              elevation: 0,
+              title: Text(_carnetActif?['poste'] ?? 'Mon stage',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+            )
+          : null,
       body: Column(
         children: [
-          ScreenTopBar(
+          if (!canPop)
+            ScreenTopBar(
               eyebrow: 'Carnet · ${_carnetActif?['entreprise_nom'] ?? 'Stage'}',
               title: 'Mon stage',
               showProfile: false,
-          ),
+            ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: SingleChildScrollView(

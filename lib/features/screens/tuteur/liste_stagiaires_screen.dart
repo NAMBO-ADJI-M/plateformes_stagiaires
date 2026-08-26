@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
-import 'dashboard_tuteur_screen.dart';
 import '../../../services/api_service.dart';
 import '../../../services/stagiaire_event_bus.dart';
 import 'widgets/add_stagiaire_dialog.dart';
@@ -157,7 +156,7 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
                                     progress: 0.0,
                                     status: 'Disponible',
                                     statusColor: ColorConstants.primary,
-                                    avatarUrl: stagiaire['photo_profil_url'] ?? 'https://i.pravatar.cc/150?u=$email',
+                                    avatarUrl: stagiaire['photo_profil'] ?? stagiaire['photo_profil_url'] ?? '',
                                     autoStatut: 'DISPONIBLE',
                                     onDemanderSuivi: () => _demanderAcces(item),
                                   ),
@@ -165,7 +164,7 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
                                     top: 6,
                                     right: 6,
                                     child: GestureDetector(
-                                      onTap: () => _showCompteInfoDialog(stagiaire),
+                                      onTap: () => showCompteInfoDialog(context, stagiaire),
                                       child: Container(
                                         padding: const EdgeInsets.all(4),
                                         decoration: BoxDecoration(
@@ -227,8 +226,7 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
                                 statusColor: item['statut'] == 'TERMINE'
                                     ? ColorConstants.success
                                     : ColorConstants.accentOrange,
-                                avatarUrl:
-                                    'https://i.pravatar.cc/150?u=${stagiaire['id']}',
+                                avatarUrl: stagiaire['photo_profil'] ?? stagiaire['photo_profil_url'] ?? '',
                                 autoStatut: autoStatut,
                                 onDemanderSuivi: () => _demanderAcces(item),
                                 onTap: () => Navigator.push(
@@ -369,37 +367,6 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
           ),
           const Icon(Icons.chevron_right,
               color: ColorConstants.textSecondary, size: 18),
-        ],
-      ),
-    );
-  }
-
-  void _showCompteInfoDialog(Map<String, dynamic> stagiaire) {
-    final createdAt = stagiaire['created_at'] as String?;
-    String dateStr = 'Non disponible';
-    String heureStr = '';
-    if (createdAt != null) {
-      final dt = DateTime.tryParse(createdAt);
-      if (dt != null) {
-        dateStr = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
-        heureStr = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-      }
-    }
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Informations du compte'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Email : ${stagiaire['email'] ?? 'Non renseigné'}'),
-            const SizedBox(height: 8),
-            Text('Créé le : $dateStr${heureStr.isNotEmpty ? ' à $heureStr' : ''}'),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
         ],
       ),
     );

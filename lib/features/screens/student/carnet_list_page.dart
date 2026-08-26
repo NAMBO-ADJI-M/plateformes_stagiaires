@@ -4,6 +4,7 @@ import '../../../services/api_service.dart';
 import '../../../services/api_exception.dart';
 import '../../widgets/common_widgets.dart';
 import 'carnet_creation_page.dart';
+import 'carnet_screen.dart';
 
 class CarnetListPage extends StatefulWidget {
   const CarnetListPage({super.key});
@@ -33,11 +34,12 @@ class _CarnetListPageState extends State<CarnetListPage> {
   }
 
   void _ouvrirCarnet(Map<String, dynamic> carnet) {
-    // Note: Pour l'instant, on n'ouvre que le carnet via l'onglet principal.
-    // Mais on peut rediriger vers une vue de détail si besoin.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Le détail de ce carnet est accessible dans l\'onglet "Carnet"'))
-    );
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CarnetScreen(carnetId: carnet['id']?.toString()),
+      ),
+    ).then((_) => _reload());
   }
 
   Future<void> _creerCarnet() async {

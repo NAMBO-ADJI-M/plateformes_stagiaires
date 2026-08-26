@@ -9,6 +9,7 @@ import 'sqlite_cache_service.dart';
 import 'offline_queue_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:path_provider/path_provider.dart';
 
 /// CrÃ©e un [http.Client] dont le [HttpClient] sous-jacent accepte tous les
 /// certificats SSL. NÃ©cessaire pour les hÃ©bergements comme Render ou Aiven
@@ -764,6 +765,24 @@ class ApiService {
     return body;
   }
 
+  Future<Map<String, dynamic>> confirmerPause(String carnetId) async {
+    final body = await _post(
+        '/pointage/confirmer-pause',
+        jsonEncode({'carnet_id': carnetId}));
+    await _cache.delete('carnet_stats_$carnetId');
+    await _cache.delete('pointage_historique_$carnetId');
+    return body;
+  }
+
+  Future<Map<String, dynamic>> confirmerDepart(String carnetId) async {
+    final body = await _post(
+        '/pointage/confirmer-depart',
+        jsonEncode({'carnet_id': carnetId}));
+    await _cache.delete('carnet_stats_$carnetId');
+    await _cache.delete('pointage_historique_$carnetId');
+    return body;
+  }
+
   Future<List<dynamic>> getHistoriquePointage(String carnetId) async {
     final cacheKey = 'pointage_historique_$carnetId';
     final cached = await _cache.getJson<List<dynamic>>(cacheKey);
@@ -1148,7 +1167,26 @@ class ApiService {
       ...data
     }));
     await _cache.delete('profile');
+    await _cache.delete('carnets');
+    if (carnetId != null) {
+      await _cache.delete('carnet_stats_$carnetId');
+    }
     return body;
+  }
+
+  Future<File> telechargerEtSauvegarderConvention(String autorisationId) async {
+    final url = Uri.parse('$baseUrl/documents/liaison/$autorisationId/convention-pdf');
+    final response = await _httpClient.get(url, headers: _authHeaders);
+
+    if (response.statusCode != 200) {
+      throw ApiException('Erreur lors du téléchargement de la convention PDF', statusCode: response.statusCode);
+    }
+
+    final bytes = response.bodyBytes;
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/convention_$autorisationId.pdf');
+    await file.writeAsBytes(bytes, flush: true);
+    return file;
   }
 
   Future<void> declinerLiaison(String code, String entrepriseId) async {
@@ -1258,7 +1296,7 @@ class ApiService {
       'gratification_periodicite': gratificationPeriodicite,
       'conges_absences': congesAbsences,
     }));
-    await _cache.delete('entreprise_stagiaires');
+    await _cache.delete('entreprise_stagiaires_v2');
     return body;
   }
 

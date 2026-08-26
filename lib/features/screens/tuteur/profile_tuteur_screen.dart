@@ -95,71 +95,83 @@ class _ProfileTuteurScreenState extends State<ProfileTuteurScreen> {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: ColorConstants.cardBackground,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Row(
-          children: [
-            Icon(Icons.business_rounded, color: ColorConstants.primary),
-            SizedBox(width: 10),
-            Text('Informations Entreprise', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: ColorConstants.cardBackground,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: const Row(
             children: [
-              _buildFieldLabel('Raison sociale'),
-              TextField(controller: raisonCtrl, decoration: _inputDeco('Nom de la société')),
-              const SizedBox(height: 16),
-              
-              _buildFieldLabel('Adresse & Localisation GPS'),
-              TextField(controller: adresseCtrl, decoration: _inputDeco('Adresse complète')),
-              const SizedBox(height: 12),
-              
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        try {
-                          // 1. Vérifier si le service est activé
-                          bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-                          if (!serviceEnabled) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Merci d\'activer le GPS.')));
-                            return;
-                          }
-
-                          // 2. Vérifier les permissions
-                          LocationPermission permission = await Geolocator.checkPermission();
-                          if (permission == LocationPermission.denied) {
-                            permission = await Geolocator.requestPermission();
-                            if (permission == LocationPermission.denied) {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('La permission GPS est requise.')));
+              Icon(Icons.business_rounded, color: ColorConstants.primary),
+              SizedBox(width: 10),
+              Text('Informations Entreprise', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildFieldLabel('Raison sociale'),
+                TextField(controller: raisonCtrl, decoration: _inputDeco('Nom de la société')),
+                const SizedBox(height: 16),
+                
+                _buildFieldLabel('Adresse & Localisation GPS'),
+                TextField(controller: adresseCtrl, decoration: _inputDeco('Adresse complète')),
+                const SizedBox(height: 12),
+                
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          try {
+                            // 1. Vérifier si le service est activé
+                            bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+                            if (!serviceEnabled) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Merci d\'activer le GPS.')));
+                              }
                               return;
                             }
-                          }
 
-                          // 3. Récupérer la position
-                          final pos = await Geolocator.getCurrentPosition(
-                            locationSettings: const LocationSettings(accuracy: LocationAccuracy.high)
-                          );
-                          
-                          setState(() {
-                            latCtrl.text = pos.latitude.toString();
-                            lngCtrl.text = pos.longitude.toString();
-                          });
-                          
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('📍 Position GPS récupérée !'), backgroundColor: ColorConstants.success));
+                            // 2. Vérifier les permissions
+                            LocationPermission permission = await Geolocator.checkPermission();
+                            if (permission == LocationPermission.denied) {
+                              permission = await Geolocator.requestPermission();
+                              if (permission == LocationPermission.denied) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('La permission GPS est requise.')));
+                                }
+                                return;
+                              }
+                            }
+
+                            if (permission == LocationPermission.deniedForever) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veuillez autoriser le GPS dans les réglages.')));
+                              }
+                              return;
+                            }
+
+                            // 3. Récupérer la position
+                            final pos = await Geolocator.getCurrentPosition(
+                              locationSettings: const LocationSettings(accuracy: LocationAccuracy.high)
+                            );
+                            
+                            setDialogState(() {
+                              latCtrl.text = pos.latitude.toString();
+                              lngCtrl.text = pos.longitude.toString();
+                            });
+                            
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('📍 Position GPS récupérée !'), backgroundColor: ColorConstants.success));
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur GPS : $e')));
+                            }
                           }
-                        } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur GPS : $e')));
-                          }
-                        }
-                      },
+                        },
                       icon: const Icon(Icons.my_location, size: 16),
                       label: const Text('Ma position', style: TextStyle(fontSize: 12)),
                       style: OutlinedButton.styleFrom(

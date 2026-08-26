@@ -140,6 +140,8 @@ class _ConversationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final lastMsg = conversation['dernier_message'] as Map<String, dynamic>?;
     final chauffeur = conversation['chauffeur'] as Map<String, dynamic>?;
+    final photo = chauffeur?['photo_profil_url'] as String? ?? chauffeur?['photo_profil'] as String?;
+    final nom = chauffeur?['nom'] as String? ?? 'Conducteur';
 
     String timeStr = '';
     if (lastMsg?['cree_a'] != null) {
@@ -156,7 +158,11 @@ class _ConversationTile extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 26,
-            backgroundImage: NetworkImage(chauffeur?['photo_profil'] ?? 'https://i.pravatar.cc/150?u=${conversation['trajet_id']}'),
+            backgroundImage: (photo != null && photo.isNotEmpty) ? NetworkImage(photo) : null,
+            child: (photo == null || photo.isEmpty)
+                ? Text(nom.isNotEmpty ? nom[0].toUpperCase() : 'C',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))
+                : null,
           ),
           const SizedBox(width: 14),
           Expanded(

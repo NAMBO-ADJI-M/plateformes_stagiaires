@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/constants_colors.dart';
 import '../screens/student/notifications_screen.dart';
 import '../screens/student/conversations_screen.dart';
@@ -82,6 +83,192 @@ class StatMiniCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Carte de statistique pleine-largeur pour les dashboards (Dashboard Tuteur).
+class StatCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const StatCard({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: ColorConstants.textPrimary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, color: ColorConstants.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tuile stagiaire avec barre de progression, statut et bouton "Suivre".
+/// Utilisée dans le dashboard tuteur et la liste des stagiaires.
+class StagiaireTile extends StatelessWidget {
+  final String name;
+  final String role;
+  final double progress;
+  final String status;
+  final Color statusColor;
+  final String avatarUrl;
+  final String autoStatut;
+  final double roleFontSize;
+  final VoidCallback? onDemanderSuivi;
+  final VoidCallback? onTap;
+
+  const StagiaireTile({
+    super.key,
+    required this.name,
+    required this.role,
+    required this.progress,
+    required this.status,
+    required this.statusColor,
+    required this.avatarUrl,
+    required this.autoStatut,
+    this.roleFontSize = 12,
+    this.onDemanderSuivi,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 26,
+            backgroundColor: statusColor.withValues(alpha: 0.1),
+            backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+            child: avatarUrl.isEmpty ? Icon(Icons.person, color: statusColor) : null,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                Text(
+                  role,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: roleFontSize, color: ColorConstants.textSecondary),
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 6,
+                    backgroundColor: ColorConstants.border,
+                    valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              StatusPill(label: status, color: statusColor),
+              if (autoStatut == 'DISPONIBLE' && onDemanderSuivi != null) ...[
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: onDemanderSuivi,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    foregroundColor: ColorConstants.primary,
+                  ),
+                  child: const Text('Suivre', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Affiche un dialog d'info compte stagiaire (email + date de création).
+/// Fonction utilitaire partagée entre dashboard et liste des stagiaires.
+void showCompteInfoDialog(BuildContext context, Map<String, dynamic> stagiaire) {
+  final createdAt = stagiaire['created_at'] as String?;
+  String dateStr = 'Non disponible';
+  String heureStr = '';
+  if (createdAt != null) {
+    final dt = DateTime.tryParse(createdAt);
+    if (dt != null) {
+      dateStr = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+      heureStr = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    }
+  }
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text('Informations du compte'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Email : ${stagiaire['email'] ?? 'Non renseigné'}'),
+          const SizedBox(height: 8),
+          Text('Créé le : $dateStr${heureStr.isNotEmpty ? ' à $heureStr' : ''}'),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
+      ],
+    ),
+  );
 }
 
 /// Anneau de progression circulaire avec pourcentage au centre.
@@ -238,7 +425,6 @@ class GreetingHeader extends StatelessWidget {
                 width: 48,
                 height: 48,
                 errorBuilder: (context, error, stackTrace) {
-                  // En cas d'erreur de chargement (SSL ou 404), on affiche un avatar par défaut
                   return Container(
                     color: ColorConstants.border,
                     child: const Icon(Icons.person, color: ColorConstants.textSecondary),
@@ -553,7 +739,7 @@ class DashedActionButton extends StatelessWidget {
           border: Border.all(
             color: ColorConstants.border,
             width: 1.5,
-            style: BorderStyle.solid, // Flutter n'a pas de pointillés natifs sans pack, on simule par une bordure fine
+            style: BorderStyle.solid,
           ),
         ),
         child: Row(

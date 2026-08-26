@@ -8,6 +8,8 @@ import 'package:latlong2/latlong.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../../services/api_service.dart';
 import '../../../services/api_exception.dart';
+import '../../../services/pointage_event_bus.dart';
+import '../../../services/geofencing_service.dart';
 import '../../widgets/common_widgets.dart';
 import 'trajet_details_screen.dart';
 
@@ -273,7 +275,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       return;
                     }
                     try {
-                      await _api.validerLiaisonDefinitive(code, {
+                      final res = await _api.validerLiaisonDefinitive(code, {
                         'entreprise_id': info['entreprise_id'],
                         'nom': nomCtrl.text.trim(),
                         'prenom': prenomCtrl.text.trim(),
@@ -286,10 +288,31 @@ class _HomeScreenState extends State<HomeScreen> {
                         'referent_pedagogique_nom': refNomCtrl.text,
                         'referent_pedagogique_contact': refContactCtrl.text,
                       }, carnetId: _activeCarnetId);
+
+                      final String? autoId = res['autorisation_id']?.toString() ?? info['autorisation_id']?.toString();
+
                       if (mounted) {
                         Navigator.pop(ctx);
+                        setState(() {
+                          _autorisationStatut = 'ACTIVE';
+                          _entrepriseNom = info['entreprise_nom'] ?? _entrepriseNom;
+                        });
+                        PointageEventBus().notifyPointageUpdate();
+
+                        // Tenter de démarrer le geofencing si coordonnées fournies
+                        final lat = info['lieu_execution_lat'];
+                        final lng = info['lieu_execution_lng'];
+                        if (_activeCarnetId != null && lat != null && lng != null) {
+                          GeofencingService().start(
+                            carnetId: _activeCarnetId!,
+                            lat: (lat as num).toDouble(),
+                            lng: (lng as num).toDouble(),
+                            rayonMetres: 100,
+                          );
+                        }
+
                         _loadDashboardData(silent: true);
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Convention signée !'), backgroundColor: ColorConstants.success));
+                        _showConventionSignedSuccessDialog(autoId, info['entreprise_nom']);
                       }
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
@@ -333,6 +356,149 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showConventionSignedSuccessDialog(String? autoId, String? entrepriseNom) {
+    bool isDownloading = false;
+    String? downloadedPath;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dlgCtx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          backgroundColor: ColorConstants.cardBackground,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: ColorConstants.success.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check_circle_rounded, color: ColorConstants.success, size: 28),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text('Convention signée !', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Votre convention avec ${entrepriseNom ?? "l\'entreprise"} a été validée et enregistrée avec succès.',
+                style: const TextStyle(fontSize: 13.5, color: ColorConstants.textPrimary),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: ColorConstants.teal.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: ColorConstants.teal.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.location_on_rounded, color: ColorConstants.teal, size: 20),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Le dispositif de pointage automatique est désormais activé.',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: ColorConstants.teal),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (autoId != null) ...[
+                if (downloadedPath != null)
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: ColorConstants.paper,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: ColorConstants.success.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.file_download_done_rounded, color: ColorConstants.success, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Conservé localement :\n$downloadedPath',
+                            style: const TextStyle(fontSize: 11, color: ColorConstants.textSecondary),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: isDownloading
+                          ? null
+                          : () async {
+                              setDlgState(() => isDownloading = true);
+                              try {
+                                final file = await _api.telechargerEtSauvegarderConvention(autoId);
+                                setDlgState(() {
+                                  isDownloading = false;
+                                  downloadedPath = file.path;
+                                });
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('✅ Convention enregistrée : ${file.path}'),
+                                      backgroundColor: ColorConstants.success,
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                setDlgState(() => isDownloading = false);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Erreur lors du téléchargement : $e')),
+                                  );
+                                }
+                              }
+                            },
+                      icon: isDownloading
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.picture_as_pdf_rounded, color: ColorConstants.primary, size: 18),
+                      label: Text(isDownloading ? 'Téléchargement...' : 'Télécharger la convention (PDF)'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: ColorConstants.primary,
+                        side: const BorderSide(color: ColorConstants.primary),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      ),
+                    ),
+                  ),
+              ],
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dlgCtx),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ColorConstants.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Terminer'),
             ),
           ],
         ),
@@ -525,7 +691,7 @@ En validant cette convention via l'application StageLink, les parties reconnaiss
               GreetingHeader(
                 title: 'Bonjour, $_prenom',
                 subtitle: 'SESSION ACTIVE',
-                avatarUrl: _photoUrl ?? 'https://i.pravatar.cc/150?u=$_prenom',
+                avatarUrl: _photoUrl,
                 onAvatarTap: widget.onNavigateToProfil,
               ),
               const SizedBox(height: 22),

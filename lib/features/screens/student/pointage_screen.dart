@@ -103,8 +103,18 @@ class _PointageScreenState extends State<PointageScreen> {
     }
 
     final bool enStage = _historique.isNotEmpty && _historique.first['date_fin'] == null;
-    final String heureArrivee = _historique.isNotEmpty
+    final bool enSortieEnAttente = _historique.isNotEmpty &&
+        _historique.first['date_fin'] != null &&
+        _historique.first['statut_cloture'] == 'EN_ATTENTE';
+    final bool enPauseConfirmee = _historique.isNotEmpty &&
+        _historique.first['date_fin'] != null &&
+        _historique.first['statut_cloture'] == 'PAUSE_CONFIRMEE';
+
+    final String heureDebut = _historique.isNotEmpty
         ? DateFormat('HH:mm').format(DateTime.parse(_historique.first['date_debut']))
+        : '--:--';
+    final String heureSortie = _historique.isNotEmpty && _historique.first['date_fin'] != null
+        ? DateFormat('HH:mm').format(DateTime.parse(_historique.first['date_fin']))
         : '--:--';
 
     return Container(
@@ -124,10 +134,85 @@ class _PointageScreenState extends State<PointageScreen> {
                 children: [
                   _StatutGeofencingCard(
                     enStage: enStage,
-                    heureArrivee: heureArrivee,
+                    enPause: enPauseConfirmee || enSortieEnAttente,
+                    heureDebut: heureDebut,
+                    heureSortie: heureSortie,
                     adresse: _carnetActif?['entreprise_nom'] ?? 'Lieu de stage',
                     rayon: (_carnetActif?['geofence_rayon'] ?? 100).toString(),
                   ),
+                  if (enSortieEnAttente) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.amber.shade300),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.help_outline_rounded, size: 18, color: Colors.amber.shade800),
+                              const SizedBox(width: 8),
+                              Text(
+                                "Sortie de zone à $heureSortie",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: Colors.amber.shade900,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            "Précisez votre statut pour mettre à jour votre suivi :",
+                            style: TextStyle(fontSize: 12, color: ColorConstants.textPrimary),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.coffee_rounded, size: 16),
+                                  label: const Text("Pause"),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.brown,
+                                    side: BorderSide(color: Colors.brown.shade300),
+                                  ),
+                                  onPressed: () async {
+                                    if (_carnetActif != null) {
+                                      await _api.confirmerPause(_carnetActif!['id']);
+                                      _loadData(silent: true);
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  icon: const Icon(Icons.home_rounded, size: 16),
+                                  label: const Text("Fin de journée"),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: ColorConstants.primary,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  onPressed: () async {
+                                    if (_carnetActif != null) {
+                                      await _api.confirmerDepart(_carnetActif!['id']);
+                                      _loadData(silent: true);
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   const Text('Historique de la journée',
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: ColorConstants.inkSoft)),
@@ -160,24 +245,51 @@ class _PointageScreenState extends State<PointageScreen> {
 
 class _StatutGeofencingCard extends StatelessWidget {
   final bool enStage;
-  final String heureArrivee;
+  final bool enPause;
+  final String heureDebut;
+  final String heureSortie;
   final String adresse;
   final String rayon;
 
   const _StatutGeofencingCard({
     required this.enStage,
-    required this.heureArrivee,
+    required this.enPause,
+    required this.heureDebut,
+    required this.heureSortie,
     required this.adresse,
     required this.rayon,
   });
 
   @override
   Widget build(BuildContext context) {
+    final Color bgColor = enStage
+        ? ColorConstants.teal
+        : (enPause ? Colors.amber.shade700 : ColorConstants.textSecondary.withValues(alpha: 0.1));
+    final Color textColor = (enStage || enPause) ? Colors.white : ColorConstants.textPrimary;
+    final Color subtextColor = (enStage || enPause) ? Colors.white.withValues(alpha: 0.9) : ColorConstants.textSecondary;
+
+    String tag = 'HORS ZONE';
+    IconData tagIcon = Icons.navigation_rounded;
+    String title = 'Non détecté';
+    String desc = "Le pointage démarrera automatiquement quand vous entrerez dans la zone de l'entreprise.";
+
+    if (enStage) {
+      tag = 'GEOFENCING ACTIF';
+      tagIcon = Icons.check_circle_rounded;
+      title = 'En stage depuis $heureDebut';
+      desc = "Détecté automatiquement à l'entrée de la zone — $adresse";
+    } else if (enPause) {
+      tag = 'PAUSE EN COURS';
+      tagIcon = Icons.coffee_rounded;
+      title = 'En pause depuis $heureSortie';
+      desc = "Le temps reprendra automatiquement dès votre retour dans la zone — $adresse";
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: enStage ? ColorConstants.teal : ColorConstants.textSecondary.withValues(alpha: 0.1),
+        color: bgColor,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -185,40 +297,38 @@ class _StatutGeofencingCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.navigation_rounded, size: 14, color: enStage ? Colors.white : ColorConstants.textSecondary),
+              Icon(tagIcon, size: 14, color: (enStage || enPause) ? Colors.white : ColorConstants.textSecondary),
               const SizedBox(width: 6),
-              Text(enStage ? 'GEOFENCING ACTIF' : 'HORS ZONE',
+              Text(tag,
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.1,
-                    color: enStage ? Colors.white.withValues(alpha: 0.9) : ColorConstants.textSecondary
+                    color: subtextColor,
                   )),
             ],
           ),
           const SizedBox(height: 8),
-          Text(enStage ? 'En stage depuis $heureArrivee' : 'Non détecté',
+          Text(title,
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 22,
                 fontWeight: FontWeight.w900,
-                color: enStage ? Colors.white : ColorConstants.textPrimary,
-                letterSpacing: -0.5
+                color: textColor,
+                letterSpacing: -0.5,
               )),
           const SizedBox(height: 4),
           Text(
-            enStage
-              ? "Détecté automatiquement à l'entrée de la zone — $adresse"
-              : "Le pointage démarrera automatiquement quand vous entrerez dans la zone de l'entreprise.",
+            desc,
             style: TextStyle(
               fontSize: 13,
-              color: enStage ? Colors.white.withValues(alpha: 0.9) : ColorConstants.textSecondary
+              color: subtextColor,
             ),
           ),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: enStage ? Colors.white.withValues(alpha: 0.15) : ColorConstants.textSecondary.withValues(alpha: 0.1),
+              color: (enStage || enPause) ? Colors.white.withValues(alpha: 0.15) : ColorConstants.textSecondary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(999),
             ),
             child: Row(
@@ -228,8 +338,8 @@ class _StatutGeofencingCard extends StatelessWidget {
                   height: 6,
                   width: 6,
                   decoration: BoxDecoration(
-                    color: enStage ? Colors.white : ColorConstants.textSecondary,
-                    shape: BoxShape.circle
+                    color: (enStage || enPause) ? Colors.white : ColorConstants.textSecondary,
+                    shape: BoxShape.circle,
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -237,7 +347,7 @@ class _StatutGeofencingCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: enStage ? Colors.white : ColorConstants.textSecondary
+                      color: (enStage || enPause) ? Colors.white : ColorConstants.textSecondary,
                     )),
               ],
             ),
@@ -288,22 +398,37 @@ class _HistoriqueCard extends StatelessWidget {
           final r = rowsToday[i];
           final debut = DateTime.parse(r['date_debut']);
           final fin = r['date_fin'] != null ? DateTime.parse(r['date_fin']) : null;
+          final statutCloture = r['statut_cloture'];
+
+          String labelDepart = 'Départ détecté';
+          IconData iconDepart = Icons.logout_rounded;
+          Color colorDepart = ColorConstants.accentOrange;
+
+          if (statutCloture == 'PAUSE_CONFIRMEE') {
+            labelDepart = 'Pause enregistrée';
+            iconDepart = Icons.coffee_rounded;
+            colorDepart = Colors.amber.shade700;
+          } else if (statutCloture == 'DEPART_CONFIRME') {
+            labelDepart = 'Fin de journée';
+            iconDepart = Icons.home_rounded;
+            colorDepart = ColorConstants.primary;
+          }
 
           return Column(
             children: [
               _buildRow(
                 icon: Icons.check_circle_rounded,
                 color: ColorConstants.teal,
-                label: 'Arrivée détectée',
+                label: i == 0 ? 'Arrivée détectée' : 'Reprise de stage',
                 tag: r['source_validation'] ?? 'Automatique',
                 time: DateFormat('HH:mm').format(debut),
               ),
               if (fin != null)
                 _buildRow(
-                  icon: Icons.logout_rounded,
-                  color: ColorConstants.accentOrange,
-                  label: 'Départ détecté',
-                  tag: 'Automatique',
+                  icon: iconDepart,
+                  color: colorDepart,
+                  label: labelDepart,
+                  tag: statutCloture == 'EN_ATTENTE' ? 'En attente de confirmation' : 'Automatique',
                   time: DateFormat('HH:mm').format(fin),
                 ),
             ],

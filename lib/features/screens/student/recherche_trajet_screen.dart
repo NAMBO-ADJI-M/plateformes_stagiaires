@@ -19,7 +19,9 @@ class _RechercheTrajetScreenState extends State<RechercheTrajetScreen> {
   final TextEditingController _departCtrl = TextEditingController();
   final TextEditingController _arriveeCtrl = TextEditingController();
 
-  int _filter = 0; // 0 = Aujourd'hui, 1 = Cette semaine, 2 = Proximité
+  int _filter = 0; // 0 = Aujourd'hui, 1 = Cette semaine, 2 = Tous / Personnalisé
+  DateTime? _selectedDate;
+  TimeOfDay? _selectedTime;
   List<dynamic> _allTrajets = [];
   List<dynamic> _filteredTrajets = [];
   bool _isLoading = true;
@@ -55,6 +57,36 @@ class _RechercheTrajetScreenState extends State<RechercheTrajetScreen> {
     }
   }
 
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? now,
+      firstDate: now.subtract(const Duration(days: 1)),
+      lastDate: DateTime(now.year + 1),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+        _filter = 2; // Basculer sur le filtre personnalisé
+      });
+      _applyFilters();
+    }
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime ?? TimeOfDay.now(),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedTime = picked;
+      });
+      _applyFilters();
+    }
+  }
+
   void _applyFilters() {
     final dep = _departCtrl.text.toLowerCase();
     final arr = _arriveeCtrl.text.toLowerCase();
@@ -80,6 +112,16 @@ class _RechercheTrajetScreenState extends State<RechercheTrajetScreen> {
             // Cette semaine (7 prochains jours)
             matchesFilter = tDate.isAfter(now.subtract(const Duration(days: 1))) &&
                 tDate.isBefore(now.add(const Duration(days: 7)));
+          } else if (_selectedDate != null) {
+            // Date sélectionnée manuellement
+            matchesFilter = tDate.year == _selectedDate!.year &&
+                tDate.month == _selectedDate!.month &&
+                tDate.day == _selectedDate!.day;
+          }
+
+          if (matchesFilter && _selectedTime != null) {
+            // Filtrer par heure si sélectionnée
+            matchesFilter = tDate.hour >= _selectedTime!.hour;
           }
         }
 
@@ -119,7 +161,13 @@ class _RechercheTrajetScreenState extends State<RechercheTrajetScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const _FieldLabel('Date'),
-                          _staticField(icon: Icons.calendar_today_outlined, value: '12 Mar. 2026'),
+                          _clickableField(
+                            icon: Icons.calendar_today_outlined,
+                            value: _selectedDate != null
+                                ? DateFormat('dd MMM yyyy').format(_selectedDate!)
+                                : 'Sélectionner date',
+                            onTap: _pickDate,
+                          ),
                         ],
                       ),
                     ),
@@ -129,7 +177,13 @@ class _RechercheTrajetScreenState extends State<RechercheTrajetScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const _FieldLabel('Heure'),
-                          _staticField(icon: Icons.access_time, value: '08:00'),
+                          _clickableField(
+                            icon: Icons.access_time,
+                            value: _selectedTime != null
+                                ? '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}'
+                                : 'Toute heure',
+                            onTap: _pickTime,
+                          ),
                         ],
                       ),
                     ),
@@ -145,7 +199,10 @@ class _RechercheTrajetScreenState extends State<RechercheTrajetScreen> {
                   label: "Aujourd'hui",
                   selected: _filter == 0,
                   onTap: () {
-                    setState(() => _filter = 0);
+                    setState(() {
+                      _filter = 0;
+                      _selectedDate = null;
+                    });
                     _applyFilters();
                   }),
               const SizedBox(width: 8),
@@ -153,12 +210,15 @@ class _RechercheTrajetScreenState extends State<RechercheTrajetScreen> {
                   label: 'Cette semaine',
                   selected: _filter == 1,
                   onTap: () {
-                    setState(() => _filter = 1);
+                    setState(() {
+                      _filter = 1;
+                      _selectedDate = null;
+                    });
                     _applyFilters();
                   }),
               const SizedBox(width: 8),
               _FilterChip(
-                  label: 'Proximité',
+                  label: 'Tous / Dates',
                   selected: _filter == 2,
                   onTap: () {
                     setState(() => _filter = 2);
@@ -219,20 +279,30 @@ class _RechercheTrajetScreenState extends State<RechercheTrajetScreen> {
     );
   }
 
-  Widget _staticField({required IconData icon, required String value}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: ColorConstants.background,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: ColorConstants.textSecondary),
-          const SizedBox(width: 8),
-          Text(value, style: const TextStyle(fontSize: 13.5, color: ColorConstants.textPrimary)),
-        ],
+  Widget _clickableField({required IconData icon, required String value, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: ColorConstants.background,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: ColorConstants.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                value,
+                style: const TextStyle(fontSize: 13.5, color: ColorConstants.textPrimary, fontWeight: FontWeight.w500),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -289,8 +359,8 @@ class _ResultCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final chauffeur = trajet['chauffeur'] as Map<String, dynamic>?;
     final name = chauffeur?['nom'] as String? ?? 'Conducteur';
-    final avatarUrl = chauffeur?['photo_profil'] as String? ??
-        'https://i.pravatar.cc/150?u=$name';
+    final avatarUrl = chauffeur?['photo_profil_url'] as String? ??
+        chauffeur?['photo_profil'] as String?;
 
     final dateDepartStr = trajet['date_depart'] as String?;
     DateTime? dateDepart;
@@ -309,7 +379,14 @@ class _ResultCard extends StatelessWidget {
       onTap: onTap,
       child: Row(
         children: [
-          CircleAvatar(radius: 20, backgroundImage: NetworkImage(avatarUrl)),
+          CircleAvatar(
+            radius: 20,
+            backgroundImage: (avatarUrl != null && avatarUrl.isNotEmpty) ? NetworkImage(avatarUrl) : null,
+            child: (avatarUrl == null || avatarUrl.isEmpty)
+                ? Text(name.isNotEmpty ? name[0].toUpperCase() : 'C',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13))
+                : null,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

@@ -281,7 +281,7 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
                             }
                             
                             if (permission == LocationPermission.deniedForever) {
-                              ScaffoldMessenger.of(context).showSnackBar(const Text('Veuillez autoriser le GPS dans les réglages.'));
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veuillez autoriser le GPS dans les réglages.')));
                               return;
                             }
 
