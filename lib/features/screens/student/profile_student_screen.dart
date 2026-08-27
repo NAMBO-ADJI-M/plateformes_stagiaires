@@ -4,8 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
-import '../../../services/api_service.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/internship_service.dart';
 import '../../../services/geofencing_service.dart';
 import '../../../services/profile_event_bus.dart';
 
@@ -18,7 +18,7 @@ class ProfileStudentScreen extends StatefulWidget {
 }
 
 class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
-  final ApiService _api = ApiService();
+  final InternshipService _internshipService = InternshipService();
   final AuthService _authService = AuthService();
   final ImagePicker _picker = ImagePicker();
 
@@ -69,8 +69,8 @@ class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
     setState(() => _isLoading = true);
     try {
       final results = await Future.wait([
-        _api.getProfile(),
-        _api.getCarnets(),
+        _authService.getProfile(),
+        _internshipService.getCarnets(),
       ]);
 
       final profileRes = results[0] as Map<String, dynamic>;
@@ -106,7 +106,7 @@ class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
 
     setState(() => _isPhotoLoading = true);
     try {
-      await _api.updatePhotoProfil(File(image.path));
+      await _authService.updatePhotoProfil(File(image.path));
       await _loadData();
       ProfileEventBus().notifyProfileUpdate();
       if (mounted) {
@@ -381,7 +381,7 @@ class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
     if (confirm == true) {
       setState(() => _isLoggingOut = true);
       try {
-        await _api.deleteAccount();
+        await _authService.deleteAccount();
         if (!mounted) {
           return;
         }
@@ -407,12 +407,9 @@ class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
   }
 
   String _shortDate(String iso) {
-    try {
-      final d = DateTime.parse(iso);
-      return '${d.day}/${d.month}';
-    } catch (_) {
-      return '?';
-    }
+    final d = DateTime.tryParse(iso);
+    if (d == null) return '?';
+    return '${d.day}/${d.month}';
   }
 
   String _getPermissionText() {

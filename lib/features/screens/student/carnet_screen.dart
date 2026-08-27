@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
-import '../../../services/api_service.dart';
+import '../../../services/internship_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'add_logbook_entry_screen.dart';
 import 'package:intl/intl.dart';
@@ -19,7 +19,7 @@ class CarnetScreen extends StatefulWidget {
 
 class _CarnetScreenState extends State<CarnetScreen> {
   _CarnetTab _tab = _CarnetTab.journal;
-  final ApiService _api = ApiService();
+  final InternshipService _api = InternshipService();
 
   bool _isLoading = true;
   Map<String, dynamic>? _carnetActif;
@@ -60,7 +60,11 @@ class _CarnetScreenState extends State<CarnetScreen> {
               (c) => c['statut'] == 'EN_COURS',
               orElse: () => carnets.first,
             );
-      final carnetId = carnet['id'];
+      final carnetId = carnet['id']?.toString();
+      if (carnetId == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
 
       // Chargement séquentiel pour Render
       final stats = await _api.getCarnetStats(carnetId);
@@ -89,7 +93,7 @@ class _CarnetScreenState extends State<CarnetScreen> {
     final success = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => AddLogbookEntryScreen(carnetId: _carnetActif!['id']),
+        builder: (_) => AddLogbookEntryScreen(carnetId: _carnetActif!['id'].toString()),
       ),
     );
 
@@ -100,10 +104,51 @@ class _CarnetScreenState extends State<CarnetScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: ColorConstants.paper,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     if (_carnetActif == null) {
-      return const Scaffold(body: Center(child: Text("Aucun carnet de stage trouvé.")));
+      return Scaffold(
+        backgroundColor: ColorConstants.paper,
+        body: Column(
+          children: [
+            const ScreenTopBar(
+              eyebrow: "Carnet · Suivi",
+              title: 'Mon stage',
+              showProfile: false,
+            ),
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.menu_book_outlined, size: 48, color: Colors.grey.shade300),
+                      const SizedBox(height: 16),
+                      const Text(
+                        "Aucun carnet de stage trouvé.",
+                        style: TextStyle(color: ColorConstants.textSecondary, fontWeight: FontWeight.w600),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        "Rapprochez-vous de votre tuteur pour démarrer votre suivi.",
+                        style: TextStyle(color: ColorConstants.textMuted, fontSize: 13),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     final canPop = Navigator.canPop(context);
@@ -274,7 +319,8 @@ class _CarnetScreenState extends State<CarnetScreen> {
 
   String _formatDate(String? iso) {
     if (iso == null) return '--';
-    final d = DateTime.parse(iso);
+    final d = DateTime.tryParse(iso);
+    if (d == null) return '--';
     final now = DateTime.now();
     if (d.year == now.year && d.month == now.month && d.day == now.day) return "Aujourd'hui";
     if (d.year == now.year && d.month == now.month && d.day == now.day - 1) return "Hier";
@@ -283,7 +329,9 @@ class _CarnetScreenState extends State<CarnetScreen> {
 
   String _formatHeure(String? iso) {
     if (iso == null) return '--:--';
-    return DateFormat('HH:mm').format(DateTime.parse(iso));
+    final d = DateTime.tryParse(iso);
+    if (d == null) return '--:--';
+    return DateFormat('HH:mm').format(d);
   }
 }
 

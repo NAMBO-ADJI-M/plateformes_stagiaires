@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
-import '../../../services/api_service.dart';
+import '../../../services/internship_service.dart';
 import 'package:intl/intl.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -13,7 +13,7 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  final ApiService _api = ApiService();
+  final InternshipService _api = InternshipService();
   bool _isLoading = true;
   List<dynamic> _notifications = [];
 

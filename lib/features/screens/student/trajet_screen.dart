@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
-import '../../../services/api_service.dart';
+import '../../../services/carpool_service.dart';
 import 'covoiturage_home_screen.dart';
 import 'create_trajet_screen.dart';
 import 'trajet_details_screen.dart';
@@ -15,7 +15,7 @@ class TrajetScreen extends StatefulWidget {
 }
 
 class _TrajetScreenState extends State<TrajetScreen> {
-  final ApiService _api = ApiService();
+  final CarpoolService _api = CarpoolService();
   bool _isLoading = true;
   List<dynamic> _reservations = [];
 

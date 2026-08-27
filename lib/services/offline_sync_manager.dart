@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'api_service.dart';
+import 'auth_service.dart';
 
 /// Gère la synchronisation automatique de la queue offline
 /// quand la connexion réseau revient
@@ -10,7 +10,7 @@ class OfflineSyncManager {
   factory OfflineSyncManager() => _instance;
 
   final Connectivity _connectivity = Connectivity();
-  final ApiService _api = ApiService();
+  final AuthService _api = AuthService();
 
   StreamSubscription? _subscription;
   bool _isOnline = false;

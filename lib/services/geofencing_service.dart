@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:geofence_service/geofence_service.dart' as gs;
-import 'api_service.dart';
+import 'internship_service.dart';
 import 'pointage_event_bus.dart';
 import 'notification_service.dart';
 
@@ -9,7 +9,7 @@ class GeofencingService {
   static final GeofencingService _instance = GeofencingService._internal();
   factory GeofencingService() => _instance;
 
-  final ApiService _api = ApiService();
+  final InternshipService _api = InternshipService();
   late final gs.GeofenceService _service;
   String? _carnetId;
   bool _started = false;

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import '../../../core/constants/constants_colors.dart';
-import '../../../services/api_service.dart';
+import '../../../services/carpool_service.dart';
 import '../../../services/api_exception.dart';
 
 /// Écran de création d'un trajet : formulaire pour proposer un covoiturage.
@@ -13,7 +13,7 @@ class CreateTrajetScreen extends StatefulWidget {
 }
 
 class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
-  final ApiService _apiService = ApiService();
+  final CarpoolService _apiService = CarpoolService();
   final _formKey = GlobalKey<FormState>();
 
   final _lieuDepartCtrl = TextEditingController();

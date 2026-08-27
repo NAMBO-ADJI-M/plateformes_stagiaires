@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/constants/constants_colors.dart';
-import '../../../../services/api_service.dart';
+import '../../../../services/internship_service.dart';
 import '../../../widgets/common_widgets.dart';
 
 class AddStagiaireDialog extends StatefulWidget {
@@ -84,7 +84,7 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
   final _gratificationMontantCtrl = TextEditingController();
   final _gratificationPeriodiciteCtrl = TextEditingController();
 
-  final ApiService _apiService = ApiService();
+  final InternshipService _apiService = InternshipService();
   bool _isLoading = false;
   String? _generatedCode;
 
@@ -349,7 +349,7 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
                           title: const Text('Gratification prévue ?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                           value: _gratificationPrevue,
                           onChanged: (v) => setState(() => _gratificationPrevue = v),
-                          activeColor: ColorConstants.primary,
+                          activeThumbColor: ColorConstants.primary,
                           contentPadding: EdgeInsets.zero,
                         ),
                         if (_gratificationPrevue) ...[

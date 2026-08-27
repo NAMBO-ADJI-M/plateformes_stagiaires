@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
-import '../../../services/api_service.dart';
+import '../../../services/internship_service.dart';
 
 class SuiviStagiaireScreen extends StatefulWidget {
   final Map<String, dynamic> carnet;
@@ -14,7 +14,7 @@ class SuiviStagiaireScreen extends StatefulWidget {
 
 class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final ApiService _apiService = ApiService();
+  final InternshipService _apiService = InternshipService();
   bool _isLoading = true;
   List<dynamic> _presence = [];
   List<dynamic> _encouragements = [];
@@ -63,7 +63,7 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
-                value: type,
+                initialValue: type,
                 items: const [
                   DropdownMenuItem(value: 'ENCOURAGEMENT', child: Text('Encouragement')),
                   DropdownMenuItem(value: 'FELICITATION', child: Text('Félicitation')),
@@ -225,7 +225,10 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
                 const SizedBox(height: 4),
                 Text(enc['contenu'] ?? ''),
                 const SizedBox(height: 4),
-                Text(enc['date_envoi'] != null ? DateFormat('dd/MM HH:mm').format(DateTime.parse(enc['date_envoi'])) : '', style: const TextStyle(fontSize: 11, color: ColorConstants.textSecondary)),
+                Text(enc['date_envoi'] != null && DateTime.tryParse(enc['date_envoi'].toString()) != null 
+                    ? DateFormat('dd/MM HH:mm').format(DateTime.tryParse(enc['date_envoi'].toString())!) 
+                    : '', 
+                    style: const TextStyle(fontSize: 11, color: ColorConstants.textSecondary)),
               ],
             ),
           ),

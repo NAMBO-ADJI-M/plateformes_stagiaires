@@ -6,7 +6,9 @@ import 'package:intl/intl.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/constants/constants_colors.dart';
-import '../../../services/api_service.dart';
+import '../../../services/auth_service.dart';
+import '../../../services/internship_service.dart';
+import '../../../services/carpool_service.dart';
 import '../../../services/api_exception.dart';
 import '../../../services/pointage_event_bus.dart';
 import '../../../services/geofencing_service.dart';
@@ -32,7 +34,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final ApiService _api = ApiService();
+  final AuthService _authService = AuthService();
+  final InternshipService _internshipService = InternshipService();
+  final CarpoolService _carpoolService = CarpoolService();
 
   bool _isLoading = true;
   String _prenom = 'Stagiaire';
@@ -57,8 +61,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadDashboardData({bool silent = false}) async {
     if (!silent) setState(() => _isLoading = true);
     try {
-      final profile = await _api.getProfile();
-      final carnets = await _api.getCarnets();
+      final profile = await _authService.getProfile();
+      final carnets = await _internshipService.getCarnets();
 
       if (mounted) {
         setState(() {
@@ -78,8 +82,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _activeCarnetId = carnet['id'];
 
         final results = await Future.wait([
-          _api.getCarnetStats(_activeCarnetId!),
-          _api.getMesReservations(),
+          _internshipService.getCarnetStats(_activeCarnetId!),
+          _carpoolService.getMesReservations(),
         ]);
 
         if (mounted) {
@@ -155,7 +159,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 setPopupState(() => _isValidatingCode = true);
                 try {
                   // Étape 1 : Vérifier le code et récupérer les conditions
-                  final info = await _api.verifierCodeSuivi(code, carnetId: _activeCarnetId);
+                  final info = await _internshipService.verifierCodeSuivi(code, carnetId: _activeCarnetId);
                   if (mounted) {
                     Navigator.pop(ctx);
                     _showReviewConditionsPopup(code, info);
@@ -275,7 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       return;
                     }
                     try {
-                      final res = await _api.validerLiaisonDefinitive(code, {
+                      final res = await _internshipService.validerLiaisonDefinitive(code, {
                         'entreprise_id': info['entreprise_id'],
                         'nom': nomCtrl.text.trim(),
                         'prenom': prenomCtrl.text.trim(),
@@ -335,7 +339,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           final confirm = await _showConfirmDecline();
                           if (confirm == true) {
                             try {
-                              await _api.declinerLiaison(code, info['entreprise_id']);
+                              await _internshipService.declinerLiaison(code, info['entreprise_id']);
                               Navigator.pop(ctx);
                               _loadDashboardData(silent: true);
                             } catch (e) {
@@ -395,7 +399,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Votre convention avec ${entrepriseNom ?? "l\'entreprise"} a été validée et enregistrée avec succès.',
+                'Votre convention avec ${entrepriseNom ?? "l'entreprise"} a été validée et enregistrée avec succès.',
                 style: const TextStyle(fontSize: 13.5, color: ColorConstants.textPrimary),
               ),
               const SizedBox(height: 14),
@@ -453,7 +457,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           : () async {
                               setDlgState(() => isDownloading = true);
                               try {
-                                final file = await _api.telechargerEtSauvegarderConvention(autoId);
+                                final file = await _internshipService.telechargerEtSauvegarderConvention(autoId);
                                 setDlgState(() {
                                   isDownloading = false;
                                   downloadedPath = file.path;
@@ -1022,7 +1026,7 @@ class _CovoiturageCard extends StatelessWidget {
     final trajet = reservation?['trajet'] as Map<String, dynamic>?;
     final String destination = trajet?['lieu_arrivee'] ?? 'Covoiturage';
     final String heure = trajet?['date_depart'] != null
-        ? DateFormat('HH:mm').format(DateTime.parse(trajet!['date_depart']))
+        ? _formatHeure(trajet!['date_depart'])
         : '--:--';
 
     return _Panel(
@@ -1169,4 +1173,10 @@ Widget _eyebrow(String text) {
       color: ColorConstants.textSecondary,
     ),
   );
+}
+
+String _formatHeure(String iso) {
+  final d = DateTime.tryParse(iso);
+  if (d == null) return '--:--';
+  return DateFormat('HH:mm').format(d);
 }

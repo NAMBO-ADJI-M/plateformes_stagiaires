@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/constants/constants_colors.dart';
-import '../../../services/api_service.dart';
+import '../../../services/internship_service.dart';
 import '../../../services/stagiaire_event_bus.dart';
 import 'dashboard_tuteur_screen.dart';
 import 'liste_stagiaires_screen.dart';
@@ -42,7 +42,7 @@ class _TuteurShellState extends State<TuteurShell> {
 
   Future<void> _fetchInitialCount() async {
     try {
-      final res = await ApiService().getEntrepriseStagiaires();
+      final res = await InternshipService().getEntrepriseStagiaires();
       final Map<String, dynamic> data = res;
       final disponibles = data['disponibles'] as List<dynamic>?;
       if (mounted) {

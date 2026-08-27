@@ -1,105 +1,51 @@
-// lib/services/auth_service.dart
+import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'package:plateforme_stagiaires/modeles/user_type.dart';
-import 'package:plateforme_stagiaires/services/api_exception.dart';
-import 'package:plateforme_stagiaires/services/api_service.dart';
+import 'api_exception.dart';
+import 'base_api_service.dart';
 
-class AuthService {
-  final ApiService _apiService;
-
-  AuthService([ApiService? apiService])
-      : _apiService = apiService ?? ApiService();
+class AuthService extends BaseApiService {
+  AuthService._internal();
+  static final AuthService _instance = AuthService._internal();
+  factory AuthService() => _instance;
 
   // ============================================
-  // DEMANDE DE CODE (inscription ou connexion, sans mot de passe)
+  // AUTHENTIFICATION
   // ============================================
 
-  Future<Map<String, dynamic>> requestCode(
-    String email,
-    UserType userType,
-  ) async {
-    try {
-      final role = userType == UserType.stagiaire ? 'stagiaire' : 'entreprise';
-      // Le backend crée le compte automatiquement s'il n'existe pas
-      // et envoie systématiquement un code de vérification par email.
-      return await _apiService.loginWithEmail(email, role);
-    } on ApiException {
-      rethrow;
-    } catch (error) {
-      throw ApiException('Impossible d\'envoyer le code. Vérifiez votre email.');
-    }
+  Future<Map<String, dynamic>> loginWithEmail(String email, UserType userType) async {
+    final role = userType == UserType.stagiaire ? 'stagiaire' : 'entreprise';
+    final response = await postRequest('/auth/login', {'email': email, 'role': role}, useAuth: false);
+    return response['data'] ?? response;
   }
 
-  // ============================================
-  // VÉRIFIER LE CODE
-  // ============================================
-
-  Future<Map<String, dynamic>> verifyCode(String email, String code) async {
-    try {
-      final result = await _apiService.verifyLoginCode(email, code);
-
-      if (result.containsKey('token') && result['token'] != null) {
-        await saveToken(result['token']);
-      }
-
-      return result;
-    } on ApiException {
-      rethrow;
-    } catch (error) {
-      throw ApiException('Code invalide ou expiré. Veuillez réessayer.');
+  Future<Map<String, dynamic>> verifyLoginCode(String email, String code) async {
+    final response = await postRequest('/auth/verify', {'email': email, 'code': code}, useAuth: false);
+    final result = response['data'] ?? response;
+    
+    final String? tokenValue = result['token'];
+    final String? roleValue = result['user']?['role'];
+    
+    if (tokenValue != null) {
+      await saveToken(tokenValue, role: roleValue);
     }
+    return result;
   }
-
-  // ============================================
-  // RENVOYER LE CODE
-  // ============================================
 
   Future<void> resendCode(String email) async {
-    try {
-      await _apiService.resendCode(email);
-    } on ApiException {
-      rethrow;
-    } catch (error) {
-      throw ApiException('Impossible d\'envoyer le code. Veuillez réessayer.');
-    }
+    await postRequest('/auth/resend-code', {'email': email}, useAuth: false);
   }
-
-  // ============================================
-  // DÉCONNEXION
-  // ============================================
 
   Future<void> logout() async {
     try {
-      await _apiService.logout();
-    } catch (error) {
-      // Ignorer les erreurs de déconnexion
-    }
+      await postRequest('/auth/logout', {});
+    } catch (_) {}
     await clearToken();
   }
 
-  // ============================================
-  // SAUVEGARDE DU TOKEN
-  // ============================================
-
-  Future<void> saveToken(String token) async {
-    _apiService.setToken(token);
-    await _apiService.saveToken(token);
-  }
-
-  Future<void> loadToken() async {
-    await _apiService.loadToken();
-  }
-
-  Future<void> clearToken() async {
-    _apiService.clear();
-    await _apiService.clearToken();
-  }
-
-  /// Vérifie que le token stocké est toujours valide auprès du backend.
-  /// À utiliser au démarrage de l'app pour décider si l'utilisateur
-  /// reste connecté (accès direct au dashboard) ou doit se réauthentifier.
   Future<bool> validateToken() async {
     if (!isAuthenticated) return false;
-
     try {
       await getProfile();
       return true;
@@ -114,38 +60,66 @@ class AuthService {
   // ============================================
 
   Future<Map<String, dynamic>> getProfile() async {
+    return readCachedOrRefresh<Map<String, dynamic>>(
+      'profile',
+      () async => await getRequest('/auth/profile'),
+      ttl: const Duration(minutes: 10),
+    );
+  }
+
+  Future<String> updatePhotoProfil(File fichier) async {
     try {
-      return await _apiService.getProfile();
-    } on ApiException {
-      rethrow;
-    } catch (error) {
-      throw ApiException('Impossible de charger le profil.');
+      final request = http.MultipartRequest('POST', Uri.parse('${BaseApiService.baseUrl}/user/photo'));
+      request.headers.addAll(authHeadersMultipart);
+      request.files.add(await http.MultipartFile.fromPath('photo', fichier.path));
+
+      // Note: we use a temporary client for multipart as BaseApiService generic post doesn't support it yet
+      final httpClient = http.Client();
+      final streamedResponse = await httpClient.send(request);
+      final response = await http.Response.fromStream(streamedResponse);
+      final body = jsonDecode(response.body);
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw ApiException(body['message'] ?? 'Erreur envoi photo', statusCode: response.statusCode);
+      }
+
+      final data = (body['data'] ?? body) as Map<String, dynamic>;
+      final url = data['photo_profil_url'] ?? data['photo_url'] ?? data['photo_profil'];
+      
+      await cache.delete('profile');
+      return url;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException.networkError('/user/photo');
     }
   }
 
-  // ============================================
-  // ÉTAT DE L'AUTHENTIFICATION
-  // ============================================
-
-  bool get isAuthenticated => _apiService.isAuthenticated;
-  bool get isStagiaire => _apiService.isStagiaire;
-  bool get isEntreprise => _apiService.isEntreprise;
-  String? get token => _apiService.token;
-  String? get userRole => _apiService.userRole;
-
-  // ============================================
-  // GESTION DU TOKEN
-  // ============================================
-
-  void setToken(String token) {
-    _apiService.setToken(token);
+  Future<Map<String, dynamic>> completeStagiaireProfile(Map<String, dynamic> data) async {
+    final body = await postRequest('/stagiaire/profil', data);
+    await cache.delete('profile');
+    return body;
   }
 
-  void setUserRole(String role) {
-    _apiService.setUserRole(role);
+  Future<Map<String, dynamic>> completeEntrepriseProfile(Map<String, dynamic> data) async {
+    final body = await postRequest('/entreprise/profil', data);
+    await cache.delete('profile');
+    return body;
   }
 
-  void clear() {
-    _apiService.clear();
+  Future<void> supprimerPhotoProfil() async {
+    try {
+      await deleteRequest('/user/photo');
+      await cache.delete('profile');
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException.networkError('/user/photo');
+    }
+  }
+
+  Future<void> deleteAccount() async {
+    try {
+      await postRequest('/auth/delete-account', {});
+    } catch (_) {}
+    await clearToken();
   }
 }

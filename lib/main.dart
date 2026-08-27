@@ -10,9 +10,10 @@ import 'package:plateforme_stagiaires/features/onboarding/onboarding_page.dart';
 import 'package:plateforme_stagiaires/features/screens/home_router.dart';
 import 'package:plateforme_stagiaires/features/splash/splash_screen.dart';
 import 'package:plateforme_stagiaires/modeles/user_type.dart';
-import 'package:plateforme_stagiaires/services/api_service.dart';
+import 'package:plateforme_stagiaires/services/auth_service.dart';
 import 'package:plateforme_stagiaires/services/offline_sync_manager.dart';
 import 'package:plateforme_stagiaires/services/notification_service.dart';
+import 'package:flutter/foundation.dart';
 
 /// Permet d'accepter les certificats SSL auto-signés ou Let's Encrypt mal gérés
 /// par certaines versions d'Android (nécessaire pour Render/Aiven).
@@ -27,12 +28,14 @@ class MyHttpOverrides extends HttpOverrides {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Appliquer les overrides SSL globalement (pour l'API et les IMAGES)
-  HttpOverrides.global = MyHttpOverrides();
+  // Appliquer les overrides SSL uniquement en DEBUG pour la sécurité
+  if (kDebugMode) {
+    HttpOverrides.global = MyHttpOverrides();
+  }
 
   // Charger le token avant de lancer l'application
-  final apiService = ApiService();
-  await apiService.loadToken();
+  final authService = AuthService();
+  await authService.loadToken();
 
   // Initialiser le monitoring de la connexion réseau et la synchro offline
   final syncManager = OfflineSyncManager();
@@ -71,9 +74,8 @@ class _MonApplicationState extends State<MonApplication>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // L'app revient au premier plan : tenter une synchro si des opérations
-      // sont en attente (ex: après une mise en veille puis réveil du téléphone)
-      ApiService().syncOfflineQueue();
+      // L'app revient au premier plan : tenter une synchro
+      AuthService().syncOfflineQueue();
     }
   }
 

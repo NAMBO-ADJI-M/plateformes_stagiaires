@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
-import '../../../services/api_service.dart';
+import '../../../services/internship_service.dart';
 
 class RecommanderScreen extends StatefulWidget {
   const RecommanderScreen({super.key});
@@ -11,7 +11,7 @@ class RecommanderScreen extends StatefulWidget {
 }
 
 class _RecommanderScreenState extends State<RecommanderScreen> {
-  final ApiService _api = ApiService();
+  final InternshipService _api = InternshipService();
   bool _isLoading = true;
   List<dynamic> _stagiaires = [];
   Map<String, dynamic>? _selectedStagiaire;

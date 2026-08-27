@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/constants_colors.dart';
-import '../../../services/api_service.dart';
+import '../../../services/internship_service.dart';
 import '../../widgets/common_widgets.dart';
 import 'package:intl/intl.dart';
 
@@ -14,7 +14,7 @@ class AddLogbookEntryScreen extends StatefulWidget {
 
 class _AddLogbookEntryScreenState extends State<AddLogbookEntryScreen> {
   final _formKey = GlobalKey<FormState>();
-  final ApiService _api = ApiService();
+  final InternshipService _api = InternshipService();
 
   String _type = 'MISSION';
   final _titreCtrl = TextEditingController();

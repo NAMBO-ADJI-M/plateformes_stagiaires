@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/constants_colors.dart';
-import '../../../services/api_service.dart';
+import '../../../services/internship_service.dart';
 import '../../../services/api_exception.dart';
 import '../../widgets/common_widgets.dart';
 import 'carnet_creation_page.dart';
@@ -14,7 +14,7 @@ class CarnetListPage extends StatefulWidget {
 }
 
 class _CarnetListPageState extends State<CarnetListPage> {
-  final ApiService _api = ApiService();
+  final InternshipService _api = InternshipService();
   late Future<List<Map<String, dynamic>>> _future;
 
   @override

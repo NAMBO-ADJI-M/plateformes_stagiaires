@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/constants_colors.dart';
-import '../../../services/api_service.dart';
+import '../../../services/carpool_service.dart';
 import '../../widgets/common_widgets.dart';
 import 'trajet_details_screen.dart';
 
@@ -15,7 +15,7 @@ class RechercheTrajetScreen extends StatefulWidget {
 }
 
 class _RechercheTrajetScreenState extends State<RechercheTrajetScreen> {
-  final ApiService _apiService = ApiService();
+  final CarpoolService _apiService = CarpoolService();
   final TextEditingController _departCtrl = TextEditingController();
   final TextEditingController _arriveeCtrl = TextEditingController();
 

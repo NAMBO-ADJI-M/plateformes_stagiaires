@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:plateforme_stagiaires/core/constants/constants_colors.dart';
-import 'package:plateforme_stagiaires/services/api_service.dart';
+import 'package:plateforme_stagiaires/services/internship_service.dart';
 
 class EntrepriseSearchScreen extends StatefulWidget {
   const EntrepriseSearchScreen({super.key});
@@ -12,7 +12,7 @@ class EntrepriseSearchScreen extends StatefulWidget {
 }
 
 class _EntrepriseSearchScreenState extends State<EntrepriseSearchScreen> {
-  final ApiService _api = ApiService();
+  final InternshipService _api = InternshipService();
   final TextEditingController _searchCtrl = TextEditingController();
   Timer? _debounce;
   List<dynamic> _results = [];

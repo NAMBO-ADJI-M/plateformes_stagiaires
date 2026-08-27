@@ -4,8 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
-import '../../../services/api_service.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/internship_service.dart';
 import '../../../services/profile_event_bus.dart';
 
 /// Page de profil de l'espace tuteur/entreprise : infos personnelles,
@@ -18,8 +18,8 @@ class ProfileTuteurScreen extends StatefulWidget {
 }
 
 class _ProfileTuteurScreenState extends State<ProfileTuteurScreen> {
-  final ApiService _api = ApiService();
   final AuthService _authService = AuthService();
+  final InternshipService _internshipService = InternshipService();
   final ImagePicker _picker = ImagePicker();
 
   bool _isLoggingOut = false;
@@ -38,8 +38,8 @@ class _ProfileTuteurScreenState extends State<ProfileTuteurScreen> {
     setState(() => _isLoading = true);
     try {
       final results = await Future.wait([
-        _api.getProfile(),
-        _api.getEntrepriseDashboardStats(),
+        _authService.getProfile(),
+        _internshipService.getEntrepriseDashboardStats(),
       ]);
       if (mounted) {
         setState(() {
@@ -59,7 +59,7 @@ class _ProfileTuteurScreenState extends State<ProfileTuteurScreen> {
 
     setState(() => _isPhotoLoading = true);
     try {
-      await _api.updatePhotoProfil(File(image.path));
+      await _authService.updatePhotoProfil(File(image.path));
       await _loadData();
       ProfileEventBus().notifyProfileUpdate();
       if (mounted) {
@@ -217,7 +217,7 @@ class _ProfileTuteurScreenState extends State<ProfileTuteurScreen> {
           ElevatedButton(
             onPressed: () async {
               try {
-                await _api.completeEntrepriseProfile({
+                await _authService.completeEntrepriseProfile({
                   'raison_sociale': raisonCtrl.text,
                   'adresse_libelle': adresseCtrl.text,
                   'adresse_lat': double.tryParse(latCtrl.text),

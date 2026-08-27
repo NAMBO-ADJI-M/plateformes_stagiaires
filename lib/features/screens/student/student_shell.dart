@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/constants/constants_colors.dart';
-import '../../../services/api_service.dart';
+import '../../../services/internship_service.dart';
 import '../../../services/geofencing_service.dart';
 import 'home_screen.dart';
 import 'pointage_screen.dart';
@@ -68,7 +68,7 @@ class _StudentShellState extends State<StudentShell> {
       final permission = await Geolocator.checkPermission();
       if (permission != LocationPermission.always) return;
 
-      final carnets = await ApiService().getCarnets();
+      final carnets = await InternshipService().getCarnets();
       if (carnets.isEmpty) return;
 
       final carnet = carnets.firstWhere(
@@ -81,7 +81,7 @@ class _StudentShellState extends State<StudentShell> {
       if (lat == null || lng == null) return;
 
       await GeofencingService().start(
-        carnetId: carnet['id'] as String,
+        carnetId: carnet['id'].toString(),
         lat: (lat as num).toDouble(),
         lng: (lng as num).toDouble(),
         rayonMetres: ((carnet['geofence_rayon'] ?? 100) as num).toInt(),

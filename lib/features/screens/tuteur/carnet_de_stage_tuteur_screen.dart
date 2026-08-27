@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
-import '../../../services/api_service.dart';
+import '../../../services/internship_service.dart';
 
 class CarnetDeStageTuteurScreen extends StatefulWidget {
   final Map<String, dynamic> carnet;
@@ -14,7 +14,7 @@ class CarnetDeStageTuteurScreen extends StatefulWidget {
 
 class _CarnetDeStageTuteurScreenState extends State<CarnetDeStageTuteurScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final ApiService _apiService = ApiService();
+  final InternshipService _apiService = InternshipService();
   bool _isLoading = true;
   List<dynamic> _competences = [];
   bool _isFinalEvalSaving = false;
@@ -39,8 +39,8 @@ class _CarnetDeStageTuteurScreenState extends State<CarnetDeStageTuteurScreen> w
       ]);
 
       if (mounted) {
-        final comps = results[0] as List<dynamic>;
-        final evals = results[1] as List<dynamic>;
+        final comps = results[0];
+        final evals = results[1];
 
         final Map<String, String> evalMapping = {};
         bool? stageUtileVal;
@@ -324,7 +324,7 @@ class _CompetenceEvalCard extends StatefulWidget {
 
 class _CompetenceEvalCardState extends State<_CompetenceEvalCard> {
   String? _selectedLevel;
-  final ApiService _api = ApiService();
+  final InternshipService _api = InternshipService();
   bool _isSaving = false;
 
   final Map<String, String> _levels = {

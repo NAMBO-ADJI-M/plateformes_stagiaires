@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
-import '../../../services/api_service.dart';
+import '../../../services/internship_service.dart';
 import '../../../services/pointage_event_bus.dart';
 import 'package:intl/intl.dart';
 
@@ -14,7 +14,7 @@ class PointageScreen extends StatefulWidget {
 }
 
 class _PointageScreenState extends State<PointageScreen> {
-  final ApiService _api = ApiService();
+  final InternshipService _api = InternshipService();
   bool _isLoading = true;
   Map<String, dynamic>? _carnetActif;
   List<dynamic> _historique = [];
@@ -96,10 +96,51 @@ class _PointageScreenState extends State<PointageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: ColorConstants.paper,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     if (_carnetActif == null) {
-      return const Scaffold(body: Center(child: Text("Aucun carnet de stage actif.")));
+      return Scaffold(
+        backgroundColor: ColorConstants.paper,
+        body: Column(
+          children: [
+            const ScreenTopBar(
+              eyebrow: "Suivi · Lieu de stage",
+              title: 'Pointage',
+              showProfile: false,
+            ),
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.info_outline_rounded, size: 48, color: Colors.grey.shade300),
+                      const SizedBox(height: 16),
+                      const Text(
+                        "Aucun carnet de stage actif.",
+                        style: TextStyle(color: ColorConstants.textSecondary, fontWeight: FontWeight.w600),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        "Créez un carnet pour activer le pointage automatique.",
+                        style: TextStyle(color: ColorConstants.textMuted, fontSize: 13),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     final bool enStage = _historique.isNotEmpty && _historique.first['date_fin'] == null;
@@ -110,16 +151,21 @@ class _PointageScreenState extends State<PointageScreen> {
         _historique.first['date_fin'] != null &&
         _historique.first['statut_cloture'] == 'PAUSE_CONFIRMEE';
 
-    final String heureDebut = _historique.isNotEmpty
-        ? DateFormat('HH:mm').format(DateTime.parse(_historique.first['date_debut']))
-        : '--:--';
-    final String heureSortie = _historique.isNotEmpty && _historique.first['date_fin'] != null
-        ? DateFormat('HH:mm').format(DateTime.parse(_historique.first['date_fin']))
-        : '--:--';
+    String heureDebut = '--:--';
+    if (_historique.isNotEmpty) {
+      final dt = DateTime.tryParse(_historique.first['date_debut']?.toString() ?? '');
+      if (dt != null) heureDebut = DateFormat('HH:mm').format(dt);
+    }
 
-    return Container(
-      color: ColorConstants.paper,
-      child: Column(
+    String heureSortie = '--:--';
+    if (_historique.isNotEmpty && _historique.first['date_fin'] != null) {
+      final dt = DateTime.tryParse(_historique.first['date_fin']?.toString() ?? '');
+      if (dt != null) heureSortie = DateFormat('HH:mm').format(dt);
+    }
+
+    return Scaffold(
+      backgroundColor: ColorConstants.paper,
+      body: Column(
         children: [
           const ScreenTopBar(
             eyebrow: "Aujourd'hui · Lieu de stage",
@@ -137,7 +183,7 @@ class _PointageScreenState extends State<PointageScreen> {
                     enPause: enPauseConfirmee || enSortieEnAttente,
                     heureDebut: heureDebut,
                     heureSortie: heureSortie,
-                    adresse: _carnetActif?['entreprise_nom'] ?? 'Lieu de stage',
+                    adresse: _carnetActif?['entreprise_nom']?.toString() ?? 'Lieu de stage',
                     rayon: (_carnetActif?['geofence_rayon'] ?? 100).toString(),
                   ),
                   if (enSortieEnAttente) ...[
@@ -184,7 +230,7 @@ class _PointageScreenState extends State<PointageScreen> {
                                   ),
                                   onPressed: () async {
                                     if (_carnetActif != null) {
-                                      await _api.confirmerPause(_carnetActif!['id']);
+                                      await _api.confirmerPause(_carnetActif!['id'].toString());
                                       _loadData(silent: true);
                                     }
                                   },
@@ -201,7 +247,7 @@ class _PointageScreenState extends State<PointageScreen> {
                                   ),
                                   onPressed: () async {
                                     if (_carnetActif != null) {
-                                      await _api.confirmerDepart(_carnetActif!['id']);
+                                      await _api.confirmerDepart(_carnetActif!['id'].toString());
                                       _loadData(silent: true);
                                     }
                                   },
@@ -230,7 +276,7 @@ class _PointageScreenState extends State<PointageScreen> {
                   ),
                   const SizedBox(height: 16),
                   Center(
-                    child: Text('$_tempsStageAujourdhui cumulés aujourd\'hui',
+                    child: Text('${_tempsStageAujourdhui ?? "0 min"} cumulés aujourd\'hui',
                         style: const TextStyle(fontSize: 12, color: ColorConstants.inkSoft)),
                   ),
                 ],
@@ -396,9 +442,11 @@ class _HistoriqueCard extends StatelessWidget {
       child: Column(
         children: List.generate(rowsToday.length, (i) {
           final r = rowsToday[i];
-          final debut = DateTime.parse(r['date_debut']);
-          final fin = r['date_fin'] != null ? DateTime.parse(r['date_fin']) : null;
+          final debut = DateTime.tryParse(r['date_debut'] ?? '');
+          final fin = r['date_fin'] != null ? DateTime.tryParse(r['date_fin']) : null;
           final statutCloture = r['statut_cloture'];
+
+          if (debut == null) return const SizedBox.shrink();
 
           String labelDepart = 'Départ détecté';
           IconData iconDepart = Icons.logout_rounded;

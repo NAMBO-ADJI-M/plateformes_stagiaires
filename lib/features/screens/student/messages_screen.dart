@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/constants_colors.dart';
-import '../../../services/api_service.dart';
+import '../../../services/carpool_service.dart';
 import '../../../services/api_exception.dart';
 
 /// Écran de messagerie pour un trajet : affiche les messages et permet d'en envoyer.
@@ -22,7 +22,7 @@ class MessagesScreen extends StatefulWidget {
 }
 
 class _MessagesScreenState extends State<MessagesScreen> {
-  final ApiService _apiService = ApiService();
+  final CarpoolService _apiService = CarpoolService();
   final TextEditingController _messageCtrl = TextEditingController();
   Timer? _pollingTimer;
 
@@ -130,7 +130,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
   String _formatDate(String? dateStr) {
     if (dateStr == null) return '—';
     try {
-      final date = DateTime.parse(dateStr);
+      final date = DateTime.tryParse(dateStr);
+      if (date == null) return '—';
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
       final msgDate = DateTime(date.year, date.month, date.day);

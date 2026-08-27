@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/constants_colors.dart';
-import '../../../services/api_service.dart';
+import '../../../services/carpool_service.dart';
 import '../../../services/api_exception.dart';
 import '../../widgets/common_widgets.dart';
 import 'messages_screen.dart';
@@ -14,7 +14,7 @@ class ConversationsScreen extends StatefulWidget {
 }
 
 class _ConversationsScreenState extends State<ConversationsScreen> {
-  final ApiService _apiService = ApiService();
+  final CarpoolService _apiService = CarpoolService();
   List<dynamic> _conversations = [];
   bool _loading = true;
   String? _error;

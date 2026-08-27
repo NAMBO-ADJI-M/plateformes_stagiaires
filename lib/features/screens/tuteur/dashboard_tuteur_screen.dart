@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
-import '../../../services/api_service.dart';
+import '../../../services/internship_service.dart';
 import 'liste_stagiaires_screen.dart';
 import 'widgets/add_stagiaire_dialog.dart';
 import 'suivi_stagiaire_screen.dart';
@@ -15,7 +15,7 @@ class DashboardTuteurScreen extends StatefulWidget {
 }
 
 class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
-  final ApiService _api = ApiService();
+  final InternshipService _api = InternshipService();
   bool _isLoading = true;
   Map<String, dynamic> _stats = {};
   List<dynamic> _demandes = [];

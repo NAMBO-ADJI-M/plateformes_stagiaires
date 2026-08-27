@@ -5,7 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/constants/constants_colors.dart';
-import '../../../services/api_service.dart';
+import '../../../services/carpool_service.dart';
 import '../../../services/api_exception.dart';
 import '../../widgets/common_widgets.dart';
 import 'recherche_trajet_screen.dart';
@@ -26,7 +26,7 @@ class CovoiturageHomeScreen extends StatefulWidget {
 }
 
 class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
-  final ApiService _apiService = ApiService();
+  final CarpoolService _apiService = CarpoolService();
   final MapController _mapController = MapController();
 
   bool _geoloc = false;

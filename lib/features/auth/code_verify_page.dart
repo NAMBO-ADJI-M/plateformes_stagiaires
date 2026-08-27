@@ -72,7 +72,7 @@ class _CodeVerifyPageState extends State<CodeVerifyPage> {
     });
 
     try {
-      final result = await _authService.verifyCode(widget.email, code);
+      final result = await _authService.verifyLoginCode(widget.email, code);
 
       if (!mounted) return;
 

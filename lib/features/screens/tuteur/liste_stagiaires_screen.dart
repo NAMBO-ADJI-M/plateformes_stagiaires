@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
-import '../../../services/api_service.dart';
+import '../../../services/internship_service.dart';
 import '../../../services/stagiaire_event_bus.dart';
 import 'widgets/add_stagiaire_dialog.dart';
 import 'suivi_stagiaire_screen.dart';
@@ -15,7 +15,7 @@ class ListeStagiairesScreen extends StatefulWidget {
 }
 
 class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
-  final ApiService _apiService = ApiService();
+  final InternshipService _apiService = InternshipService();
   final TextEditingController _searchCtrl = TextEditingController();
   int _tab = 0; // 0 Tous, 1 Actifs, 2 Terminés
   List<dynamic> _allStagiaires = [];

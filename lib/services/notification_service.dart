@@ -1,5 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'api_service.dart';
+import 'internship_service.dart';
 import 'pointage_event_bus.dart';
 
 @pragma('vm:entry-point')
@@ -9,10 +9,10 @@ void notificationTapBackground(NotificationResponse response) async {
 
   try {
     if (response.actionId == 'action_pause') {
-      await ApiService().confirmerPause(carnetId);
+      await InternshipService().confirmerPause(carnetId);
       PointageEventBus().notifyPointageUpdate();
     } else if (response.actionId == 'action_depart') {
-      await ApiService().confirmerDepart(carnetId);
+      await InternshipService().confirmerDepart(carnetId);
       PointageEventBus().notifyPointageUpdate();
     }
   } catch (_) {}
@@ -116,10 +116,10 @@ class NotificationService {
 
     try {
       if (response.actionId == 'action_pause') {
-        await ApiService().confirmerPause(carnetId);
+        await InternshipService().confirmerPause(carnetId);
         PointageEventBus().notifyPointageUpdate();
       } else if (response.actionId == 'action_depart') {
-        await ApiService().confirmerDepart(carnetId);
+        await InternshipService().confirmerDepart(carnetId);
         PointageEventBus().notifyPointageUpdate();
       }
     } catch (_) {}

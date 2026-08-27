@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import '../../../core/constants/constants_colors.dart';
-import '../../../services/api_service.dart';
+import '../../../services/auth_service.dart';
+import '../../../services/internship_service.dart';
 import '../../../services/api_exception.dart';
 
 /// Écran de création du carnet de stage — version "wizard".
@@ -28,7 +29,8 @@ class _CarnetCreationPageState extends State<CarnetCreationPage> {
   // --- Champs carnet ---
   final _adresseCtrl = TextEditingController();
 
-  final ApiService _apiService = ApiService();
+  final AuthService _authService = AuthService();
+  final InternshipService _internshipService = InternshipService();
   DateTime? _dateDebut;
   DateTime? _dateFin;
   String? _domaineFormationId;
@@ -78,7 +80,7 @@ class _CarnetCreationPageState extends State<CarnetCreationPage> {
   @override
   void initState() {
     super.initState();
-    _apiService.loadToken();
+    _authService.loadToken();
     _chargerListes();
   }
 
@@ -87,8 +89,8 @@ class _CarnetCreationPageState extends State<CarnetCreationPage> {
   // ============================================================
   Future<void> _chargerListes() async {
     try {
-      final domaines = await _apiService.getDomaines();
-      final niveaux = await _apiService.getNiveauxFormation();
+      final domaines = await _internshipService.getDomaines();
+      final niveaux = await _internshipService.getNiveauxFormation();
 
       setState(() {
         _domaineItems = domaines.map<DropdownMenuItem<String>>((d) {
@@ -119,7 +121,7 @@ class _CarnetCreationPageState extends State<CarnetCreationPage> {
     });
 
     try {
-      final metiers = await _apiService.getMetiers(domaineId: domaineId);
+      final metiers = await _internshipService.getMetiers(domaineId: domaineId);
       setState(() {
         _metierItems = metiers.map<DropdownMenuItem<String>>((m) {
           final label = m['nom']?.toString() ??
@@ -371,7 +373,7 @@ class _CarnetCreationPageState extends State<CarnetCreationPage> {
 
     try {
       // 1) Complétion du profil stagiaire
-      await _apiService.completeStagiaireProfile({
+      await _authService.completeStagiaireProfile({
         'nom': _nomCtrl.text.trim(),
         'prenom': _prenomCtrl.text.trim(),
         'etablissement': _etablissementCtrl.text.trim(),
@@ -380,7 +382,7 @@ class _CarnetCreationPageState extends State<CarnetCreationPage> {
       });
 
       // 2) Création du carnet
-      await _apiService.createCarnet({
+      await _internshipService.createCarnet({
         'domaine_formation_id': _domaineFormationId,
         'metier_id': _metierId,
         'niveau_formation_id': _niveauFormationId,

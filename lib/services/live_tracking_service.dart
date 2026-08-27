@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
-import 'api_service.dart';
+import 'carpool_service.dart';
 
 /// Service gérant l'envoi de la position GPS du conducteur en temps réel
 /// vers le serveur Render toutes les 30 secondes.
@@ -11,7 +11,7 @@ class LiveTrackingService {
 
   Timer? _timer;
   String? _activeTrajetId;
-  final ApiService _api = ApiService();
+  final CarpoolService _api = CarpoolService();
 
   String? get activeTrajetId => _activeTrajetId;
 
