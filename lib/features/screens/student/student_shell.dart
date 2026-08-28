@@ -68,23 +68,31 @@ class _StudentShellState extends State<StudentShell> {
       final permission = await Geolocator.checkPermission();
       if (permission != LocationPermission.always) return;
 
-      final carnets = await InternshipService().getCarnets();
-      if (carnets.isEmpty) return;
+      final results = await Future.wait([
+        InternshipService().getCarnets(),
+        InternshipService().getRequest('/auth/profile'),
+      ]);
 
-      final carnet = carnets.firstWhere(
-        (c) => c['statut'] == 'EN_COURS',
-        orElse: () => carnets.first,
-      ) as Map<String, dynamic>;
+      final carnets = results[0] as List<dynamic>;
+      final profile = results[1] as Map<String, dynamic>;
 
-      final lat = carnet['geofence_lat'];
-      final lng = carnet['geofence_lng'];
+      final carnet = carnets.isNotEmpty
+          ? carnets.firstWhere((c) => c['statut'] == 'EN_COURS', orElse: () => carnets.first)
+          : null;
+
+      final auto = profile['autorisation_pointage'];
+      if (auto == null || auto['statut'] != 'CONVENTION_SIGNEE') return;
+
+      final lat = auto['lieu_execution_lat'] ?? carnet?['geofence_lat'];
+      final lng = auto['lieu_execution_lng'] ?? carnet?['geofence_lng'];
       if (lat == null || lng == null) return;
 
       await GeofencingService().start(
-        carnetId: carnet['id'].toString(),
+        autorisationId: auto['id'].toString(),
+        carnetId: carnet?['id']?.toString(),
         lat: (lat as num).toDouble(),
         lng: (lng as num).toDouble(),
-        rayonMetres: ((carnet['geofence_rayon'] ?? 100) as num).toInt(),
+        rayonMetres: ((auto['rayon_geofence'] ?? carnet?['geofence_rayon'] ?? 100) as num).toInt(),
       );
     } catch (_) {}
   }

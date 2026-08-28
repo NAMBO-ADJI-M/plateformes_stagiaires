@@ -41,38 +41,55 @@ class InternshipService extends BaseApiService {
     return body;
   }
 
-  Future<Map<String, dynamic>> pointageArrivee({double? latitude, double? longitude, String? carnetId}) async {
+  Future<Map<String, dynamic>> pointageArrivee({double? latitude, double? longitude, String? carnetId, String? autorisationId}) async {
     final body = await postRequest('/pointage/arrivee', {
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
       if (carnetId != null) 'carnet_id': carnetId,
+      if (autorisationId != null) 'autorisation_pointage_id': autorisationId,
     });
     if (carnetId != null) {
       await cache.delete('carnet_stats_$carnetId');
       await cache.delete('pointage_historique_$carnetId');
     }
+    if (autorisationId != null) {
+      await cache.delete('pointage_historique_auth_$autorisationId');
+    }
     return body;
   }
 
-  Future<Map<String, dynamic>> pointageDepart({double? latitude, double? longitude, String? carnetId}) async {
+  Future<Map<String, dynamic>> pointageDepart({double? latitude, double? longitude, String? carnetId, String? autorisationId}) async {
     final body = await postRequest('/pointage/depart', {
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
       if (carnetId != null) 'carnet_id': carnetId,
+      if (autorisationId != null) 'autorisation_pointage_id': autorisationId,
     });
     if (carnetId != null) {
       await cache.delete('carnet_stats_$carnetId');
       await cache.delete('pointage_historique_$carnetId');
     }
+    if (autorisationId != null) {
+      await cache.delete('pointage_historique_auth_$autorisationId');
+    }
     return body;
   }
 
-  Future<List<dynamic>> getHistoriquePointage(String carnetId) async {
-    final cacheKey = 'pointage_historique_$carnetId';
+  Future<List<dynamic>> getHistoriquePointage(String? carnetId, {String? autorisationId}) async {
+    if (carnetId == null && autorisationId == null) return [];
+    
+    final cacheKey = autorisationId != null 
+        ? 'pointage_historique_auth_$autorisationId' 
+        : 'pointage_historique_$carnetId';
+        
     final cached = await cache.getJson<List<dynamic>>(cacheKey);
     if (cached != null) return cached;
 
-    final response = await getRequest('/pointage/$carnetId/historique');
+    final endpoint = autorisationId != null
+        ? '/pointage/historique/autorisation/$autorisationId'
+        : '/pointage/historique/carnet/$carnetId';
+        
+    final response = await getRequest(endpoint);
     final decoded = decodeListResponse(response);
     await cache.setJson(cacheKey, decoded, ttl: const Duration(minutes: 5));
     return decoded;
@@ -242,17 +259,33 @@ class InternshipService extends BaseApiService {
     return res;
   }
 
-  Future<Map<String, dynamic>> confirmerPause(String carnetId) async {
-    final body = await postRequest('/pointage/confirmer-pause', {'carnet_id': carnetId});
-    await cache.delete('carnet_stats_$carnetId');
-    await cache.delete('pointage_historique_$carnetId');
+  Future<Map<String, dynamic>> confirmerPause({String? carnetId, String? autorisationId}) async {
+    final body = await postRequest('/pointage/confirmer-pause', {
+      if (carnetId != null) 'carnet_id': carnetId,
+      if (autorisationId != null) 'autorisation_pointage_id': autorisationId,
+    });
+    if (carnetId != null) {
+      await cache.delete('carnet_stats_$carnetId');
+      await cache.delete('pointage_historique_$carnetId');
+    }
+    if (autorisationId != null) {
+      await cache.delete('pointage_historique_auth_$autorisationId');
+    }
     return body;
   }
 
-  Future<Map<String, dynamic>> confirmerDepart(String carnetId) async {
-    final body = await postRequest('/pointage/confirmer-depart', {'carnet_id': carnetId});
-    await cache.delete('carnet_stats_$carnetId');
-    await cache.delete('pointage_historique_$carnetId');
+  Future<Map<String, dynamic>> confirmerDepart({String? carnetId, String? autorisationId}) async {
+    final body = await postRequest('/pointage/confirmer-depart', {
+      if (carnetId != null) 'carnet_id': carnetId,
+      if (autorisationId != null) 'autorisation_pointage_id': autorisationId,
+    });
+    if (carnetId != null) {
+      await cache.delete('carnet_stats_$carnetId');
+      await cache.delete('pointage_historique_$carnetId');
+    }
+    if (autorisationId != null) {
+      await cache.delete('pointage_historique_auth_$autorisationId');
+    }
     return body;
   }
 
@@ -343,7 +376,6 @@ class InternshipService extends BaseApiService {
     
     String? raisonSociale,
     String? adresse,
-    String? situationGeo,
     String? secteurActivite,
     String? entrepriseEmail,
     String? entrepriseTelephone,
@@ -353,16 +385,17 @@ class InternshipService extends BaseApiService {
     String? repLegalContact,
     
     String? objetStage,
+    String? objetStageAutre,
     String? cursusRattachement,
     String? anneeAcademique,
     
     String? lieuExecution,
+    int? nombreMoisStage,
     String? dureeHebdomadaire,
-    String? joursPresence,
+    dynamic joursPresence,
     String? teletravailModalites,
     String? referentPedagogiqueNom,
     String? referentPedagogiqueContact,
-    String? modalitesSuiviDetail,
     
     bool? gratificationPrevue,
     double? gratificationMontant,
@@ -388,7 +421,6 @@ class InternshipService extends BaseApiService {
       
       'raison_sociale_custom': raisonSociale,
       'adresse_custom': adresse,
-      'situation_geographique': situationGeo,
       'secteur_activite_custom': secteurActivite,
       'entreprise_email_document': entrepriseEmail,
       'entreprise_telephone_document': entrepriseTelephone,
@@ -398,18 +430,19 @@ class InternshipService extends BaseApiService {
       'representant_legal_contact': repLegalContact,
       
       'objet_stage': objetStage,
+      'objet_stage_autre': objetStageAutre,
       'cursus_rattachement': cursusRattachement,
       'stagiaire_annee_academique': anneeAcademique,
       
       'lieu_execution': lieuExecution,
       'lieu_execution_lat': lieuExecutionLat,
       'lieu_execution_lng': lieuExecutionLng,
+      'nombre_mois_stage': nombreMoisStage,
       'duree_hebdomadaire': dureeHebdomadaire,
       'jours_presence': joursPresence,
       'teletravail_modalites': teletravailModalites,
       'referent_pedagogique_nom': referentPedagogiqueNom,
       'referent_pedagogique_contact': referentPedagogiqueContact,
-      'modalites_suivi_detail': modalitesSuiviDetail,
       
       'gratification_prevue': gratificationPrevue,
       'gratification_montant': gratificationMontant,

@@ -303,11 +303,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         });
                         PointageEventBus().notifyPointageUpdate();
 
-                        // Tenter de démarrer le geofencing si coordonnées fournies
-                        final lat = info['lieu_execution_lat'];
-                        final lng = info['lieu_execution_lng'];
-                        if (_activeCarnetId != null && lat != null && lng != null) {
+                        final autoId = res['autorisation_id']?.toString() ?? info['autorisation_id']?.toString();
+
+                        if (autoId != null && _activeCarnetId != null && lat != null && lng != null) {
                           GeofencingService().start(
+                            autorisationId: autoId,
                             carnetId: _activeCarnetId!,
                             lat: (lat as num).toDouble(),
                             lng: (lng as num).toDouble(),

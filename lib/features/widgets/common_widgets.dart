@@ -217,7 +217,7 @@ class StagiaireTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               StatusPill(label: status, color: statusColor),
-              if (autoStatut == 'DISPONIBLE' && onDemanderSuivi != null) ...[
+              if (onDemanderSuivi != null) ...[
                 const SizedBox(height: 8),
                 TextButton(
                   onPressed: onDemanderSuivi,

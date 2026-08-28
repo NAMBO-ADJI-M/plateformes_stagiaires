@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
 import '../../../services/internship_service.dart';
+import '../../../services/pointage_event_bus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'add_logbook_entry_screen.dart';
 import 'package:intl/intl.dart';
@@ -27,6 +28,7 @@ class _CarnetScreenState extends State<CarnetScreen> {
   List<dynamic> _entrees = [];
   List<dynamic> _encouragements = [];
   List<dynamic> _attestations = [];
+  StreamSubscription? _pointageSub;
 
   static const _labels = {
     _CarnetTab.journal: 'Journal',
@@ -39,6 +41,15 @@ class _CarnetScreenState extends State<CarnetScreen> {
   void initState() {
     super.initState();
     _loadData();
+    _pointageSub = PointageEventBus().onPointageUpdate.listen((_) {
+      if (mounted) _loadData();
+    });
+  }
+
+  @override
+  void dispose() {
+    _pointageSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadData() async {

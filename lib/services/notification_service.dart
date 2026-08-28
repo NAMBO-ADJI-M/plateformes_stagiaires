@@ -4,18 +4,31 @@ import 'pointage_event_bus.dart';
 
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse response) async {
-  final carnetId = response.payload;
-  if (carnetId == null || carnetId.isEmpty) return;
+  final payload = response.payload;
+  if (payload == null || payload.isEmpty) return;
 
+  // Le payload peut être un carnetId ou un autorisationId
+  // On tente de le traiter comme une autorisation si c'est possible
   try {
     if (response.actionId == 'action_pause') {
-      await InternshipService().confirmerPause(carnetId);
+      await InternshipService().confirmerPause(autorisationId: payload);
       PointageEventBus().notifyPointageUpdate();
     } else if (response.actionId == 'action_depart') {
-      await InternshipService().confirmerDepart(carnetId);
+      await InternshipService().confirmerDepart(autorisationId: payload);
       PointageEventBus().notifyPointageUpdate();
     }
-  } catch (_) {}
+  } catch (_) {
+    // Repli sur carnetId si autorisation échoue (pour compatibilité)
+    try {
+      if (response.actionId == 'action_pause') {
+        await InternshipService().confirmerPause(carnetId: payload);
+        PointageEventBus().notifyPointageUpdate();
+      } else if (response.actionId == 'action_depart') {
+        await InternshipService().confirmerDepart(carnetId: payload);
+        PointageEventBus().notifyPointageUpdate();
+      }
+    } catch (__) {}
+  }
 }
 
 class NotificationService {
@@ -69,7 +82,7 @@ class NotificationService {
     required int id,
     required String title,
     required String body,
-    required String carnetId,
+    required String payload,
   }) async {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
@@ -106,22 +119,32 @@ class NotificationService {
       title,
       body,
       platformChannelSpecifics,
-      payload: carnetId,
+      payload: payload,
     );
   }
 
   static Future<void> _onNotificationAction(NotificationResponse response) async {
-    final carnetId = response.payload;
-    if (carnetId == null || carnetId.isEmpty) return;
+    final payload = response.payload;
+    if (payload == null || payload.isEmpty) return;
 
     try {
       if (response.actionId == 'action_pause') {
-        await InternshipService().confirmerPause(carnetId);
+        await InternshipService().confirmerPause(autorisationId: payload);
         PointageEventBus().notifyPointageUpdate();
       } else if (response.actionId == 'action_depart') {
-        await InternshipService().confirmerDepart(carnetId);
+        await InternshipService().confirmerDepart(autorisationId: payload);
         PointageEventBus().notifyPointageUpdate();
       }
-    } catch (_) {}
+    } catch (_) {
+      try {
+        if (response.actionId == 'action_pause') {
+          await InternshipService().confirmerPause(carnetId: payload);
+          PointageEventBus().notifyPointageUpdate();
+        } else if (response.actionId == 'action_depart') {
+          await InternshipService().confirmerDepart(carnetId: payload);
+          PointageEventBus().notifyPointageUpdate();
+        }
+      } catch (__) {}
+    }
   }
 }

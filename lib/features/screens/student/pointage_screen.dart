@@ -17,6 +17,7 @@ class _PointageScreenState extends State<PointageScreen> {
   final InternshipService _api = InternshipService();
   bool _isLoading = true;
   Map<String, dynamic>? _carnetActif;
+  Map<String, dynamic>? _autorisationActive;
   List<dynamic> _historique = [];
   String? _tempsStageAujourdhui;
   StreamSubscription? _pointageSub;
@@ -46,31 +47,54 @@ class _PointageScreenState extends State<PointageScreen> {
   }
 
   Future<void> _loadData({bool silent = false}) async {
-    if (!silent) setState(() => _isLoading = true);
+    if (!silent) {
+      setState(() => _isLoading = true);
+    }
     try {
-      final carnets = await _api.getCarnets();
-      if (carnets.isEmpty) {
-        if (mounted) setState(() => _isLoading = false);
+      final results = await Future.wait([
+        _api.getCarnets(),
+        _api.getRequest('/auth/profile'), // Pour récupérer l'autorisation même sans carnet
+      ]);
+
+      final carnets = results[0] as List<dynamic>;
+      final profile = results[1] as Map<String, dynamic>;
+      
+      final carnet = carnets.isNotEmpty 
+          ? carnets.firstWhere((c) => c['statut'] == 'EN_COURS', orElse: () => carnets.first)
+          : null;
+
+      final auto = profile['autorisation_pointage'];
+      final bool hasSignedAuth = auto != null && auto['statut'] == 'CONVENTION_SIGNEE';
+
+      if (carnet == null && !hasSignedAuth) {
+        if (mounted) {
+          setState(() {
+            _carnetActif = null;
+            _autorisationActive = null;
+            _isLoading = false;
+          });
+        }
         return;
       }
 
-      final carnet = carnets.firstWhere(
-        (c) => c['statut'] == 'EN_COURS',
-        orElse: () => carnets.first,
-      );
+      final carnetId = carnet?['id']?.toString();
+      final autoId = auto?['id']?.toString();
 
-      final historique = await _api.getHistoriquePointage(carnet['id']);
+      final historique = await _api.getHistoriquePointage(carnetId, autorisationId: autoId);
 
       if (mounted) {
         setState(() {
           _carnetActif = carnet;
+          _autorisationActive = auto;
           _historique = historique;
           _tempsStageAujourdhui = _calculerTempsTotal(historique);
           _isLoading = false;
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -88,7 +112,9 @@ class _PointageScreenState extends State<PointageScreen> {
       }
     }
 
-    if (total.inMinutes == 0) return "0 min";
+    if (total.inMinutes == 0) {
+      return "0 min";
+    }
     final h = total.inHours;
     final m = total.inMinutes % 60;
     return h > 0 ? "${h}h${m.toString().padLeft(2, '0')}" : "${m}min";
@@ -103,7 +129,9 @@ class _PointageScreenState extends State<PointageScreen> {
       );
     }
 
-    if (_carnetActif == null) {
+    final bool hasSignedAuth = _autorisationActive != null && _autorisationActive!['statut'] == 'CONVENTION_SIGNEE';
+
+    if (_carnetActif == null && !hasSignedAuth) {
       return Scaffold(
         backgroundColor: ColorConstants.paper,
         body: Column(
@@ -123,13 +151,13 @@ class _PointageScreenState extends State<PointageScreen> {
                       Icon(Icons.info_outline_rounded, size: 48, color: Colors.grey.shade300),
                       const SizedBox(height: 16),
                       const Text(
-                        "Aucun carnet de stage actif.",
+                        "Aucun carnet ou liaison active.",
                         style: TextStyle(color: ColorConstants.textSecondary, fontWeight: FontWeight.w600),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        "Créez un carnet pour activer le pointage automatique.",
+                        "Signez une convention pour activer le pointage automatique.",
                         style: TextStyle(color: ColorConstants.textMuted, fontSize: 13),
                         textAlign: TextAlign.center,
                       ),
@@ -154,14 +182,26 @@ class _PointageScreenState extends State<PointageScreen> {
     String heureDebut = '--:--';
     if (_historique.isNotEmpty) {
       final dt = DateTime.tryParse(_historique.first['date_debut']?.toString() ?? '');
-      if (dt != null) heureDebut = DateFormat('HH:mm').format(dt);
+      if (dt != null) {
+        heureDebut = DateFormat('HH:mm').format(dt);
+      }
     }
 
     String heureSortie = '--:--';
     if (_historique.isNotEmpty && _historique.first['date_fin'] != null) {
       final dt = DateTime.tryParse(_historique.first['date_fin']?.toString() ?? '');
-      if (dt != null) heureSortie = DateFormat('HH:mm').format(dt);
+      if (dt != null) {
+        heureSortie = DateFormat('HH:mm').format(dt);
+      }
     }
+
+    final String displayAdresse = _carnetActif?['entreprise_nom']?.toString() 
+        ?? _autorisationActive?['entreprise_nom']?.toString() 
+        ?? 'Lieu de stage';
+        
+    final String displayRayon = (_carnetActif?['geofence_rayon'] 
+        ?? _autorisationActive?['rayon_geofence'] 
+        ?? 100).toString();
 
     return Scaffold(
       backgroundColor: ColorConstants.paper,
@@ -183,8 +223,8 @@ class _PointageScreenState extends State<PointageScreen> {
                     enPause: enPauseConfirmee || enSortieEnAttente,
                     heureDebut: heureDebut,
                     heureSortie: heureSortie,
-                    adresse: _carnetActif?['entreprise_nom']?.toString() ?? 'Lieu de stage',
-                    rayon: (_carnetActif?['geofence_rayon'] ?? 100).toString(),
+                    adresse: displayAdresse,
+                    rayon: displayRayon,
                   ),
                   if (enSortieEnAttente) ...[
                     const SizedBox(height: 12),
@@ -229,10 +269,10 @@ class _PointageScreenState extends State<PointageScreen> {
                                     side: BorderSide(color: Colors.brown.shade300),
                                   ),
                                   onPressed: () async {
-                                    if (_carnetActif != null) {
-                                      await _api.confirmerPause(_carnetActif!['id'].toString());
-                                      _loadData(silent: true);
-                                    }
+                                    final cId = _carnetActif?['id']?.toString();
+                                    final aId = _autorisationActive?['id']?.toString();
+                                    await _api.confirmerPause(carnetId: cId, autorisationId: aId);
+                                    _loadData(silent: true);
                                   },
                                 ),
                               ),
@@ -246,10 +286,10 @@ class _PointageScreenState extends State<PointageScreen> {
                                     foregroundColor: Colors.white,
                                   ),
                                   onPressed: () async {
-                                    if (_carnetActif != null) {
-                                      await _api.confirmerDepart(_carnetActif!['id'].toString());
-                                      _loadData(silent: true);
-                                    }
+                                    final cId = _carnetActif?['id']?.toString();
+                                    final aId = _autorisationActive?['id']?.toString();
+                                    await _api.confirmerDepart(carnetId: cId, autorisationId: aId);
+                                    _loadData(silent: true);
                                   },
                                 ),
                               ),
@@ -446,7 +486,9 @@ class _HistoriqueCard extends StatelessWidget {
           final fin = r['date_fin'] != null ? DateTime.tryParse(r['date_fin']) : null;
           final statutCloture = r['statut_cloture'];
 
-          if (debut == null) return const SizedBox.shrink();
+          if (debut == null) {
+            return const SizedBox.shrink();
+          }
 
           String labelDepart = 'Départ détecté';
           IconData iconDepart = Icons.logout_rounded;

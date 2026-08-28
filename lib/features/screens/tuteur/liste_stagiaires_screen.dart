@@ -228,7 +228,7 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
                                     : ColorConstants.accentOrange,
                                 avatarUrl: stagiaire['photo_profil'] ?? stagiaire['photo_profil_url'] ?? '',
                                 autoStatut: autoStatut,
-                                onDemanderSuivi: () => _demanderAcces(item),
+                                onDemanderSuivi: null,
                                 onTap: () => Navigator.push(
                                   context,
                                   MaterialPageRoute(

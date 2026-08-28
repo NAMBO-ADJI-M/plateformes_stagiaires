@@ -49,7 +49,7 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
   final _lngExecutionCtrl = TextEditingController();
   final _dureeMoisCtrl = TextEditingController();
   final _dureeHebdoCtrl = TextEditingController();
-  final _joursPresenceCtrl = TextEditingController();
+  final List<String> _joursPresence = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
   final _teletravailCtrl = TextEditingController();
   
   // 5. Encadrement & suivi
@@ -91,9 +91,6 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
       if (_dureeHebdoCtrl.text.isEmpty) {
         _dureeHebdoCtrl.text = "35h/semaine";
       }
-      if (_joursPresenceCtrl.text.isEmpty) {
-        _joursPresenceCtrl.text = "Lundi à Vendredi";
-      }
     }
   }
 
@@ -123,11 +120,8 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
 
     setState(() => _isLoading = true);
     try {
-      final String objetFinal = _selectedObjet == 'Autre' ? _objetAutreCtrl.text.trim() : _selectedObjet!;
-
       final response = await _api.demanderSuiviPointage(
         stagiaireId: widget.stagiaireId,
-        // Champs obligatoires pour la signature de l'API (on envoie des valeurs vides pour les supprimés si besoin)
         poste: "Stagiaire", 
         dateDebut: DateFormat('yyyy-MM-dd').format(_dateDebut!),
         dateFin: DateFormat('yyyy-MM-dd').format(_dateFin!),
@@ -145,15 +139,17 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
         repLegalFonction: _repLegalFonctionCtrl.text.trim(),
         repLegalContact: _repLegalContactCtrl.text.trim(),
 
-        objetStage: objetFinal,
+        objetStage: _selectedObjet,
+        objetStageAutre: _selectedObjet == 'Autre' ? _objetAutreCtrl.text.trim() : null,
         cursusRattachement: _cursusCtrl.text.trim(),
         
         lieuExecution: _lieuExecutionCtrl.text.trim(),
         lieuExecutionLat: double.tryParse(_latExecutionCtrl.text.trim()),
         lieuExecutionLng: double.tryParse(_lngExecutionCtrl.text.trim()),
         
+        nombreMoisStage: int.tryParse(_dureeMoisCtrl.text.trim()),
         dureeHebdomadaire: _dureeHebdoCtrl.text.trim(),
-        joursPresence: _joursPresenceCtrl.text.trim(),
+        joursPresence: _joursPresence,
         teletravailModalites: _teletravailCtrl.text.trim(),
         
         gratificationPrevue: _gratificationPrevue,
@@ -286,8 +282,36 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
                   children: [
                     Expanded(child: _buildField('Durée hebdo', _dureeHebdoCtrl, Icons.timer_outlined)),
                     const SizedBox(width: 10),
-                    Expanded(child: _buildField('Jours présence', _joursPresenceCtrl, Icons.calendar_month_outlined)),
+                    const Spacer(),
                   ],
+                ),
+                const SizedBox(height: 16),
+                const Text('Jours de présence', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: ColorConstants.textSecondary)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'].map((day) {
+                    final isSelected = _joursPresence.contains(day);
+                    return FilterChip(
+                      label: Text(day[0].toUpperCase() + day.substring(1), style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : Colors.black87)),
+                      selected: isSelected,
+                      onSelected: (bool selected) {
+                        setState(() {
+                          if (selected) {
+                            _joursPresence.add(day);
+                          } else {
+                            _joursPresence.remove(day);
+                          }
+                        });
+                      },
+                      selectedColor: ColorConstants.primary,
+                      checkmarkColor: Colors.white,
+                      showCheckmark: false,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    );
+                  }).toList(),
                 ),
                 const SizedBox(height: 12),
                 _buildField('Modalités télétravail', _teletravailCtrl, Icons.laptop_mac_outlined),

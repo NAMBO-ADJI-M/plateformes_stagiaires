@@ -11,16 +11,19 @@ class GeofencingService {
 
   final InternshipService _api = InternshipService();
   late final gs.GeofenceService _service;
+  String? _autorisationId;
   String? _carnetId;
   bool _started = false;
 
   Future<void> start({
-    required String carnetId,
+    String? carnetId,
+    required String autorisationId,
     required double lat,
     required double lng,
     required int rayonMetres,
   }) async {
     if (_started) return;
+    _autorisationId = autorisationId;
     _carnetId = carnetId;
 
     _service = gs.GeofenceService.instance.setup(
@@ -39,7 +42,7 @@ class GeofencingService {
     });
 
     final geofence = gs.Geofence(
-      id: 'lieu_stage_$carnetId',
+      id: 'lieu_stage_$autorisationId',
       latitude: lat,
       longitude: lng,
       radius: [
@@ -58,13 +61,14 @@ class GeofencingService {
     gs.GeofenceStatus status,
     gs.Location location,
   ) async {
-    if (_carnetId == null) return;
+    if (_autorisationId == null) return;
     try {
       if (status == gs.GeofenceStatus.ENTER) {
         await _api.pointageArrivee(
           latitude: location.latitude,
           longitude: location.longitude,
           carnetId: _carnetId,
+          autorisationId: _autorisationId,
         );
         PointageEventBus().notifyPointageUpdate();
 
@@ -79,6 +83,7 @@ class GeofencingService {
           latitude: location.latitude,
           longitude: location.longitude,
           carnetId: _carnetId,
+          autorisationId: _autorisationId,
         );
         PointageEventBus().notifyPointageUpdate();
 
@@ -87,7 +92,7 @@ class GeofencingService {
           id: 2,
           title: '🚪 Sortie de zone détectée',
           body: 'Êtes-vous en pause ou avez-vous terminé votre journée ?',
-          carnetId: _carnetId!,
+          payload: _autorisationId!,
         );
       }
     } catch (_) {
