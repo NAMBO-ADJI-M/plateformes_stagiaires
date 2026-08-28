@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:plateforme_stagiaires/features/screens/student/student_shell.dart';
 import 'package:plateforme_stagiaires/features/screens/tuteur/tuteur_shell.dart';
 import 'package:plateforme_stagiaires/services/auth_service.dart';
+import 'package:plateforme_stagiaires/services/internship_service.dart';
 
 class HomeRouter extends StatelessWidget {
   const HomeRouter({super.key});
@@ -9,13 +10,58 @@ class HomeRouter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authService = AuthService();
+    final internshipService = InternshipService();
+
     return FutureBuilder<void>(
       future: authService.loadToken(),
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
         }
-        return authService.isEntreprise ? const TuteurShell() : const StudentShell();
+
+        if (authService.isEntreprise) {
+          return const TuteurShell();
+        }
+
+        // Pour les stagiaires, on vérifie s'ils ont au moins un rattachement
+        return FutureBuilder<Map<String, dynamic>>(
+          future: internshipService.checkRattachementStatus(),
+          builder: (context, statusSnapshot) {
+            if (statusSnapshot.connectionState != ConnectionState.done) {
+              return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()));
+            }
+
+            if (statusSnapshot.hasError) {
+              return const Scaffold(
+                body: Center(
+                  child: Text('Erreur de connexion au serveur.'),
+                ),
+              );
+            }
+
+            final hasRattachement =
+                statusSnapshot.data?['has_rattachement'] ?? false;
+
+            if (!hasRattachement) {
+              // Redirection forcée vers la recherche d'entreprise
+              Future.microtask(() {
+                if (Navigator.canPop(context)) return; // Evite les boucles si déjà en haut
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/recherche-entreprise',
+                  (route) => false,
+                  arguments: {'isMandatory': true},
+                );
+              });
+              return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()));
+            }
+
+            return const StudentShell();
+          },
+        );
       },
     );
   }

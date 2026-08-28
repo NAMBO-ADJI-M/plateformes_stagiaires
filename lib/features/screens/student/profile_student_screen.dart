@@ -264,6 +264,26 @@ class _ProfileStudentScreenState extends State<ProfileStudentScreen> {
                           icon: Icons.workspace_premium_outlined,
                           label: 'Tuteur',
                           value: _activeCarnet?['tuteur_nom'] ?? 'Non rattaché'),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: TextButton.icon(
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/recherche-entreprise',
+                                arguments: {'isMandatory': false});
+                          },
+                          icon: const Icon(Icons.add_business_outlined, size: 18),
+                          label: const Text('Ajouter une entreprise'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: ColorConstants.primary,
+                            backgroundColor:
+                                ColorConstants.primary.withValues(alpha: 0.05),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),

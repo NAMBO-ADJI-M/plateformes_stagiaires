@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -229,8 +228,18 @@ class InternshipService extends BaseApiService {
     return decodeListResponse(response);
   }
 
+  Future<Map<String, dynamic>> checkRattachementStatus() async {
+    return readCachedOrRefresh<Map<String, dynamic>>(
+      'rattachement_statut',
+      () async => await getRequest('/rattachement/statut'),
+      ttl: const Duration(minutes: 5),
+    );
+  }
+
   Future<Map<String, dynamic>> demanderRattachement(String entrepriseId) async {
-    return await postRequest('/rattachement/demander', {'entreprise_id': entrepriseId});
+    final res = await postRequest('/rattachement/demander', {'entreprise_id': entrepriseId});
+    await cache.delete('rattachement_statut');
+    return res;
   }
 
   Future<Map<String, dynamic>> confirmerPause(String carnetId) async {

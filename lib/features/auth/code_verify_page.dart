@@ -77,13 +77,9 @@ class _CodeVerifyPageState extends State<CodeVerifyPage> {
       if (!mounted) return;
 
       if (result.containsKey('token') && result['token'] != null) {
-        // ✅ Connexion réussie
-        if (widget.isNewAccount && widget.userType == UserType.stagiaire) {
-          Navigator.pushNamedAndRemoveUntil(context, '/recherche-entreprise', (route) => false);
-        } else {
-          Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
-        }
-        return; // on quitte avant le finally : la page n'existe plus dans la pile
+        // ✅ Connexion réussie - La redirection est gérée par le HomeRouter
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        return;
       } else {
         // ❌ Réponse OK mais pas de token exploitable
         setState(() {

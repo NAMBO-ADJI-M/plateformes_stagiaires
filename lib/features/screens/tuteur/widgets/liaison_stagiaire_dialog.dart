@@ -237,7 +237,7 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
                 const Text('Objet du stage', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: ColorConstants.textSecondary)),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: _selectedObjet,
+                  initialValue: _selectedObjet,
                   items: _objetsStage.map((o) => DropdownMenuItem(value: o, child: Text(o, style: const TextStyle(fontSize: 13)))).toList(),
                   onChanged: (v) => setState(() => _selectedObjet = v),
                   decoration: InputDecoration(
