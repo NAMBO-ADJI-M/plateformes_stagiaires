@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
 import '../../../services/internship_service.dart';
-import 'liste_stagiaires_screen.dart';
 import 'widgets/add_stagiaire_dialog.dart';
 import 'suivi_stagiaire_screen.dart';
 
@@ -19,6 +18,7 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
   bool _isLoading = true;
   Map<String, dynamic> _stats = {};
   List<dynamic> _demandes = [];
+  List<dynamic> _enAttente = [];
   List<dynamic> _stagiaires = [];
 
   @override
@@ -42,6 +42,7 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
           _demandes = results[1] as List<dynamic>;
           final stagiairesData = results[2] as Map<String, dynamic>;
           _stagiaires = stagiairesData['rattaches'] ?? [];
+          _enAttente = stagiairesData['en_attente'] ?? [];
           _isLoading = false;
         });
       }
@@ -73,36 +74,15 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
                     const SizedBox(height: 24),
                     _buildStatsGrid(),
                     const SizedBox(height: 32),
-                    if (_demandes.isNotEmpty) ...[
-                      _buildSectionTitle("Demandes de rattachement", 
-                          count: _demandes.length, color: ColorConstants.warning),
+                    if (_demandes.isNotEmpty || _enAttente.isNotEmpty) ...[
+                      _buildSectionTitle("Demandes en cours", 
+                          count: _demandes.length + _enAttente.length, color: ColorConstants.warning),
                       const SizedBox(height: 16),
                       _buildDemandesList(),
                       const SizedBox(height: 32),
                     ],
-                    _buildSectionTitle(
-                      "Mes Stagiaires",
-                      count: _stagiaires.length,
-                      color: ColorConstants.primary,
-                      trailing: _stagiaires.length > 3
-                          ? TextButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const ListeStagiairesScreen()),
-                                );
-                              },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: const Text("Voir tout", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                            )
-                          : null,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildStagiairesList(),
+                    // "Mes Stagiaires" supprimé du dashboard car ils doivent migrer vers 
+                    // l'onglet dédié une fois la convention signée.
                   ],
                 ),
               ),
@@ -208,13 +188,19 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
   }
 
   Widget _buildDemandesList() {
+    final List<dynamic> combined = [
+      ..._demandes.map((d) => {...d, 'is_invitation': false}),
+      ..._enAttente.map((e) => {...e, 'is_invitation': true}),
+    ];
+
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: _demandes.length,
+      itemCount: combined.length,
       itemBuilder: (context, index) {
-        final demande = _demandes[index];
-        final stagiaire = demande['stagiaire'] ?? {};
+        final item = combined[index];
+        final bool isInvitation = item['is_invitation'] == true;
+        final stagiaire = item['stagiaire'] ?? {};
         
         final prenom = stagiaire['prenom'] ?? '';
         final nom = stagiaire['nom'] ?? '';
@@ -233,10 +219,10 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
               children: [
                 CircleAvatar(
                   backgroundColor: ColorConstants.primary.withValues(alpha: 0.1),
-                  backgroundImage: stagiaire['photo_profil'] != null
-                      ? NetworkImage(stagiaire['photo_profil'])
+                  backgroundImage: (stagiaire['photo_profil'] != null || stagiaire['photo_profil_url'] != null)
+                      ? NetworkImage(stagiaire['photo_profil'] ?? stagiaire['photo_profil_url'])
                       : null,
-                  child: stagiaire['photo_profil'] == null
+                  child: (stagiaire['photo_profil'] == null && stagiaire['photo_profil_url'] == null)
                       ? const Icon(Icons.person, color: ColorConstants.primary)
                       : null,
                 ),
@@ -256,10 +242,14 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        email,
+                        isInvitation ? "Code transmis - En attente" : email,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 11, color: ColorConstants.textSecondary),
+                        style: TextStyle(
+                          fontSize: 11, 
+                          color: isInvitation ? ColorConstants.warning : ColorConstants.textSecondary,
+                          fontWeight: isInvitation ? FontWeight.bold : FontWeight.normal,
+                        ),
                       ),
                     ],
                   ),
@@ -269,16 +259,27 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
                   tooltip: 'Infos du compte',
                   onPressed: () => showCompteInfoDialog(context, stagiaire),
                 ),
-                ElevatedButton(
-                  onPressed: () => _ouvrirFormulaireConvention(stagiaire),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ColorConstants.warning,
-                    foregroundColor: Colors.white,
+                if (!isInvitation)
+                  ElevatedButton(
+                    onPressed: () => _ouvrirFormulaireConvention(stagiaire),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ColorConstants.warning,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text("Demander l'accès", style: TextStyle(fontSize: 12)),
+                  )
+                else
+                  Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(
+                      color: ColorConstants.warning.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text("En attente", 
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: ColorConstants.warning)),
                   ),
-                  child: const Text("Demander l'accès", style: TextStyle(fontSize: 12)),
-                ),
               ],
             ),
           ),
@@ -298,78 +299,5 @@ class _DashboardTuteurScreenState extends State<DashboardTuteurScreen> {
     ).then((success) {
       if (success == true) _loadData();
     });
-  }
-
-  Widget _buildStagiairesList() {
-    if (_stagiaires.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(24),
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          children: [
-            Icon(Icons.people_outline, size: 48, color: Colors.grey[300]),
-            const SizedBox(height: 12),
-            const Text(
-              "Aucun stagiaire rattaché pour le moment.",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: ColorConstants.textSecondary),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _stagiaires.length > 3 ? 3 : _stagiaires.length,
-      itemBuilder: (context, index) {
-        final carnet = _stagiaires[index];
-        final stagiaire = carnet['stagiaire'] ?? {};
-        
-        final prenom = stagiaire['prenom'] ?? '';
-        final nom = stagiaire['nom'] ?? '';
-        final String displayName = (prenom.isEmpty && nom.isEmpty) 
-            ? 'Profil incomplet' 
-            : '$prenom $nom';
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: ColorConstants.secondary.withValues(alpha: 0.1),
-              backgroundImage: stagiaire['photo_profil'] != null 
-                  ? NetworkImage(stagiaire['photo_profil']) 
-                  : null,
-              child: stagiaire['photo_profil'] == null 
-                  ? const Icon(Icons.person, color: ColorConstants.secondary) 
-                  : null,
-            ),
-            title: Text(
-              displayName, 
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontStyle: (prenom.isEmpty && nom.isEmpty) ? FontStyle.italic : FontStyle.normal,
-              )
-            ),
-            subtitle: Text(stagiaire['filiere'] ?? 'Stage en cours'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => SuiviStagiaireScreen(carnet: carnet),
-                ),
-              );
-            },
-          ),
-        );
-      },
-    );
   }
 }

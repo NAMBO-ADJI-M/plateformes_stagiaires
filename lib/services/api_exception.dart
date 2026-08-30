@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class ApiException implements Exception {
   final String message;
   final int? statusCode;
@@ -13,10 +15,10 @@ class ApiException implements Exception {
   }) : timestamp = DateTime.now() {
     // Print détaillé pour le debug en développement
     if (statusCode == 422 && errors != null) {
-      print('--- API VALIDATION ERROR (422) ---');
-      print('Endpoint: $endpoint');
-      print('Errors: $errors');
-      print('----------------------------------');
+      debugPrint('--- API VALIDATION ERROR (422) ---');
+      debugPrint('Endpoint: $endpoint');
+      debugPrint('Errors: $errors');
+      debugPrint('----------------------------------');
     }
   }
 

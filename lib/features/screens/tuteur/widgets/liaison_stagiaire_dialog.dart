@@ -184,8 +184,11 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
           Text("Pour ${widget.stagiaireNom}", style: const TextStyle(fontSize: 14, color: ColorConstants.textSecondary)),
         ],
       ),
-      content: SizedBox(
-        width: double.maxFinite,
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 600,
+          minWidth: MediaQuery.of(context).size.width * 0.8,
+        ),
         child: SingleChildScrollView(
           child: Form(
             key: _formKey,
@@ -205,8 +208,8 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
                   spacing: 10,
                   runSpacing: 12,
                   children: [
-                    SizedBox(width: 240, child: _buildField('Email contact', _entrepriseEmailDocCtrl, Icons.alternate_email_outlined, keyboardType: TextInputType.emailAddress)),
-                    SizedBox(width: 240, child: _buildField('Tél contact', _entrepriseTelDocCtrl, Icons.phone_outlined, keyboardType: TextInputType.phone)),
+                    SizedBox(width: 200, child: _buildField('Email contact', _entrepriseEmailDocCtrl, Icons.alternate_email_outlined, keyboardType: TextInputType.emailAddress)),
+                    SizedBox(width: 200, child: _buildField('Tél contact', _entrepriseTelDocCtrl, Icons.phone_outlined, keyboardType: TextInputType.phone)),
                   ],
                 ),
 
@@ -272,8 +275,8 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
                   spacing: 10,
                   runSpacing: 12,
                   children: [
-                    SizedBox(width: 180, child: _buildField('Lat. exécution', _latExecutionCtrl, Icons.map_outlined, keyboardType: TextInputType.number)),
-                    SizedBox(width: 180, child: _buildField('Long. exécution', _lngExecutionCtrl, Icons.map_outlined, keyboardType: TextInputType.number)),
+                    SizedBox(width: 160, child: _buildField('Lat. exécution', _latExecutionCtrl, Icons.map_outlined, keyboardType: TextInputType.number)),
+                    SizedBox(width: 160, child: _buildField('Long. exécution', _lngExecutionCtrl, Icons.map_outlined, keyboardType: TextInputType.number)),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -318,7 +321,7 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
                 const Text('Modalités télétravail', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: ColorConstants.textSecondary)),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: _selectedTeletravail,
+                  initialValue: _selectedTeletravail,
                   items: [
                     'Aucun télétravail',
                     '1 jour/semaine',
@@ -358,11 +361,12 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
                 ),
                 if (_gratificationPrevue) ...[
                   const SizedBox(height: 12),
-                  Row(
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 12,
                     children: [
-                      Expanded(child: _buildField('Montant', _gratificationMontantCtrl, Icons.euro_symbol_rounded, keyboardType: TextInputType.number)),
-                      const SizedBox(width: 10),
-                      Expanded(child: _buildField('Périodicité', _gratificationPeriodiciteCtrl, Icons.update_rounded)),
+                      SizedBox(width: 160, child: _buildField('Montant', _gratificationMontantCtrl, Icons.euro_symbol_rounded, keyboardType: TextInputType.number)),
+                      SizedBox(width: 160, child: _buildField('Périodicité', _gratificationPeriodiciteCtrl, Icons.update_rounded)),
                     ],
                   ),
                 ],

@@ -217,6 +217,12 @@ class StagiaireTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               StatusPill(label: status, color: statusColor),
+              if (autoStatut == 'CONVENTION_SIGNEE')
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text('Accès accordé', 
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: ColorConstants.success)),
+                ),
               if (onDemanderSuivi != null) ...[
                 const SizedBox(height: 8),
                 TextButton(

@@ -560,7 +560,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _generateConventionText(Map<String, dynamic> info, String naissance, String adresse, String ecole) {
     final String duree = info['duree_hebdomadaire'] ?? '...';
-    final String jours = info['jours_presence'] ?? '...';
+    final joursRaw = info['jours_presence'];
+    final String jours = (joursRaw is List) ? joursRaw.join(', ') : (joursRaw?.toString() ?? '...');
     final String tuteur = info['tuteur_designe'] ?? '...';
     final String referent = info['referent_pedagogique_nom'] ?? '...';
     final String contactRef = info['referent_pedagogique_contact'] ?? '...';

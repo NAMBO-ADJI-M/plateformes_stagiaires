@@ -6,6 +6,7 @@ import 'package:plateforme_stagiaires/features/auth/choose_user_type_page.dart';
 import 'package:plateforme_stagiaires/features/auth/code_register_page.dart';
 import 'package:plateforme_stagiaires/features/auth/code_verify_page.dart';
 import 'package:plateforme_stagiaires/features/screens/student/entreprise_search_screen.dart';
+import 'package:plateforme_stagiaires/features/screens/student/carnet_creation_page.dart';
 import 'package:plateforme_stagiaires/features/onboarding/onboarding_page.dart';
 import 'package:plateforme_stagiaires/features/screens/home_router.dart';
 import 'package:plateforme_stagiaires/features/splash/splash_screen.dart';
@@ -123,6 +124,9 @@ class _MonApplicationState extends State<MonApplication>
 
           case '/recherche-entreprise':
             return MaterialPageRoute(builder: (_) => const EntrepriseSearchScreen());
+
+          case '/carnet-creation':
+            return MaterialPageRoute(builder: (_) => const CarnetCreationPage());
 
           case '/home':
             return MaterialPageRoute(builder: (_) => const HomeRouter());
