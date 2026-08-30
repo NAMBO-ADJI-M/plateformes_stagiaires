@@ -10,7 +10,15 @@ class ApiException implements Exception {
     this.statusCode,
     this.errors,
     this.endpoint,
-  }) : timestamp = DateTime.now();
+  }) : timestamp = DateTime.now() {
+    // Print détaillé pour le debug en développement
+    if (statusCode == 422 && errors != null) {
+      print('--- API VALIDATION ERROR (422) ---');
+      print('Endpoint: $endpoint');
+      print('Errors: $errors');
+      print('----------------------------------');
+    }
+  }
 
   // ============================================
   // FABRIQUES

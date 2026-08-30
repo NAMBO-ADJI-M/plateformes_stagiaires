@@ -146,7 +146,11 @@ abstract class BaseApiService {
 
       final decoded = jsonDecode(response.body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw ApiException(decoded['message'] ?? 'Erreur lors de l\'envoi', statusCode: response.statusCode);
+        throw ApiException(
+          decoded['message'] ?? 'Erreur lors de l\'envoi', 
+          statusCode: response.statusCode,
+          errors: decoded['errors'] as Map<String, dynamic>?,
+        );
       }
       return decoded;
     } catch (e) {

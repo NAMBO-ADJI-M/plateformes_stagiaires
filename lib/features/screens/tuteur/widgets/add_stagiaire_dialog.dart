@@ -57,7 +57,8 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
   final _dureeMoisCtrl = TextEditingController();
   final _dureeHebdoCtrl = TextEditingController();
   final List<String> _joursPresence = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
-  final _teletravailCtrl = TextEditingController();
+  String? _selectedTeletravail;
+  final _teletravailAutreCtrl = TextEditingController();
 
   // 6. Encadrement
   final _congesAbsencesCtrl = TextEditingController();
@@ -111,7 +112,7 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
     _lngExecutionCtrl.dispose();
     _dureeMoisCtrl.dispose();
     _dureeHebdoCtrl.dispose();
-    _teletravailCtrl.dispose();
+    _teletravailAutreCtrl.dispose();
     _congesAbsencesCtrl.dispose();
     _gratificationMontantCtrl.dispose();
     _gratificationPeriodiciteCtrl.dispose();
@@ -173,7 +174,7 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate() || _dateDebut == null || _dateFin == null || _selectedObjet == null) {
+    if (!_formKey.currentState!.validate() || _dateDebut == null || _dateFin == null || _selectedObjet == null || _selectedTeletravail == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Veuillez remplir toutes les informations obligatoires.'))
       );
@@ -184,8 +185,6 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
     try {
       final Map<String, dynamic> data = {
         'email': _emailCtrl.text.trim(),
-        'stagiaire_nom': _nomStagiaireCtrl.text.trim(),
-        'stagiaire_prenom': _prenomStagiaireCtrl.text.trim(),
         
         'date_debut': DateFormat('yyyy-MM-dd').format(_dateDebut!),
         'date_fin': DateFormat('yyyy-MM-dd').format(_dateFin!),
@@ -198,6 +197,7 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
         'entreprise_telephone_document': _entrepriseTelDocCtrl.text.trim(),
 
         'representant_legal_nom': _repLegalNomCtrl.text.trim(),
+        'tuteur_designe': _repLegalNomCtrl.text.trim(),
         'representant_legal_fonction': _repLegalFonctionCtrl.text.trim(),
         'representant_legal_contact': _repLegalContactCtrl.text.trim(),
 
@@ -211,7 +211,7 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
         'nombre_mois_stage': int.tryParse(_dureeMoisCtrl.text),
         'duree_hebdomadaire': _dureeHebdoCtrl.text.trim(),
         'jours_presence': _joursPresence,
-        'teletravail_modalites': _teletravailCtrl.text.trim(),
+        'teletravail_modalites': _selectedTeletravail == 'Autre' ? _teletravailAutreCtrl.text.trim() : _selectedTeletravail,
         
         'gratification_prevue': _gratificationPrevue,
         'gratification_montant': double.tryParse(_gratificationMontantCtrl.text),
@@ -262,14 +262,6 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
                 // 1. Identité Stagiaire
                 _sectionTitle('1. Identité du Stagiaire'),
                 _buildField('Email du stagiaire (obligatoire)', _emailCtrl, Icons.email_outlined, keyboardType: TextInputType.emailAddress),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(child: _buildField('Nom', _nomStagiaireCtrl, Icons.person_outline, required: false)),
-                    const SizedBox(width: 10),
-                    Expanded(child: _buildField('Prénom', _prenomStagiaireCtrl, Icons.person_outline, required: false)),
-                  ],
-                ),
 
                 // 2. Identité Entreprise
                 const SizedBox(height: 24),
@@ -280,11 +272,12 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
                 const SizedBox(height: 12),
                 _buildField('Secteur d\'activité', _secteurActiviteCtrl, Icons.category_outlined),
                 const SizedBox(height: 12),
-                Row(
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 12,
                   children: [
-                    Expanded(child: _buildField('Email contact', _entrepriseEmailDocCtrl, Icons.alternate_email_outlined, keyboardType: TextInputType.emailAddress)),
-                    const SizedBox(width: 10),
-                    Expanded(child: _buildField('Tel contact', _entrepriseTelDocCtrl, Icons.phone_outlined, keyboardType: TextInputType.phone)),
+                    SizedBox(width: 240, child: _buildField('Email contact', _entrepriseEmailDocCtrl, Icons.alternate_email_outlined, keyboardType: TextInputType.emailAddress)),
+                    SizedBox(width: 240, child: _buildField('Tel contact', _entrepriseTelDocCtrl, Icons.phone_outlined, keyboardType: TextInputType.phone)),
                   ],
                 ),
 
@@ -302,11 +295,12 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
                 _sectionTitle('4. Cadre Administratif du Stage'),
                 _buildField('Établissement d\'enseignement', _etablissementCtrl, Icons.school_outlined),
                 const SizedBox(height: 12),
-                Row(
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 12,
                   children: [
-                    Expanded(child: _dateTile('Début', _dateDebut, () => _pickDate(true))),
-                    const SizedBox(width: 10),
-                    Expanded(child: _dateTile('Fin', _dateFin, () => _pickDate(false))),
+                    SizedBox(width: 150, child: _dateTile('Début', _dateDebut, () => _pickDate(true))),
+                    SizedBox(width: 150, child: _dateTile('Fin', _dateFin, () => _pickDate(false))),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -336,23 +330,21 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
                 _sectionTitle('5. Conditions Matérielles'),
                 _buildField('Lieu exact d\'exécution', _lieuExecutionCtrl, Icons.location_on_outlined),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _captureGPS,
-                        icon: const Icon(Icons.my_location, size: 16),
-                        label: const Text('Capturer position actuelle', style: TextStyle(fontSize: 12)),
-                      ),
-                    ),
-                  ],
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _captureGPS,
+                    icon: const Icon(Icons.my_location, size: 16),
+                    label: const Text('Capturer position actuelle', style: TextStyle(fontSize: 12)),
+                  ),
                 ),
                 const SizedBox(height: 12),
-                Row(
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 12,
                   children: [
-                    Expanded(child: _buildField('Lat.', _latExecutionCtrl, Icons.map_outlined, keyboardType: TextInputType.number)),
-                    const SizedBox(width: 10),
-                    Expanded(child: _buildField('Long.', _lngExecutionCtrl, Icons.map_outlined, keyboardType: TextInputType.number)),
+                    SizedBox(width: 180, child: _buildField('Lat.', _latExecutionCtrl, Icons.map_outlined, keyboardType: TextInputType.number)),
+                    SizedBox(width: 180, child: _buildField('Long.', _lngExecutionCtrl, Icons.map_outlined, keyboardType: TextInputType.number)),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -394,7 +386,31 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
                   }).toList(),
                 ),
                 const SizedBox(height: 12),
-                _buildField('Modalités télétravail', _teletravailCtrl, Icons.laptop_mac_outlined, required: false),
+                const Text('Modalités télétravail', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: ColorConstants.textSecondary)),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: _selectedTeletravail,
+                  items: [
+                    'Aucun télétravail',
+                    '1 jour/semaine',
+                    '2 jours/semaine',
+                    '3 jours/semaine',
+                    'Télétravail complet',
+                    'Autre'
+                  ].map((o) => DropdownMenuItem(value: o, child: Text(o, style: const TextStyle(fontSize: 13)))).toList(),
+                  onChanged: (v) => setState(() => _selectedTeletravail = v),
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.laptop_mac_outlined, size: 20),
+                    filled: true,
+                    fillColor: ColorConstants.paper,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                  validator: (v) => v == null ? 'Requis' : null,
+                ),
+                if (_selectedTeletravail == 'Autre') ...[
+                  const SizedBox(height: 12),
+                  _buildField('Précisez les modalités', _teletravailAutreCtrl, Icons.edit_note_outlined),
+                ],
 
                 // 6. Encadrement
                 const SizedBox(height: 24),
@@ -413,11 +429,12 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
                 ),
                 if (_gratificationPrevue) ...[
                   const SizedBox(height: 12),
-                  Row(
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 12,
                     children: [
-                      Expanded(child: _buildField('Montant', _gratificationMontantCtrl, Icons.euro_symbol_rounded, keyboardType: TextInputType.number)),
-                      const SizedBox(width: 10),
-                      Expanded(child: _buildField('Périodicité', _gratificationPeriodiciteCtrl, Icons.update_rounded)),
+                      SizedBox(width: 180, child: _buildField('Montant', _gratificationMontantCtrl, Icons.euro_symbol_rounded, keyboardType: TextInputType.number)),
+                      SizedBox(width: 180, child: _buildField('Périodicité', _gratificationPeriodiciteCtrl, Icons.update_rounded)),
                     ],
                   ),
                 ],

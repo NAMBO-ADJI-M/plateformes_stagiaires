@@ -50,7 +50,8 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
   final _dureeMoisCtrl = TextEditingController();
   final _dureeHebdoCtrl = TextEditingController();
   final List<String> _joursPresence = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
-  final _teletravailCtrl = TextEditingController();
+  String? _selectedTeletravail;
+  final _teletravailAutreCtrl = TextEditingController();
   
   // 5. Encadrement & suivi
   final _congesAbsencesCtrl = TextEditingController();
@@ -113,7 +114,7 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate() || _dateDebut == null || _dateFin == null || _selectedObjet == null) {
+    if (!_formKey.currentState!.validate() || _dateDebut == null || _dateFin == null || _selectedObjet == null || _selectedTeletravail == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veuillez remplir toutes les informations obligatoires.')));
       return;
     }
@@ -125,7 +126,7 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
         poste: "Stagiaire", 
         dateDebut: DateFormat('yyyy-MM-dd').format(_dateDebut!),
         dateFin: DateFormat('yyyy-MM-dd').format(_dateFin!),
-        tuteurDesigne: "À définir", 
+        tuteurDesigne: _repLegalNomCtrl.text.trim(), 
 
         etablissementNom: _etablissementCtrl.text.trim(),
         
@@ -150,7 +151,7 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
         nombreMoisStage: int.tryParse(_dureeMoisCtrl.text.trim()),
         dureeHebdomadaire: _dureeHebdoCtrl.text.trim(),
         joursPresence: _joursPresence,
-        teletravailModalites: _teletravailCtrl.text.trim(),
+        teletravailModalites: _selectedTeletravail == 'Autre' ? _teletravailAutreCtrl.text.trim() : _selectedTeletravail,
         
         gratificationPrevue: _gratificationPrevue,
         gratificationMontant: double.tryParse(_gratificationMontantCtrl.text),
@@ -200,11 +201,12 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
                 const SizedBox(height: 12),
                 _buildField('Secteur d\'activité', _secteurActiviteCtrl, Icons.category_outlined),
                 const SizedBox(height: 12),
-                Row(
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 12,
                   children: [
-                    Expanded(child: _buildField('Email contact', _entrepriseEmailDocCtrl, Icons.alternate_email_outlined, keyboardType: TextInputType.emailAddress)),
-                    const SizedBox(width: 10),
-                    Expanded(child: _buildField('Tél contact', _entrepriseTelDocCtrl, Icons.phone_outlined, keyboardType: TextInputType.phone)),
+                    SizedBox(width: 240, child: _buildField('Email contact', _entrepriseEmailDocCtrl, Icons.alternate_email_outlined, keyboardType: TextInputType.emailAddress)),
+                    SizedBox(width: 240, child: _buildField('Tél contact', _entrepriseTelDocCtrl, Icons.phone_outlined, keyboardType: TextInputType.phone)),
                   ],
                 ),
 
@@ -222,11 +224,12 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
                 _sectionTitle('3. Cadre Administratif du Stage'),
                 _buildField('Établissement de formation', _etablissementCtrl, Icons.school_outlined),
                 const SizedBox(height: 12),
-                Row(
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 12,
                   children: [
-                    Expanded(child: _dateTile('Début', _dateDebut, () => _pickDate(true))),
-                    const SizedBox(width: 10),
-                    Expanded(child: _dateTile('Fin', _dateFin, () => _pickDate(false))),
+                    SizedBox(width: 150, child: _dateTile('Début', _dateDebut, () => _pickDate(true))),
+                    SizedBox(width: 150, child: _dateTile('Fin', _dateFin, () => _pickDate(false))),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -256,23 +259,21 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
                 _sectionTitle('4. Conditions matérielles'),
                 _buildField('Lieu exact d\'exécution', _lieuExecutionCtrl, Icons.location_on_outlined),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _captureGPS,
-                        icon: const Icon(Icons.my_location, size: 16),
-                        label: const Text('Capturer position actuelle', style: TextStyle(fontSize: 12)),
-                      ),
-                    ),
-                  ],
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _captureGPS,
+                    icon: const Icon(Icons.my_location, size: 16),
+                    label: const Text('Capturer position actuelle', style: TextStyle(fontSize: 12)),
+                  ),
                 ),
                 const SizedBox(height: 12),
-                Row(
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 12,
                   children: [
-                    Expanded(child: _buildField('Lat. exécution', _latExecutionCtrl, Icons.map_outlined, keyboardType: TextInputType.number)),
-                    const SizedBox(width: 10),
-                    Expanded(child: _buildField('Long. exécution', _lngExecutionCtrl, Icons.map_outlined, keyboardType: TextInputType.number)),
+                    SizedBox(width: 180, child: _buildField('Lat. exécution', _latExecutionCtrl, Icons.map_outlined, keyboardType: TextInputType.number)),
+                    SizedBox(width: 180, child: _buildField('Long. exécution', _lngExecutionCtrl, Icons.map_outlined, keyboardType: TextInputType.number)),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -314,11 +315,31 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
                   }).toList(),
                 ),
                 const SizedBox(height: 12),
-                _buildField('Modalités télétravail', _teletravailCtrl, Icons.laptop_mac_outlined),
-                const Padding(
-                  padding: EdgeInsets.only(left: 12, top: 4),
-                  child: Text('Ex: Nombre de jours par semaine, conditions de matériel...', style: TextStyle(fontSize: 10, color: ColorConstants.textSecondary, fontStyle: FontStyle.italic)),
+                const Text('Modalités télétravail', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: ColorConstants.textSecondary)),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: _selectedTeletravail,
+                  items: [
+                    'Aucun télétravail',
+                    '1 jour/semaine',
+                    '2 jours/semaine',
+                    '3 jours/semaine',
+                    'Télétravail complet',
+                    'Autre'
+                  ].map((o) => DropdownMenuItem(value: o, child: Text(o, style: const TextStyle(fontSize: 13)))).toList(),
+                  onChanged: (v) => setState(() => _selectedTeletravail = v),
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.laptop_mac_outlined, size: 20),
+                    filled: true,
+                    fillColor: ColorConstants.paper,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                  validator: (v) => v == null ? 'Requis' : null,
                 ),
+                if (_selectedTeletravail == 'Autre') ...[
+                  const SizedBox(height: 12),
+                  _buildField('Précisez les modalités', _teletravailAutreCtrl, Icons.edit_note_outlined),
+                ],
 
                 // SECTION 5
                 const SizedBox(height: 24),
