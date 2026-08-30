@@ -304,6 +304,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         PointageEventBus().notifyPointageUpdate();
 
                         final autoId = res['autorisation_id']?.toString() ?? info['autorisation_id']?.toString();
+                        final lat = info['lieu_execution_lat'];
+                        final lng = info['lieu_execution_lng'];
 
                         if (autoId != null && _activeCarnetId != null && lat != null && lng != null) {
                           GeofencingService().start(
