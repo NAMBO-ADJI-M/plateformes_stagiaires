@@ -4,7 +4,6 @@ import '../../../core/constants/constants_colors.dart';
 import '../../widgets/common_widgets.dart';
 import '../../../services/internship_service.dart';
 import 'widgets/add_stagiaire_dialog.dart';
-import 'suivi_stagiaire_screen.dart';
 
 class DashboardTuteurScreen extends StatefulWidget {
   const DashboardTuteurScreen({super.key});
