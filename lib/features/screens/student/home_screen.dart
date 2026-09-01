@@ -185,14 +185,31 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showReviewConditionsPopup(String code, Map<String, dynamic> info) {
     final TextEditingController nomCtrl = TextEditingController(text: info['stagiaire_nom'] ?? '');
     final TextEditingController prenomCtrl = TextEditingController(text: info['stagiaire_prenom'] ?? '');
-    final TextEditingController naissanceCtrl = TextEditingController();
-    final TextEditingController adresseCtrl = TextEditingController();
+    final TextEditingController adresseCtrl = TextEditingController(text: info['stagiaire_adresse'] ?? '');
     final TextEditingController telCtrl = TextEditingController(text: info['stagiaire_telephone'] ?? '');
     final TextEditingController ecoleCtrl = TextEditingController(text: info['etablissement_nom'] ?? '');
     final TextEditingController cursusCtrl = TextEditingController(text: info['cursus_rattachement'] ?? '');
     final TextEditingController anneeAcadCtrl = TextEditingController(text: info['stagiaire_annee_academique'] ?? '');
-    final TextEditingController refNomCtrl = TextEditingController(text: info['referent_pedagogique_nom'] ?? '');
-    final TextEditingController refContactCtrl = TextEditingController(text: info['referent_pedagogique_contact'] ?? '');
+
+    Timer? debounceTimer;
+
+    void autoSave() {
+      if (debounceTimer?.isActive ?? false) debounceTimer!.cancel();
+      debounceTimer = Timer(const Duration(milliseconds: 800), () async {
+        try {
+          await _internshipService.sauvegarderBrouillonLiaison({
+            'entreprise_id': info['entreprise_id'],
+            'nom': nomCtrl.text.trim(),
+            'prenom': prenomCtrl.text.trim(),
+            'stagiaire_adresse': adresseCtrl.text,
+            'stagiaire_telephone': telCtrl.text,
+          });
+          debugPrint('Sauvegarde automatique réussie');
+        } catch (e) {
+          debugPrint('Erreur sauvegarde automatique : $e');
+        }
+      });
+    }
 
     showDialog(
       context: context,
@@ -216,32 +233,24 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _sectionTitle('1. Informations Personnelles'),
-                  _editableField('Nom', nomCtrl, Icons.person_outline),
+                  _editableField('Nom', nomCtrl, Icons.person_outline, onChanged: (_) => autoSave()),
                   const SizedBox(height: 12),
-                  _editableField('Prénom', prenomCtrl, Icons.person_outline),
+                  _editableField('Prénom', prenomCtrl, Icons.person_outline, onChanged: (_) => autoSave()),
                   const SizedBox(height: 12),
-                  _editableField('Téléphone personnel', telCtrl, Icons.phone_android_outlined, keyboardType: TextInputType.phone),
+                  _editableField('Téléphone personnel', telCtrl, Icons.phone_android_outlined, keyboardType: TextInputType.phone, onChanged: (_) => autoSave()),
                   const SizedBox(height: 12),
-                  _datePickerField('Date de naissance', naissanceCtrl, context, (date) => setPopupState(() => naissanceCtrl.text = date)),
-                  const SizedBox(height: 12),
-                  _editableField('Adresse personnelle', adresseCtrl, Icons.home_outlined),
+                  _editableField('Adresse personnelle', adresseCtrl, Icons.home_outlined, onChanged: (_) => autoSave()),
                   
                   const SizedBox(height: 20),
                   _sectionTitle('2. Parcours Scolaire'),
-                  _editableField('Établissement actuel', ecoleCtrl, Icons.school_outlined),
+                  _editableField('Établissement actuel', ecoleCtrl, Icons.school_outlined, onChanged: (_) => autoSave()),
                   const SizedBox(height: 12),
-                  _editableField('Cursus / Filière', cursusCtrl, Icons.layers_outlined),
+                  _editableField('Cursus / Filière', cursusCtrl, Icons.layers_outlined, onChanged: (_) => autoSave()),
                   const SizedBox(height: 12),
-                  _editableField('Année académique (ex: 2024-2025)', anneeAcadCtrl, Icons.calendar_today_outlined),
-                  
-                  const SizedBox(height: 20),
-                  _sectionTitle('3. Encadrement École'),
-                  _editableField('Référent pédagogique (Nom)', refNomCtrl, Icons.person_search_outlined),
-                  const SizedBox(height: 12),
-                  _editableField('Contact référent (Email/Tel)', refContactCtrl, Icons.contact_mail_outlined),
+                  _editableField('Année académique (ex: 2024-2025)', anneeAcadCtrl, Icons.calendar_today_outlined, onChanged: (_) => autoSave()),
 
                   const SizedBox(height: 20),
-                  _sectionTitle('4. Détails du Poste (Lecture seule)'),
+                  _sectionTitle('3. Détails du Poste (Lecture seule)'),
                   _readOnlyTile('Poste', info['poste']),
                   _readOnlyTile('Tuteur entreprise', info['tuteur_designe']),
                   Row(
@@ -254,7 +263,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   
                   const SizedBox(height: 12),
                   OutlinedButton.icon(
-                    onPressed: () => _showTermsModal(info, naissanceCtrl.text, adresseCtrl.text, ecoleCtrl.text),
+                    onPressed: () => _showTermsModal(info, '', adresseCtrl.text, ecoleCtrl.text),
                     icon: const Icon(Icons.description_outlined, size: 18),
                     label: const Text('Voir les termes de la convention'),
                     style: OutlinedButton.styleFrom(
@@ -274,7 +283,7 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 ElevatedButton(
                   onPressed: () async {
-                    if (nomCtrl.text.isEmpty || prenomCtrl.text.isEmpty || telCtrl.text.isEmpty || naissanceCtrl.text.isEmpty || ecoleCtrl.text.isEmpty) {
+                    if (nomCtrl.text.isEmpty || prenomCtrl.text.isEmpty || telCtrl.text.isEmpty || ecoleCtrl.text.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veuillez remplir toutes les informations obligatoires.')));
                       return;
                     }
@@ -283,14 +292,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         'entreprise_id': info['entreprise_id'],
                         'nom': nomCtrl.text.trim(),
                         'prenom': prenomCtrl.text.trim(),
-                        'stagiaire_date_naissance': naissanceCtrl.text,
                         'stagiaire_adresse': adresseCtrl.text,
                         'stagiaire_telephone': telCtrl.text,
                         'etablissement_nom': ecoleCtrl.text,
                         'cursus_rattachement': cursusCtrl.text,
                         'stagiaire_annee_academique': anneeAcadCtrl.text.trim(),
-                        'referent_pedagogique_nom': refNomCtrl.text,
-                        'referent_pedagogique_contact': refContactCtrl.text,
                       }, carnetId: _activeCarnetId);
 
                       final String? autoId = res['autorisation_id']?.toString() ?? info['autorisation_id']?.toString();
@@ -303,15 +309,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         });
                         PointageEventBus().notifyPointageUpdate();
 
-                        final lat = info['lieu_execution_lat'];
-                        final lng = info['lieu_execution_lng'];
+                        final latValue = info['lieu_execution_lat'];
+                        final lngValue = info['lieu_execution_lng'];
 
-                        if (autoId != null && _activeCarnetId != null && lat != null && lng != null) {
+                        if (autoId != null && _activeCarnetId != null && latValue != null && lngValue != null) {
                           GeofencingService().start(
                             autorisationId: autoId,
                             carnetId: _activeCarnetId!,
-                            lat: (lat as num).toDouble(),
-                            lng: (lng as num).toDouble(),
+                            lat: (latValue as num).toDouble(),
+                            lng: (lngValue as num).toDouble(),
                             rayonMetres: 100,
                           );
                         }
@@ -635,34 +641,17 @@ En validant cette convention via l'application StageLink, les parties reconnaiss
     );
   }
 
-  Widget _editableField(String label, TextEditingController ctrl, IconData icon, {TextInputType? keyboardType}) {
+  Widget _editableField(String label, TextEditingController ctrl, IconData icon, {TextInputType? keyboardType, Function(String)? onChanged}) {
     return TextField(
       controller: ctrl,
       keyboardType: keyboardType,
+      onChanged: onChanged,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, size: 18),
         filled: true,
         fillColor: ColorConstants.paper,
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      ),
-    );
-  }
-
-  Widget _datePickerField(String label, TextEditingController ctrl, BuildContext context, Function(String) onPicked) {
-    return TextField(
-      controller: ctrl,
-      readOnly: true,
-      onTap: () async {
-        final d = await showDatePicker(context: context, initialDate: DateTime(2000), firstDate: DateTime(1950), lastDate: DateTime.now());
-        if (d != null) onPicked(DateFormat('yyyy-MM-dd').format(d));
-      },
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: const Icon(Icons.cake_outlined, size: 18),
-        filled: true,
-        fillColor: ColorConstants.paper,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       ),
     );
@@ -808,6 +797,23 @@ En validant cette convention via l'application StageLink, les parties reconnaiss
       ),
     );
   }
+}
+
+Widget _eyebrow(String text) {
+  return Text(
+    text,
+    style: GoogleFonts.jetBrainsMono(
+      fontSize: 10,
+      letterSpacing: 1.1,
+      color: ColorConstants.textSecondary,
+    ),
+  );
+}
+
+String _formatHeure(String iso) {
+  final d = DateTime.tryParse(iso);
+  if (d == null) return '--:--';
+  return DateFormat('HH:mm').format(d);
 }
 
 class _LiaisonPanel extends StatelessWidget {
@@ -1166,19 +1172,3 @@ class _ActivityItem extends StatelessWidget {
   }
 }
 
-Widget _eyebrow(String text) {
-  return Text(
-    text,
-    style: GoogleFonts.jetBrainsMono(
-      fontSize: 10,
-      letterSpacing: 1.1,
-      color: ColorConstants.textSecondary,
-    ),
-  );
-}
-
-String _formatHeure(String iso) {
-  final d = DateTime.tryParse(iso);
-  if (d == null) return '--:--';
-  return DateFormat('HH:mm').format(d);
-}

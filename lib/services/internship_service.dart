@@ -308,6 +308,10 @@ class InternshipService extends BaseApiService {
     });
   }
 
+  Future<Map<String, dynamic>> sauvegarderBrouillonLiaison(Map<String, dynamic> data) async {
+    return await postRequest('/pointage/brouillon-liaison', data);
+  }
+
   Future<Map<String, dynamic>> validerLiaisonDefinitive(String code, Map<String, dynamic> data, {String? carnetId}) async {
     final body = await postRequest('/pointage/valider-liaison', {
       'code': code,

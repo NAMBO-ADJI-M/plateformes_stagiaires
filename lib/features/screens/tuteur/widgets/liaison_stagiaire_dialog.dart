@@ -41,7 +41,7 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
   DateTime? _dateFin;
   String? _selectedObjet;
   final _objetAutreCtrl = TextEditingController();
-  final _cursusCtrl = TextEditingController();
+  String? _selectedCursus;
   
   // 4. Conditions matérielles
   final _lieuExecutionCtrl = TextEditingController();
@@ -71,6 +71,15 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
     'Stage de découverte',
     'Stage professionnel',
     'Stage de réinsertion',
+    'Autre'
+  ];
+
+  final List<String> _cursusOptions = [
+    'BTS',
+    'Licence',
+    'Master',
+    'Ingénieur',
+    'Doctorat',
     'Autre'
   ];
 
@@ -142,7 +151,7 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
 
         objetStage: _selectedObjet,
         objetStageAutre: _selectedObjet == 'Autre' ? _objetAutreCtrl.text.trim() : null,
-        cursusRattachement: _cursusCtrl.text.trim(),
+        cursusRattachement: _selectedCursus,
         
         lieuExecution: _lieuExecutionCtrl.text.trim(),
         lieuExecutionLat: double.tryParse(_latExecutionCtrl.text.trim()),
@@ -255,7 +264,20 @@ class _LiaisonStagiaireDialogState extends State<LiaisonStagiaireDialog> {
                   _buildField('Précisez l\'objet', _objetAutreCtrl, Icons.edit_note_outlined),
                 ],
                 const SizedBox(height: 12),
-                _buildField('Cursus / Filière', _cursusCtrl, Icons.layers_outlined),
+                const Text('Cursus / Filière', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: ColorConstants.textSecondary)),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedCursus,
+                  items: _cursusOptions.map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 13)))).toList(),
+                  onChanged: (v) => setState(() => _selectedCursus = v),
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.layers_outlined, size: 20),
+                    filled: true,
+                    fillColor: ColorConstants.paper,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                  validator: (v) => v == null ? 'Requis' : null,
+                ),
 
                 // SECTION 4
                 const SizedBox(height: 24),

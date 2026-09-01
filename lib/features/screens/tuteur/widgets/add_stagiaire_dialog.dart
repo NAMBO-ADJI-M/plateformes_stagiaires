@@ -48,7 +48,7 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
   DateTime? _dateFin;
   String? _selectedObjet;
   final _objetAutreCtrl = TextEditingController();
-  final _cursusCtrl = TextEditingController();
+  String? _selectedCursus;
 
   // 5. Conditions Matérielles
   final _lieuExecutionCtrl = TextEditingController();
@@ -81,6 +81,15 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
     'Autre'
   ];
 
+  final List<String> _cursusOptions = [
+    'BTS',
+    'Licence',
+    'Master',
+    'Ingénieur',
+    'Doctorat',
+    'Autre'
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -106,7 +115,6 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
     _repLegalContactCtrl.dispose();
     _etablissementCtrl.dispose();
     _objetAutreCtrl.dispose();
-    _cursusCtrl.dispose();
     _lieuExecutionCtrl.dispose();
     _latExecutionCtrl.dispose();
     _lngExecutionCtrl.dispose();
@@ -203,7 +211,7 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
 
         'objet_stage': _selectedObjet,
         'objet_stage_autre': _selectedObjet == 'Autre' ? _objetAutreCtrl.text.trim() : null,
-        'cursus_rattachement': _cursusCtrl.text.trim(),
+        'cursus_rattachement': _selectedCursus,
         
         'lieu_execution': _lieuExecutionCtrl.text.trim(),
         'lieu_execution_lat': double.tryParse(_latExecutionCtrl.text),
@@ -326,7 +334,20 @@ class _AddStagiaireDialogState extends State<AddStagiaireDialog> {
                   _buildField('Précisez l\'objet', _objetAutreCtrl, Icons.edit_note_outlined),
                 ],
                 const SizedBox(height: 12),
-                _buildField('Cursus / Filière', _cursusCtrl, Icons.layers_outlined),
+                const Text('Cursus / Filière', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: ColorConstants.textSecondary)),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedCursus,
+                  items: _cursusOptions.map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 13)))).toList(),
+                  onChanged: (v) => setState(() => _selectedCursus = v),
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.layers_outlined, size: 20),
+                    filled: true,
+                    fillColor: ColorConstants.paper,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                  validator: (v) => v == null ? 'Requis' : null,
+                ),
 
                 // 5. Conditions Matérielles
                 const SizedBox(height: 24),
