@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/constants_colors.dart';
 import '../../../services/carpool_service.dart';
 import '../../../services/api_exception.dart';
@@ -46,12 +47,21 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
   @override
   void initState() {
     super.initState();
+    _loadGeolocState();
     _chargerTrajets();
 
     // ✅ Rafraîchir les positions des voitures moins souvent (60s) pour économiser Render
     _refreshTimer = Timer.periodic(const Duration(seconds: 60), (_) {
       if (mounted) _chargerTrajets(silent: true);
     });
+  }
+
+  Future<void> _loadGeolocState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final bool? saved = prefs.getBool('covoiturage_geoloc_enabled');
+    if (saved == true) {
+      _toggleGeoloc(true);
+    }
   }
 
   @override
@@ -132,6 +142,9 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
           _mapController.move(_myPos, _mapController.camera.zoom);
         }
       });
+      
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('covoiturage_geoloc_enabled', true);
     } else {
       // Désactiver
       await _positionStream?.cancel();
@@ -141,6 +154,9 @@ class _CovoiturageHomeScreenState extends State<CovoiturageHomeScreen> {
         _hasPrecisePos = false;
         _myPos = const LatLng(45.764043, 4.835659);
       });
+      
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('covoiturage_geoloc_enabled', false);
     }
   }
 

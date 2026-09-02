@@ -15,6 +15,8 @@ class GeofencingService {
   String? _carnetId;
   bool _started = false;
 
+  bool get isStarted => _started;
+
   Future<void> start({
     String? carnetId,
     required String autorisationId,

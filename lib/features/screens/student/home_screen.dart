@@ -101,6 +101,21 @@ class _HomeScreenState extends State<HomeScreen> {
       } else {
         if (mounted) setState(() => _isLoading = false);
       }
+      
+      // ✅ Activation automatique du géofencing si convention signée
+      final auto = profile['autorisation_pointage'];
+      if (auto != null && 
+          auto['statut'] == 'CONVENTION_SIGNEE' &&
+          auto['lieu_execution_lat'] != null &&
+          auto['lieu_execution_lng'] != null) {
+        GeofencingService().start(
+          autorisationId: auto['id'],
+          carnetId: _activeCarnetId,
+          lat: (auto['lieu_execution_lat'] as num).toDouble(),
+          lng: (auto['lieu_execution_lng'] as num).toDouble(),
+          rayonMetres: 100,
+        );
+      }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -311,11 +326,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         final latValue = info['lieu_execution_lat'];
                         final lngValue = info['lieu_execution_lng'];
+                        final String? returnedCarnetId = res['carnet_id']?.toString() ?? _activeCarnetId;
 
-                        if (autoId != null && _activeCarnetId != null && latValue != null && lngValue != null) {
+                        if (autoId != null && latValue != null && lngValue != null) {
                           GeofencingService().start(
                             autorisationId: autoId,
-                            carnetId: _activeCarnetId!,
+                            carnetId: returnedCarnetId,
                             lat: (latValue as num).toDouble(),
                             lng: (lngValue as num).toDouble(),
                             rayonMetres: 100,
@@ -831,7 +847,7 @@ class _LiaisonPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool active = statut == 'ACTIVE';
+    final bool active = statut == 'ACTIVE' || statut == 'CONVENTION_SIGNEE';
     final bool pending = statut == 'EN_ATTENTE';
 
     return AppCard(
