@@ -6,6 +6,7 @@ import '../../../services/geofencing_service.dart';
 import 'home_screen.dart';
 import 'pointage_screen.dart';
 import 'carnet_list_page.dart';
+import 'carnet_screen.dart';
 import 'trajet_screen.dart';
 import 'profile_student_screen.dart';
 
