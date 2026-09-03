@@ -38,6 +38,7 @@ class InternshipService extends BaseApiService {
   Future<Map<String, dynamic>> createCarnet(Map<String, dynamic> data) async {
     final body = await postRequest('/carnets', data);
     await cache.delete('carnets');
+    await cache.delete('profile');
     return body;
   }
 
@@ -291,6 +292,10 @@ class InternshipService extends BaseApiService {
 
   String urlTelechargementConvention(String autorisationId) {
     return '${BaseApiService.baseUrl}/documents/liaison/$autorisationId/convention-pdf';
+  }
+
+  Future<Map<String, dynamic>> getApercuConvention(String autorisationId) async {
+    return await getRequest('/documents/liaison/$autorisationId/convention-apercu');
   }
 
   Future<List<dynamic>> getCompetences() async {

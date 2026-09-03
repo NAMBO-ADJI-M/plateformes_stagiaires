@@ -278,7 +278,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   
                   const SizedBox(height: 12),
                   OutlinedButton.icon(
-                    onPressed: () => _showTermsModal(info, '', adresseCtrl.text, ecoleCtrl.text),
+                    onPressed: () => _showTermsModal(info['autorisation_id'] ?? info['invitation_id']),
                     icon: const Icon(Icons.description_outlined, size: 18),
                     label: const Text('Voir les termes de la convention'),
                     style: OutlinedButton.styleFrom(
@@ -547,101 +547,115 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showTermsModal(Map<String, dynamic> info, String naissance, String adresse, String ecole) {
+  void _showTermsModal(String id) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        height: MediaQuery.of(context).size.height * 0.85,
-        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-        child: Column(
-          children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 20),
-            const Text('TERMES DE LA CONVENTION', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1)),
-            const Divider(height: 32),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Text(
-                  _generateConventionText(info, naissance, adresse, ecole),
-                  style: GoogleFonts.merriweather(fontSize: 13, height: 1.6, color: Colors.black87),
+      builder: (ctx) => FutureBuilder<Map<String, dynamic>>(
+        future: _internshipService.getApercuConvention(id),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Container(
+              height: 200,
+              decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+              child: const Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (snapshot.hasError) {
+            return Container(
+              height: 200,
+              decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+              child: Center(child: Text("Erreur de chargement : ${snapshot.error}")),
+            );
+          }
+
+          final data = snapshot.data!;
+          final parties = data['parties'];
+          final details = data['details_stage'];
+          final cond = data['conditions'];
+          final enc = data['encadrement'];
+
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.85,
+            decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+            child: Column(
+              children: [
+                Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+                const SizedBox(height: 20),
+                Text('APERÇU : ${data['reference']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1)),
+                const Divider(height: 32),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _termsSection('1. CADRE ADMINISTRATIF ET LÉGAL', [
+                          'Entreprise : ${parties['entreprise']}',
+                          'Stagiaire : ${parties['stagiaire']}',
+                          'Établissement : ${parties['etablissement']}',
+                        ]),
+                        _termsSection('2. OBJET ET DURÉE', [
+                          'Objet : ${details['objet']}',
+                          'Cursus : ${details['cursus']}',
+                          'Période : ${details['periode']}',
+                        ]),
+                        _termsSection('3. CONDITIONS D\'EXÉCUTION', [
+                          'Lieu : ${details['lieu']}',
+                          'Durée hebdomadaire : ${cond['duree_hebdo']}',
+                          'Jours de présence : ${cond['jours_presence']}',
+                          'Télétravail : ${cond['teletravail']}',
+                          'Gratification : ${cond['gratification']}',
+                        ]),
+                        _termsSection('4. ENCADREMENT ET SUIVI', [
+                          'Maître de stage : ${enc['tuteur']}',
+                          'Référent pédagogique : ${enc['referent']}',
+                          'Contact référent : ${enc['contact_referent']}',
+                        ]),
+                        const SizedBox(height: 20),
+                        const Text(
+                          "En validant cette convention via l'application StageLink, les parties reconnaissent avoir pris connaissance de l'ensemble des articles ci-dessus et s'engagent à les respecter.",
+                          style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey, fontSize: 12),
+                        ),
+                        const SizedBox(height: 40),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: PrimaryButton(label: 'J\'ai lu les termes', onPressed: () => Navigator.pop(ctx)),
+                ),
+              ],
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: PrimaryButton(label: 'J\'ai lu les termes', onPressed: () => Navigator.pop(ctx)),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  String _generateConventionText(Map<String, dynamic> info, String naissance, String adresse, String ecole) {
-    final String duree = info['duree_hebdomadaire'] ?? '...';
-    final joursRaw = info['jours_presence'];
-    final String jours = (joursRaw is List) ? joursRaw.join(', ') : (joursRaw?.toString() ?? '...');
-    final String tuteur = info['tuteur_designe'] ?? '...';
-    final String referent = info['referent_pedagogique_nom'] ?? '...';
-    final String contactRef = info['referent_pedagogique_contact'] ?? '...';
-    final String objet = info['objet_stage'] ?? 'Stage de formation professionnelle';
-    final String cursus = info['cursus_rattachement'] ?? 'Cursus scolaire/universitaire';
-    final String teletravail = info['teletravail_modalites'] ?? 'Non défini';
-    final String suivi = info['modalites_suivi_detail'] ?? 'Points réguliers avec le tuteur';
-
-    return """
-CONVENTION DE STAGE PROFESSIONNEL
-Réf : CONV-${info['entreprise_id'].toString().substring(0, 8).toUpperCase()}
-
-1. CADRE ADMINISTRATIF ET LÉGAL
-
-IDENTITÉ DES PARTIES :
-• L'ENTREPRISE : ${info['entreprise_nom']}
-• LE STAGIAIRE : $_prenom, né(e) le ${naissance.isEmpty ? '...' : naissance}, demeurant au ${adresse.isEmpty ? '...' : adresse}.
-• L'ÉTABLISSEMENT : ${ecole.isEmpty ? '...' : ecole}.
-
-OBJET ET RATTACHEMENT :
-Le présent stage a pour objet : $objet.
-Il s'inscrit dans le cadre du cursus suivant : $cursus.
-
-DURÉE DU STAGE :
-Le stage est conclu pour une période allant du ${info['date_debut']} au ${info['date_fin']}.
-
-2. CONDITIONS MATÉRIELLES D'EXÉCUTION
-
-LIEU DU STAGE :
-Le stage s'exécutera principalement à l'adresse suivante : ${info['lieu_execution'] ?? 'Locaux de l\'entreprise'}.
-
-ORGANISATION DU TEMPS DE TRAVAIL :
-• Durée hebdomadaire : $duree.
-• Jours de présence : $jours.
-• Modalités de télétravail : $teletravail.
-
-3. ENCADREMENT ET SUIVI
-
-MAÎTRE DE STAGE (Tuteur Entreprise) :
-Le stagiaire est placé sous la responsabilité directe de M/Mme $tuteur.
-
-RÉFÉRENT PÉDAGOGIQUE (Côté Formation) :
-Le suivi académique est assuré par M/Mme $referent (Contact : $contactRef).
-
-MODALITÉS DE SUIVI :
-$suivi.
-
-4. ENGAGEMENTS ET POINTAGE
-
-ASSIDUITÉ ET DISCIPLINE :
-Le stagiaire s'engage à respecter le règlement intérieur de l'entreprise. Sa présence sera certifiée en temps réel par le système de pointage GPS "StageLink". Toute absence doit être justifiée auprès du tuteur.
-
-CONFIDENTIALITÉ :
-Le stagiaire est tenu au secret professionnel absolu pour toutes les informations internes dont il pourrait avoir connaissance.
-
-SIGNATURE :
-En validant cette convention via l'application StageLink, les parties reconnaissent avoir pris connaissance de l'ensemble des articles ci-dessus et s'engagent à les respecter.
-""";
+  Widget _termsSection(String title, List<String> items) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: ColorConstants.primary)),
+          const SizedBox(height: 12),
+          ...items.map((item) => Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
+                Expanded(child: Text(item, style: const TextStyle(fontSize: 13, height: 1.4))),
+              ],
+            ),
+          )),
+        ],
+      ),
+    );
   }
 
   Widget _readOnlyTile(String label, String? value) {
@@ -712,9 +726,30 @@ En validant cette convention via l'application StageLink, les parties reconnaiss
                 statut: _autorisationStatut,
                 entrepriseNom: _entrepriseNom,
                 pos: _currentPos,
-                onToggle: (val) {
-                  if (val && _autorisationStatut != 'ACTIVE') {
-                    _showCodePopup();
+                isGeofencingStarted: GeofencingService().isStarted,
+                onToggle: (val) async {
+                  if (val) {
+                    if (_autorisationStatut == 'ACTIVE' || _autorisationStatut == 'CONVENTION_SIGNEE') {
+                      final profile = await _authService.getProfile();
+                      final auto = profile['autorisation_pointage'];
+                      if (auto != null && auto['lieu_execution_lat'] != null) {
+                        await GeofencingService().start(
+                          autorisationId: auto['id'],
+                          carnetId: _activeCarnetId,
+                          lat: (auto['lieu_execution_lat'] as num).toDouble(),
+                          lng: (auto['lieu_execution_lng'] as num).toDouble(),
+                          rayonMetres: 100,
+                        );
+                        setState(() {});
+                      } else {
+                        _showCodePopup();
+                      }
+                    } else {
+                      _showCodePopup();
+                    }
+                  } else {
+                    await GeofencingService().stop();
+                    setState(() {});
                   }
                 },
               ),
@@ -836,12 +871,14 @@ class _LiaisonPanel extends StatelessWidget {
   final String statut;
   final String? entrepriseNom;
   final LatLng? pos;
+  final bool isGeofencingStarted;
   final Function(bool) onToggle;
 
   const _LiaisonPanel({
     required this.statut,
     this.entrepriseNom,
     this.pos,
+    required this.isGeofencingStarted,
     required this.onToggle,
   });
 
@@ -923,9 +960,9 @@ class _LiaisonPanel extends StatelessWidget {
               ),
             ),
           Switch(
-            value: active || pending,
+            value: isGeofencingStarted,
             activeThumbColor: ColorConstants.success,
-            onChanged: active ? null : onToggle,
+            onChanged: onToggle,
           ),
         ],
       ),

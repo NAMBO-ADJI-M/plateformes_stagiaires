@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:geofence_service/geofence_service.dart' as gs;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'internship_service.dart';
 import 'pointage_event_bus.dart';
 import 'notification_service.dart';
@@ -17,12 +18,44 @@ class GeofencingService {
 
   bool get isStarted => _started;
 
+  static const String _keyEnabled = 'geofencing_enabled';
+  static const String _keyLat = 'geofencing_lat';
+  static const String _keyLng = 'geofencing_lng';
+  static const String _keyAuthId = 'geofencing_auth_id';
+  static const String _keyCarnetId = 'geofencing_carnet_id';
+  static const String _keyRayon = 'geofencing_rayon';
+
+  Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+    final bool isEnabled = prefs.getBool(_keyEnabled) ?? false;
+
+    if (isEnabled) {
+      final double? lat = prefs.getDouble(_keyLat);
+      final double? lng = prefs.getDouble(_keyLng);
+      final String? authId = prefs.getString(_keyAuthId);
+      final String? carnetId = prefs.getString(_keyCarnetId);
+      final int? rayon = prefs.getInt(_keyRayon);
+
+      if (lat != null && lng != null && authId != null) {
+        await start(
+          autorisationId: authId,
+          carnetId: carnetId,
+          lat: lat,
+          lng: lng,
+          rayonMetres: rayon ?? 100,
+          saveToPrefs: false,
+        );
+      }
+    }
+  }
+
   Future<void> start({
     String? carnetId,
     required String autorisationId,
     required double lat,
     required double lng,
     required int rayonMetres,
+    bool saveToPrefs = true,
   }) async {
     if (_started) return;
     _autorisationId = autorisationId;
@@ -55,6 +88,20 @@ class GeofencingService {
     _service.addGeofenceStatusChangeListener(_onStatusChanged);
     await _service.start([geofence]);
     _started = true;
+
+    if (saveToPrefs) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyEnabled, true);
+      await prefs.setDouble(_keyLat, lat);
+      await prefs.setDouble(_keyLng, lng);
+      await prefs.setString(_keyAuthId, autorisationId);
+      if (carnetId != null) {
+        await prefs.setString(_keyCarnetId, carnetId);
+      } else {
+        await prefs.remove(_keyCarnetId);
+      }
+      await prefs.setInt(_keyRayon, rayonMetres);
+    }
   }
 
   Future<void> _onStatusChanged(
@@ -106,5 +153,8 @@ class GeofencingService {
     if (!_started) return;
     await _service.stop();
     _started = false;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyEnabled, false);
   }
 }

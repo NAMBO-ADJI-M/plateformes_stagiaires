@@ -13,6 +13,7 @@ import 'package:plateforme_stagiaires/features/splash/splash_screen.dart';
 import 'package:plateforme_stagiaires/modeles/user_type.dart';
 import 'package:plateforme_stagiaires/services/auth_service.dart';
 import 'package:plateforme_stagiaires/services/offline_sync_manager.dart';
+import 'package:plateforme_stagiaires/services/geofencing_service.dart';
 import 'package:plateforme_stagiaires/services/notification_service.dart';
 import 'package:plateforme_stagiaires/services/live_tracking_service.dart';
 import 'package:flutter/foundation.dart';
@@ -48,6 +49,7 @@ Future<void> main() async {
 
   // Restaurer le suivi GPS en cours si besoin
   await LiveTrackingService().init();
+  await GeofencingService().init();
 
   runApp(const MonApplication());
 }

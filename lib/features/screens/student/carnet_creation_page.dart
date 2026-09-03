@@ -5,6 +5,7 @@ import '../../../core/constants/constants_colors.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/internship_service.dart';
 import '../../../services/api_exception.dart';
+import '../../../services/pointage_event_bus.dart';
 
 /// Écran de création du carnet de stage — version "wizard".
 ///
@@ -394,6 +395,8 @@ class _CarnetCreationPageState extends State<CarnetCreationPage> {
         'lieu_stage_lat': _lieuStageLat,
         'lieu_stage_lng': _lieuStageLng,
       });
+
+      PointageEventBus().notifyPointageUpdate();
 
       if (!mounted) return;
       Navigator.of(context).pop(true);

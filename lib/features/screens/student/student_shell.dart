@@ -5,7 +5,7 @@ import '../../../services/internship_service.dart';
 import '../../../services/geofencing_service.dart';
 import 'home_screen.dart';
 import 'pointage_screen.dart';
-import 'carnet_screen.dart';
+import 'carnet_list_page.dart';
 import 'trajet_screen.dart';
 import 'profile_student_screen.dart';
 
@@ -33,7 +33,7 @@ class _StudentShellState extends State<StudentShell> {
         onNavigateToProfil: () => setState(() => _index = 4),
       ),
       const PointageScreen(),
-      const CarnetScreen(),
+      const CarnetListPage(),
       const TrajetScreen(),
       const ProfileStudentScreen(),
     ];
