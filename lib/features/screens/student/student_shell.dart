@@ -28,7 +28,16 @@ class _StudentShellState extends State<StudentShell> {
     _pages = [
       HomeScreen(
         onNavigateToPointage: () => setState(() => _index = 1),
-        onNavigateToCarnet: () => setState(() => _index = 2),
+        onNavigateToCarnet: (id) {
+          if (id != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => CarnetScreen(carnetId: id)),
+            );
+          } else {
+            setState(() => _index = 2);
+          }
+        },
         onNavigateToTrajet: () => setState(() => _index = 3),
         onNavigateToProfil: () => setState(() => _index = 4),
       ),

@@ -17,7 +17,7 @@ import 'trajet_details_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback onNavigateToPointage;
-  final VoidCallback onNavigateToCarnet;
+  final Function(String? id) onNavigateToCarnet;
   final VoidCallback onNavigateToTrajet;
   final VoidCallback onNavigateToProfil;
 
@@ -52,10 +52,21 @@ class _HomeScreenState extends State<HomeScreen> {
   LatLng? _currentPos;
   bool _isValidatingCode = false;
 
+  StreamSubscription? _pointageSub;
+
   @override
   void initState() {
     super.initState();
     _loadDashboardData();
+    _pointageSub = PointageEventBus().onPointageUpdate.listen((_) {
+      if (mounted) _loadDashboardData(silent: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _pointageSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadDashboardData({bool silent = false}) async {
@@ -757,7 +768,8 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 16),
               _CarnetCard(
                 stats: _stats,
-                onAdd: widget.onNavigateToCarnet,
+                carnetId: _activeCarnetId,
+                onAdd: (id) => widget.onNavigateToCarnet(id),
               ),
               const SizedBox(height: 14),
               _CovoiturageCard(
@@ -990,9 +1002,10 @@ class _Panel extends StatelessWidget {
 
 class _CarnetCard extends StatelessWidget {
   final Map<String, dynamic>? stats;
-  final VoidCallback onAdd;
+  final String? carnetId;
+  final Function(String? id) onAdd;
 
-  const _CarnetCard({this.stats, required this.onAdd});
+  const _CarnetCard({this.stats, this.carnetId, required this.onAdd});
 
   @override
   Widget build(BuildContext context) {
@@ -1040,7 +1053,7 @@ class _CarnetCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: onAdd,
+              onPressed: () => onAdd(carnetId),
               style: ElevatedButton.styleFrom(
                 backgroundColor: ColorConstants.primary,
                 foregroundColor: Colors.white,
