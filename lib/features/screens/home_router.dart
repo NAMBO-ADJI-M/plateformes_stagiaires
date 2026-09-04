@@ -45,18 +45,7 @@ class HomeRouter extends StatelessWidget {
                 statusSnapshot.data?['has_rattachement'] ?? false;
 
             if (!hasRattachement) {
-              // Redirection forcée vers la recherche d'entreprise
-              Future.microtask(() {
-                if (Navigator.canPop(context)) return; // Evite les boucles si déjà en haut
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/recherche-entreprise',
-                  (route) => false,
-                  arguments: {'isMandatory': true},
-                );
-              });
-              return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()));
+              return const EntrepriseSearchScreen(isMandatory: true);
             }
 
             return const StudentShell();

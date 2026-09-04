@@ -27,12 +27,16 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
   }
 
   Future<void> _loadData() async {
-    final carnetId = widget.carnet['id'];
+    final carnetId = widget.carnet['id']?.toString();
+    final autoId = widget.carnet['autorisation_id']?.toString();
+    
     setState(() => _isLoading = true);
     try {
+      if (autoId == null) throw 'Identifiant d\'autorisation manquant.';
+
       final results = await Future.wait([
-        _apiService.getHistoriquePointage(carnetId),
-        _apiService.getEncouragements(carnetId),
+        _apiService.getHistoriquePointage(autorisationId: autoId),
+        if (carnetId != null) _apiService.getEncouragements(carnetId) else Future.value([]),
       ]);
       if (mounted) {
         setState(() {
@@ -194,6 +198,8 @@ class _SuiviStagiaireScreenState extends State<SuiviStagiaireScreen> with Single
                 ),
                 if (fin == null)
                   const StatusPill(label: 'En cours', color: ColorConstants.teal)
+                else if (entry['statut_cloture'] == 'SORTIE_SILENCIEUSE')
+                  const StatusPill(label: 'Pause ?', color: ColorConstants.warning)
                 else
                   const Icon(Icons.check_circle_rounded, color: ColorConstants.success, size: 20),
               ],

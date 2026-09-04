@@ -76,21 +76,13 @@ class InternshipService extends BaseApiService {
     return body;
   }
 
-  Future<List<dynamic>> getHistoriquePointage(String? carnetId, {String? autorisationId}) async {
-    if (carnetId == null && autorisationId == null) return [];
-    
-    final cacheKey = autorisationId != null 
-        ? 'pointage_historique_auth_$autorisationId' 
-        : 'pointage_historique_$carnetId';
+  Future<List<dynamic>> getHistoriquePointage({required String autorisationId}) async {
+    final cacheKey = 'pointage_historique_auth_$autorisationId';
         
     final cached = await cache.getJson<List<dynamic>>(cacheKey);
     if (cached != null) return cached;
 
-    final endpoint = autorisationId != null
-        ? '/pointage/historique/autorisation/$autorisationId'
-        : '/pointage/historique/carnet/$carnetId';
-        
-    final response = await getRequest(endpoint);
+    final response = await getRequest('/pointage/historique/autorisation/$autorisationId');
     final decoded = decodeListResponse(response);
     await cache.setJson(cacheKey, decoded, ttl: const Duration(minutes: 5));
     return decoded;
@@ -257,6 +249,7 @@ class InternshipService extends BaseApiService {
   Future<Map<String, dynamic>> demanderRattachement(String entrepriseId) async {
     final res = await postRequest('/rattachement/demander', {'entreprise_id': entrepriseId});
     await cache.delete('rattachement_statut');
+    await cache.delete('entreprise_dashboard_stats_v2'); // Invalidation dashboard tuteur
     return res;
   }
 
@@ -325,6 +318,7 @@ class InternshipService extends BaseApiService {
     });
     await cache.delete('profile');
     await cache.delete('carnets');
+    await cache.delete('entreprise_dashboard_stats_v2'); // Invalidation dashboard tuteur
     if (carnetId != null) {
       await cache.delete('carnet_stats_$carnetId');
     }

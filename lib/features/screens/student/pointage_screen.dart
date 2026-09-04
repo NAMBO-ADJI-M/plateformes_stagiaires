@@ -80,7 +80,10 @@ class _PointageScreenState extends State<PointageScreen> {
       final carnetId = carnet?['id']?.toString();
       final autoId = auto?['id']?.toString();
 
-      final historique = await _api.getHistoriquePointage(carnetId, autorisationId: autoId);
+      List<dynamic> historique = [];
+      if (autoId != null) {
+        historique = await _api.getHistoriquePointage(autorisationId: autoId);
+      }
 
       if (mounted) {
         setState(() {

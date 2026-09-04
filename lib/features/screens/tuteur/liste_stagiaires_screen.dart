@@ -229,12 +229,23 @@ class _ListeStagiairesScreenState extends State<ListeStagiairesScreen> {
                                 avatarUrl: stagiaire['photo_profil'] ?? stagiaire['photo_profil_url'] ?? '',
                                 autoStatut: autoStatut,
                                 onDemanderSuivi: null,
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => SuiviStagiaireScreen(carnet: item),
-                                  ),
-                                ),
+                                onTap: () {
+                                  if (autoStatut == 'CONVENTION_SIGNEE') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => SuiviStagiaireScreen(carnet: item),
+                                      ),
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text("L'accès au suivi sera disponible une fois la convention signée par le stagiaire."),
+                                        duration: Duration(seconds: 3),
+                                      ),
+                                    );
+                                  }
+                                },
                               ),
                             );
                           }),

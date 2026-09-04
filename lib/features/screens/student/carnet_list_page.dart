@@ -116,7 +116,7 @@ class _CarnetListPageState extends State<CarnetListPage> {
               itemBuilder: (context, i) {
                 final c = carnets[i];
                 final rattache =
-                    c['entreprise_id'] != null && c['autorisation_suivi'] == true;
+                    c['entreprise_id'] != null || c['autorisation'] != null;
                 final poste = c['poste'] as String? ?? '';
                 final entreprise = c['entreprise_nom'] as String? ?? '';
                 final statut = c['statut'] as String? ?? '';
@@ -130,13 +130,13 @@ class _CarnetListPageState extends State<CarnetListPage> {
                         width: 42,
                         height: 42,
                         decoration: BoxDecoration(
-                          color: (rattache ? ColorConstants.success : ColorConstants.accentOrange)
+                          color: (statut == 'EN_COURS' ? ColorConstants.success : ColorConstants.accentOrange)
                               .withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
                           Icons.menu_book_rounded,
-                          color: rattache ? ColorConstants.success : ColorConstants.accentOrange,
+                          color: statut == 'EN_COURS' ? ColorConstants.success : ColorConstants.accentOrange,
                           size: 22,
                         ),
                       ),
@@ -159,11 +159,11 @@ class _CarnetListPageState extends State<CarnetListPage> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              rattache ? 'Rattaché' : 'En attente de rattachement',
+                              statut == 'ARCHIVE' ? 'Carnet archivé' : 'Carnet actif',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: rattache ? ColorConstants.success : ColorConstants.accentOrange,
+                                color: statut == 'ARCHIVE' ? Colors.grey : ColorConstants.success,
                               ),
                             ),
                             if (dateCreation != null) ...[

@@ -5,7 +5,8 @@ import 'package:plateforme_stagiaires/core/constants/constants_colors.dart';
 import 'package:plateforme_stagiaires/services/internship_service.dart';
 
 class EntrepriseSearchScreen extends StatefulWidget {
-  const EntrepriseSearchScreen({super.key});
+  final bool? isMandatory;
+  const EntrepriseSearchScreen({super.key, this.isMandatory});
 
   @override
   State<EntrepriseSearchScreen> createState() => _EntrepriseSearchScreenState();
@@ -112,7 +113,7 @@ class _EntrepriseSearchScreenState extends State<EntrepriseSearchScreen> {
   Widget build(BuildContext context) {
     final args =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-    final bool isMandatory = args?['isMandatory'] ?? false;
+    final bool isMandatory = widget.isMandatory ?? args?['isMandatory'] ?? false;
 
     return PopScope(
       canPop: !isMandatory || _hasSentAtLeastOne,
@@ -223,10 +224,13 @@ class _EntrepriseSearchScreenState extends State<EntrepriseSearchScreen> {
                     child: SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
                           if (isMandatory) {
-                            Navigator.pushNamedAndRemoveUntil(
-                                context, '/home', (route) => false);
+                            await _api.cache.delete('rattachement_statut');
+                            if (mounted) {
+                              Navigator.pushNamedAndRemoveUntil(
+                                  context, '/home', (route) => false);
+                            }
                           } else {
                             Navigator.pop(context);
                           }

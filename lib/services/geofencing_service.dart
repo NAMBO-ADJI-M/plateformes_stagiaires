@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:geolocator/geolocator.dart';
 import 'package:geofence_service/geofence_service.dart' as gs;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'internship_service.dart';
@@ -89,6 +90,9 @@ class GeofencingService {
     await _service.start([geofence]);
     _started = true;
 
+    // ✅ Vérification manuelle de la position initiale
+    _checkInitialPosition(lat, lng, rayonMetres);
+
     if (saveToPrefs) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_keyEnabled, true);
@@ -135,18 +139,30 @@ class GeofencingService {
           autorisationId: _autorisationId,
         );
         PointageEventBus().notifyPointageUpdate();
-
-        // ✅ Notification interactive avec choix Pause ou Fin de journée
-        await NotificationService().showExitChoiceNotification(
-          id: 2,
-          title: '🚪 Sortie de zone détectée',
-          body: 'Êtes-vous en pause ou avez-vous terminé votre journée ?',
-          payload: _autorisationId!,
-        );
+        
+        // La sortie est désormais silencieuse, le cron ou le retour tranchera.
       }
     } catch (_) {
       // Erreur réseau ponctuelle : le prochain changement de statut retentera.
     }
+  }
+
+  Future<void> _checkInitialPosition(double targetLat, double targetLng, int rayon) async {
+    try {
+      final pos = await Geolocator.getCurrentPosition();
+      final distance = Geolocator.distanceBetween(pos.latitude, pos.longitude, targetLat, targetLng);
+      
+      if (distance <= rayon) {
+        // On est déjà dans la zone au démarrage
+        await _api.pointageArrivee(
+          latitude: pos.latitude,
+          longitude: pos.longitude,
+          carnetId: _carnetId,
+          autorisationId: _autorisationId,
+        );
+        PointageEventBus().notifyPointageUpdate();
+      }
+    } catch (_) {}
   }
 
   Future<void> stop() async {
