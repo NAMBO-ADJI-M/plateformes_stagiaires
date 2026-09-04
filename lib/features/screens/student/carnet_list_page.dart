@@ -115,8 +115,6 @@ class _CarnetListPageState extends State<CarnetListPage> {
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (context, i) {
                 final c = carnets[i];
-                final rattache =
-                    c['entreprise_id'] != null || c['autorisation'] != null;
                 final poste = c['poste'] as String? ?? '';
                 final entreprise = c['entreprise_nom'] as String? ?? '';
                 final statut = c['statut'] as String? ?? '';

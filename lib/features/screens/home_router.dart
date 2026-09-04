@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:plateforme_stagiaires/features/screens/student/entreprise_search_screen.dart';
 import 'package:plateforme_stagiaires/features/screens/student/student_shell.dart';
 import 'package:plateforme_stagiaires/features/screens/tuteur/tuteur_shell.dart';
 import 'package:plateforme_stagiaires/services/auth_service.dart';

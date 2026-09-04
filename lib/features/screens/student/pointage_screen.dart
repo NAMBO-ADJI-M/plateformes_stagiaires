@@ -77,7 +77,6 @@ class _PointageScreenState extends State<PointageScreen> {
         return;
       }
 
-      final carnetId = carnet?['id']?.toString();
       final autoId = auto?['id']?.toString();
 
       List<dynamic> historique = [];
